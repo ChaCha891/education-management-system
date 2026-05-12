@@ -34,7 +34,6 @@
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
       <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
       <button onclick="showPage('workers')" id="nav-workers">기사님</button>
-      <button onclick="showPage('education')" id="nav-education">교육주기</button>
       <button onclick="showPage('history')" id="nav-history">교육현황</button>
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
@@ -51,7 +50,6 @@
     <section id="page-mobile" class="page"></section>
     <section id="page-dashboard" class="page hidden"></section>
     <section id="page-workers" class="page hidden"></section>
-    <section id="page-education" class="page hidden"></section>
     <section id="page-history" class="page hidden"></section>
     <section id="page-retention" class="page hidden"></section>
     <section id="page-equipment" class="page hidden"></section>
@@ -279,37 +277,48 @@ function latestHistoryDate(workerId, educationName) {
   return dates[0] || "";
 }
 
-function effectiveLastDate(e) {
-  // 교육현황에 같은 기사님/같은 교육명의 최신 이력이 있으면 그것을 최근교육일자로 사용
-  return latestHistoryDate(e.worker_id, e.education_name) || e.last_date;
-}
-
 function makeDue() {
-  const workerMap = Object.fromEntries(state.workers.map(w => [w.id, w]));
   const result = [];
-  for (const e of state.education) {
-    const w = workerMap[e.worker_id];
-    if (!w) continue;
-    const last = effectiveLastDate(e);
-    const sch = calcSchedule(last, e.cycle_days);
-    if (sch.remain !== null && sch.remain <= 30) {
-      result.push({ ...e, name:w.name, phone:w.phone || "", company:w.company || "", last_date:last, next_date:sch.nextText, remain:sch.remain, dday:sch.dday, status:sch.status });
+  const rules = activeEducationRules();
+  for (const w of state.workers) {
+    for (const r of rules) {
+      const last = latestHistoryDate(w.id, r.education_name);
+      const sch = calcSchedule(last, Number(r.cycle_days));
+      if (sch.remain !== null && sch.remain <= 30) {
+        result.push({
+          worker_id:w.id,
+          education_name:r.education_name,
+          cycle_days:Number(r.cycle_days),
+          name:w.name,
+          phone:w.phone || "",
+          company:w.company || "",
+          last_date:last,
+          next_date:sch.nextText,
+          remain:sch.remain,
+          dday:sch.dday,
+          status:sch.status
+        });
+      }
     }
   }
-  result.sort((a,b) => a.remain - b.remain || a.name.localeCompare(b.name));
+  result.sort((a,b) => a.remain - b.remain || a.name.localeCompare(b.name, "ko"));
   state.due = result;
 }
 
 function dashboardStats(){
-  let overdue=0, soon=0, normal=0, oneTime=0;
-  for(const e of state.education){
-    const sch=calcSchedule(effectiveLastDate(e), e.cycle_days);
-    if(sch.remain===null) oneTime++;
-    else if(sch.remain<0) overdue++;
-    else if(sch.remain<=14) soon++;
-    else normal++;
+  let overdue=0, soon=0, normal=0, oneTime=0, missing=0;
+  for(const w of state.workers){
+    for(const r of activeEducationRules()){
+      const last = latestHistoryDate(w.id, r.education_name);
+      if(!last){ missing++; continue; }
+      const sch=calcSchedule(last, Number(r.cycle_days));
+      if(sch.remain===null) oneTime++;
+      else if(sch.remain<0) overdue++;
+      else if(sch.remain<=14) soon++;
+      else normal++;
+    }
   }
-  return {overdue, soon, normal, oneTime};
+  return {overdue, soon, normal, oneTime, missing};
 }
 
 function showPage(page) {
@@ -324,12 +333,12 @@ function renderCurrent() {
   if (currentPage === "mobile") renderMobile();
   if (currentPage === "dashboard") renderDashboard();
   if (currentPage === "workers") renderWorkers();
-  if (currentPage === "education") renderEducation();
   if (currentPage === "history") renderHistory();
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
+  bindDraftInputs();
 }
 
 function renderMobile() {
@@ -341,8 +350,8 @@ function renderMobile() {
       <p><b>예정일:</b> ${x.next_date} <span class="badge ${badgeClass(x.remain)}">${x.dday}</span></p>
       <p><b>연락처:</b> ${escapeHtml(x.phone || "연락처 없음")}</p>
       <textarea readonly>${escapeHtml(smsBody(x))}</textarea>
-      <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducation(${x.id})">교육완료</button></div>
-      <p class="small">교육완료를 누르면 교육현황과 교육주기가 동시에 갱신됩니다.</p>
+      <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">교육완료</button></div>
+      <p class="small">교육완료를 누르면 교육현황에 이력이 누적 저장됩니다.</p>
     </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">표시 기준: 기한초과 전체 + D-30 이내</p></div>`;
   document.getElementById("page-mobile").innerHTML = `
     <div class="card"><h2>현장용 화면</h2><p class="small">문자 발송 → 교육완료 처리까지 휴대폰에서 바로 처리합니다.</p><div class="actions"><button onclick="loadAll()">새로고침</button></div></div>
@@ -351,13 +360,13 @@ function renderMobile() {
 
 function renderDashboard() {
   const st=dashboardStats();
-  const rows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducation(${x.id})">완료</button></td></tr>`).join("") || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
+  const rows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button></td></tr>`).join("") || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
   document.getElementById("page-dashboard").innerHTML = `
     <div class="grid3">
       <div class="card"><h2>${state.workers.length}명</h2><p class="small">등록 기사님</p></div>
       <div class="card"><h2>${st.overdue}건</h2><p class="small danger-text">기한초과</p></div>
       <div class="card"><h2>${st.soon}건</h2><p class="small warn-text">14일 이내 임박</p></div>
-      <div class="card"><h2>${state.education.length}건</h2><p class="small">관리 중 교육주기</p></div>
+      <div class="card"><h2>${activeEducationRules().length}종</h2><p class="small">사용 중 교육기준</p></div>
       <div class="card"><h2>${st.normal}건</h2><p class="small ok-text">정상 관리</p></div>
       <div class="card"><h2>${state.equipment.length}대</h2><p class="small">장비</p></div>
     </div>
@@ -393,101 +402,57 @@ async function saveWorker() {
   if (data.birth && !isValidDateText(data.birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
   const res = id ? await db.from("workers").update(data).eq("id", id) : await db.from("workers").insert(data);
   if (res.error) return toast("저장 오류");
-  clearWorkerForm(); await loadAll(); toast("저장 완료");
+  clearDraftForPage("workers"); clearWorkerForm(); await loadAll(); toast("저장 완료");
 }
 function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); scrollTo(0,0); }
-function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); }
-async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육주기/이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
+function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
+async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
 
-function renderEducation() {
-  const workerMap = Object.fromEntries(state.workers.map(w=>[w.id,w]));
-  const rows = state.education.map(e => {
-    const w=workerMap[e.worker_id];
-    const last=effectiveLastDate(e);
-    const sch=calcSchedule(last,e.cycle_days);
-    return `<tr><td>${escapeHtml(w?.name||"")}</td><td>${escapeHtml(w?.company||"")}</td><td class="left">${escapeHtml(e.education_name)}<span class="mini">${escapeHtml(educationMeta(e.education_name))}</span></td><td>${escapeHtml(last||"-")}</td><td>${isOneTimeCycle(e.cycle_days)?"반복없음":e.cycle_days}</td><td>${sch.nextText}</td><td><span class="badge ${sch.cls}">${sch.dday}</span></td><td><button class="green" onclick="completeEducation(${e.id})">교육완료</button> <button onclick="editEducation(${e.id})">수정</button> <button class="red" onclick="deleteEducation(${e.id})">삭제</button></td></tr>`;
-  }).join("") || `<tr><td colspan="8">등록된 교육주기가 없습니다.</td></tr>`;
-  document.getElementById("page-education").innerHTML = `
-    <div class="card"><h2>교육주기 등록/수정</h2><input type="hidden" id="edu-id"><div class="form-row"><div><label>기사님</label><select id="edu-worker">${workerOptions()}</select></div><div><label>교육명</label><input id="edu-name" list="edu-list" oninput="applyEducationRuleToForm()"><datalist id="edu-list">${eduOptions()}</datalist></div><div><label>최근 교육일</label><input id="edu-last" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260512"></div><div><label>주기(일)</label><input id="edu-cycle" placeholder="교육명 선택 시 자동"></div></div><p id="edu-rule-help" class="small">교육명을 선택하면 기본 주기가 자동 입력됩니다. 0일은 1회성 교육으로 관리됩니다.</p><div class="actions"><button class="primary" onclick="saveEducation()">저장</button><button onclick="clearEduForm()">초기화</button><button class="green" onclick="bulkCreateDefaultEducation()">전체 기사 기본교육 자동생성</button></div></div>
-    <div class="card"><h2>교육주기 목록</h2><p class="small">최근교육일은 교육현황의 최신 이수일을 우선 반영합니다. 교육완료 버튼을 누르면 D-Day가 새 주기로 재시작됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육명</th><th>최근 교육일</th><th>주기</th><th>다음 교육일</th><th>D-Day</th><th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-}
-async function saveEducation(){
-  const id=val("edu-id");
-  const data={ worker_id:Number(val("edu-worker")), education_name:val("edu-name"), last_date:dateVal("edu-last"), cycle_days:Number(val("edu-cycle")) };
-  if(!data.worker_id||!data.education_name||!data.last_date||Number.isNaN(data.cycle_days)) return toast("모두 입력하세요.");
-  if(!isValidDateText(data.last_date)) return toast("최근 교육일은 YYYY-MM-DD 형식으로 입력하세요.");
-  const res=id?await db.from("education_records").update(data).eq("id",id):await db.from("education_records").insert(data);
-  if(res.error)return toast("저장 오류");
-  await upsertEducationHistory(data.worker_id, data.education_name, data.last_date, "교육주기 등록/수정 반영");
-  clearEduForm(); await loadAll(); toast("교육주기 저장 완료");
-}
-
-function applyEducationRuleToForm(){
-  const name=val("edu-name");
-  const rule=getEducationRule(name);
-  const help=document.getElementById("edu-rule-help");
-  if(rule){
-    setVal("edu-cycle", Number(rule.cycle_days));
-    if(help) help.textContent=`자동 적용: ${name} / ${rule.category || "구분없음"} / 주기 ${Number(rule.cycle_days)===0?"반복없음":Number(rule.cycle_days)+"일"} / ${rule.hours || "시간/조건 미입력"} / ${rule.basis || "관리근거 미입력"}`;
-  }else{
-    if(help) help.textContent="사용자 지정 교육입니다. 주기일을 직접 입력하세요. 0일은 1회성으로 처리됩니다.";
-  }
-}
-
-async function bulkCreateDefaultEducation(){
-  if(!state.workers.length) return toast("등록된 기사님이 없습니다.");
-  if(!confirm("모든 기사님에게 기본교육 5종을 없는 항목만 자동 생성할까요?")) return;
-  const rows=[];
-  for(const w of state.workers){
-    for(const name of educationTypeNames()){
-      const exists=state.education.some(e=>Number(e.worker_id)===Number(w.id) && e.education_name===name);
-      if(!exists){
-        const rule=getEducationRule(name);
-        rows.push({ worker_id:w.id, education_name:name, last_date:todayStr(), cycle_days:rule?Number(rule.cycle_days):365 });
-      }
-    }
-  }
-  if(!rows.length) return toast("추가할 기본교육이 없습니다.");
-  const res=await db.from("education_records").insert(rows);
-  if(res.error) return toast("자동생성 오류");
-  for(const r of rows) await upsertEducationHistory(r.worker_id, r.education_name, r.last_date, "기본교육 자동생성");
-  await loadAll();
-  toast(`${rows.length}건 자동생성 완료`);
-}
-
-function editEducation(id){ const e=state.education.find(x=>x.id===id); if(!e)return; setVal("edu-id",e.id); setVal("edu-worker",e.worker_id); setVal("edu-name",e.education_name); setVal("edu-last",e.last_date); setVal("edu-cycle",e.cycle_days); scrollTo(0,0); }
-function clearEduForm(){ ["edu-id","edu-name","edu-cycle"].forEach(x=>setVal(x,"")); setVal("edu-last",todayStr()); }
-async function deleteEducation(id){ if(!confirm("삭제할까요?")) return; await db.from("education_records").delete().eq("id",id); await loadAll(); }
+// 교육주기 메뉴는 제거했습니다. 교육 기준/주기 관리는 [보관관리]와 [설정]의 교육기준을 마스터로 사용합니다.
 
 function groupedHistoryRows(){
-  const workerMap=Object.fromEntries(state.workers.map(w=>[w.id,w]));
+  const eduNames = educationTypeNames();
   const latestByWorker={};
+
+  // 교육현황은 기사님 전체를 기준으로 먼저 행을 만들고,
+  // 설정의 교육기준 목록을 기준으로 교육 컬럼을 자동 생성합니다.
+  // 그래서 아직 이력이 없는 기사님도 교육기준 항목이 빈칸(-)으로 같이 보입니다.
+  for(const w of state.workers){
+    latestByWorker[String(w.id)] = { worker:w, records:{}, ids:[] };
+  }
+
   for(const h of state.history){
     const key=String(h.worker_id);
-    if(!latestByWorker[key]) latestByWorker[key]={worker:workerMap[h.worker_id], records:{}, ids:[]};
+    if(!latestByWorker[key]) latestByWorker[key]={worker:null, records:{}, ids:[]};
     const old=latestByWorker[key].records[h.education_name];
     if(!old || String(h.education_date) > String(old.education_date)) latestByWorker[key].records[h.education_name]=h;
     latestByWorker[key].ids.push(h.id);
   }
-  const groups=Object.entries(latestByWorker).sort((a,b)=>(a[1].worker?.name||"").localeCompare(b[1].worker?.name||""));
-  if(!groups.length) return `<tr><td colspan="${educationTypeNames().length+3}">등록된 교육 이력이 없습니다.</td></tr>`;
+
+  const groups=Object.entries(latestByWorker)
+    .filter(([workerId,g]) => g.worker)
+    .sort((a,b)=>(a[1].worker?.name||"").localeCompare(b[1].worker?.name||""));
+
+  if(!state.workers.length) return `<tr><td colspan="${eduNames.length+3}">등록된 기사님이 없습니다.</td></tr>`;
+
   return groups.map(([workerId,g])=>{
-    const eduCells=educationTypeNames().map(name=>{
+    const eduCells=eduNames.map(name=>{
       const r=g.records[name];
-      if(!r) return `<td>-</td>`;
-      const rec=state.education.find(e=>Number(e.worker_id)===Number(workerId) && e.education_name===name);
-      const cycle=rec ? rec.cycle_days : (getEducationRule(name)?.cycle_days ?? 365);
+      if(!r) return `<td><span class="small">-</span></td>`;
+      const cycle=(getEducationRule(name)?.cycle_days ?? 365);
       const sch=calcSchedule(r.education_date, cycle);
       return `<td><span class="edu-chip">${escapeHtml(r.education_date)}</span><span class="mini"><span class="badge ${sch.cls}">${sch.dday}</span></span></td>`;
     }).join("");
-    return `<tr><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}<td><button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button></td></tr>`;
+    const hasHistory = (g.ids || []).length > 0;
+    const manageButton = hasHistory ? `<button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button>` : `<span class="small">이력 없음</span>`;
+    return `<tr><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}<td>${manageButton}</td></tr>`;
   }).join("");
 }
 
 function renderHistory(){
   const eduHeads=educationTypeNames().map(x=>`<th>${escapeHtml(x)}</th>`).join("");
   const rows=groupedHistoryRows();
-  document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions()}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div><div class="card"><h2>기사님별 교육카드</h2><p class="small">기사님 한 명을 한 줄로 묶고, 각 교육 칸에는 최신 이수일과 현재 D-Day 상태를 함께 표시합니다. 2019년처럼 오래된 교육일도 숨기지 않고 표시합니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}<th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions()}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div><div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}<th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
 async function upsertEducationHistory(workerId, educationName, educationDate, note=""){
@@ -508,24 +473,21 @@ async function saveHistory(){
   if(!isValidDateText(data.education_date)) return toast("교육일자는 YYYY-MM-DD 형식으로 입력하세요.");
   const res=await upsertEducationHistory(data.worker_id,data.education_name,data.education_date,data.note);
   if(res.error)return toast("저장 오류: 교육현황 저장 실패");
-  const syncRes = await syncEducationRecordLastDate(data.worker_id,data.education_name,data.education_date);
-  if(syncRes?.error)return toast("저장 오류: 교육주기 갱신 실패");
+  clearDraftForPage("history");
   await loadAll();
-  toast("교육현황 및 교육주기 자동 업데이트 완료");
+  toast("교육현황 저장 완료");
 }
 async function deleteHistory(id){ if(!confirm("삭제할까요?"))return; await db.from("training_history").delete().eq("id",id); await loadAll(); }
 async function deleteWorkerHistory(workerId){ if(!confirm("해당 기사님의 교육이력을 모두 삭제할까요?"))return; await db.from("training_history").delete().eq("worker_id",workerId); await loadAll(); }
 
 
 
-async function completeEducation(id){
-  const e=state.education.find(x=>Number(x.id)===Number(id));
-  if(!e) return toast("교육주기 정보를 찾을 수 없습니다.");
+function jsString(v){ return String(v ?? "").replaceAll("\", "\\").replaceAll("'", "\'"); }
+async function completeEducationByWorker(workerId, educationName){
+  if(!workerId || !educationName) return toast("교육 정보를 찾을 수 없습니다.");
   const doneDate=todayStr();
-  const histRes=await upsertEducationHistory(e.worker_id, e.education_name, doneDate, "교육완료 버튼 처리");
+  const histRes=await upsertEducationHistory(workerId, educationName, doneDate, "교육완료 버튼 처리");
   if(histRes.error) return toast("교육현황 저장 오류");
-  const eduRes=await db.from("education_records").update({last_date:doneDate}).eq("id", id);
-  if(eduRes.error) return toast("교육주기 갱신 오류");
   await loadAll();
   toast("교육완료 처리 완료");
 }
@@ -533,23 +495,43 @@ async function completeEducation(id){
 function renderRetention(){
   const workerMap=Object.fromEntries(state.workers.map(w=>[w.id,w]));
   const rules=retentionRules();
-  const ruleRows=rules.map((r, idx)=>`<tr>
-    <td>${escapeHtml(r.education_name)}</td>
-    <td>${escapeHtml(r.retention_years)}</td>
-    <td class="left">${escapeHtml(r.note || "")}</td>
-    <td>${r.active===false?"미사용":"사용"}</td>
-    <td><button onclick="editRetentionRule(${idx})">수정</button> <button class="red" onclick="deleteRetentionRule(${idx})">삭제</button></td>
-  </tr>`).join("") || `<tr><td colspan="5">등록된 보관기준이 없습니다.</td></tr>`;
+  const eduRuleMap=Object.fromEntries(educationRules().map(r=>[r.education_name,r]));
+  const ruleRows=rules.map((r, idx)=>{
+    const er=eduRuleMap[r.education_name] || {};
+    return `<tr>
+      <td>${escapeHtml(r.education_name)}</td>
+      <td>${Number(er.cycle_days)===0?"반복없음":escapeHtml(er.cycle_days ?? "-")+"일"}</td>
+      <td>${escapeHtml(r.retention_years)}</td>
+      <td class="left">${escapeHtml(er.category || "")}</td>
+      <td class="left">${escapeHtml(er.basis || r.note || "")}</td>
+      <td>${(r.active===false || er.active===false)?"미사용":"사용"}</td>
+      <td><button onclick="editRetentionRule(${idx})">수정</button> <button class="red" onclick="deleteRetentionRule(${idx})">삭제</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7">등록된 보관기준이 없습니다.</td></tr>`;
+
   const historyRows=state.history.map(h=>{
     const w=workerMap[h.worker_id];
+    const r=rules.find(x=>x.education_name===h.education_name);
+    const er=eduRuleMap[h.education_name];
+    const missing=!r || !er;
+    const inactive=(r?.active===false) || (er?.active===false);
     const st=retentionStatus(h);
-    let mark="-";
-    if(st.managed){
-      if(st.expired && !st.ack) mark=`<span class="badge due">보관기한 지남</span><span class="mini">만료일: ${st.expiryText}</span>`;
-      else if(st.expired && st.ack) mark=`<span class="badge info">확인완료</span><span class="mini">만료일: ${st.expiryText}</span>`;
-      else mark=`<span class="badge ok">보관중</span><span class="mini">만료일: ${st.expiryText}</span>`;
+    let mark="";
+    let action="-";
+    if(missing){
+      mark=`<span class="badge due">블라인드</span><span class="mini">보관기준 목록에 없는 교육</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(inactive){
+      mark=`<span class="badge due">블라인드</span><span class="mini">미사용 교육</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(st.managed && st.expired){
+      mark=`<span class="badge due">보관기간 초과</span><span class="mini">만료일: ${st.expiryText}</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(st.managed){
+      mark=`<span class="badge ok">보관중</span><span class="mini">만료일: ${st.expiryText}</span>`;
+    }else{
+      mark=`<span class="badge info">보관기준 없음</span>`;
     }
-    const action=(st.managed && st.expired && !st.ack) ? `<button class="green" onclick="ackRetention('${st.key}')">확인</button>` : "-";
     return `<tr><td>${escapeHtml(w?.name||"")}</td><td>${escapeHtml(w?.company||"")}</td><td>${escapeHtml(h.education_name)}</td><td>${escapeHtml(h.education_date)}</td><td>${escapeHtml(st.years)}</td><td>${mark}</td><td>${escapeHtml(h.note||"")}</td><td>${action}</td></tr>`;
   }).join("") || `<tr><td colspan="8">등록된 교육 이력이 없습니다.</td></tr>`;
   document.getElementById("page-retention").innerHTML=`
@@ -557,15 +539,21 @@ function renderRetention(){
       <input type="hidden" id="ret-index">
       <div class="form-row">
         <div><label>교육명</label><input id="ret-name" list="ret-edu-list"><datalist id="ret-edu-list">${eduOptions()}</datalist></div>
+        <div><label>교육주기(일)</label><input id="ret-cycle" placeholder="365, 90, 0"></div>
         <div><label>보관년수</label><input id="ret-years" placeholder="예: 5"></div>
         <div><label>사용 여부</label><select id="ret-active"><option value="true">사용</option><option value="false">미사용</option></select></div>
-        <div><label>비고</label><input id="ret-note" placeholder="예: 자체 관리기준"></div>
       </div>
-      <p class="small">교육 이력은 삭제하지 않고 계속 누적합니다. 보관년수가 지난 이력은 ‘보관기한 지남’으로 표시하고, 확인 버튼을 누르면 해당 문구가 ‘확인완료’로 바뀝니다.</p>
+      <div class="form-row">
+        <div><label>구분</label><input id="ret-category" placeholder="반복 / 1회성 / 조건부"></div>
+        <div><label>시간/조건</label><input id="ret-hours" placeholder="예: 분기 6시간"></div>
+        <div><label>대상/조건</label><input id="ret-condition" placeholder="예: 신규 투입자"></div>
+        <div><label>관리근거</label><input id="ret-basis" placeholder="법령/사내기준"></div>
+      </div>
+      <p class="small">이 화면의 교육명·교육주기·보관년수·사용여부를 기준 마스터로 사용합니다. 보관기간 초과, 미사용, 기준 없는 이력은 확인 후 실제 삭제됩니다.</p>
       <div class="actions"><button class="primary" onclick="saveRetentionRule()">보관기준 저장</button><button onclick="clearRetentionForm()">초기화</button><button onclick="syncRetentionRulesFromEducation()">교육기준에서 불러오기</button></div>
     </div>
-    <div class="card"><h2>보관기준 목록</h2><div class="table-wrap"><table><thead><tr><th>교육명</th><th>보관년수</th><th>비고</th><th>사용</th><th>관리</th></tr></thead><tbody>${ruleRows}</tbody></table></div></div>
-    <div class="card"><h2>교육이력 보관상태</h2><p class="small">전체 교육이력을 기준으로 보관기한 경과 여부를 표시합니다. 확인 처리는 표시만 정리하며 원본 이력은 삭제하지 않습니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육명</th><th>교육일자</th><th>보관년수</th><th>상태</th><th>비고</th><th>확인</th></tr></thead><tbody>${historyRows}</tbody></table></div></div>`;
+    <div class="card"><h2>보관기준 목록</h2><div class="table-wrap"><table><thead><tr><th>교육명</th><th>교육주기</th><th>보관년수</th><th>구분</th><th>관리근거</th><th>사용</th><th>관리</th></tr></thead><tbody>${ruleRows}</tbody></table></div></div>
+    <div class="card"><h2>교육이력 보관상태</h2><p class="small">보관기준에 없거나 미사용 처리된 교육, 보관기간이 지난 교육은 삭제 대상으로 표시됩니다. 확인 후 삭제를 누르면 해당 교육이력 데이터가 실제 삭제됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육명</th><th>교육일자</th><th>보관년수</th><th>상태</th><th>비고</th><th>확인</th></tr></thead><tbody>${historyRows}</tbody></table></div></div>`;
 }
 
 async function saveRetentionRulesToSettings(rules){
@@ -583,24 +571,38 @@ async function saveRetentionAckKeys(keys){
 async function saveRetentionRule(){
   const name=val("ret-name");
   const years=Number(val("ret-years"));
+  const cycle=Number(val("ret-cycle"));
   if(!name) return toast("교육명을 입력하세요.");
+  if(Number.isNaN(cycle)) return toast("교육주기(일)는 숫자로 입력하세요. 반복없음은 0입니다.");
   if(Number.isNaN(years) || years < 0) return toast("보관년수는 0 이상의 숫자로 입력하세요.");
   const idxText=val("ret-index");
   const idx=idxText==="" ? -1 : Number(idxText);
+  const active=val("ret-active")!=="false";
+
   const rules=retentionRules().slice();
-  const data={education_name:name, retention_years:years, note:val("ret-note"), active:val("ret-active")!=="false"};
+  const data={education_name:name, retention_years:years, note:val("ret-basis") || val("ret-note"), active};
   const dup=rules.findIndex((r,i)=>i!==idx && r.education_name===name);
   if(dup>=0) return toast("같은 교육명의 보관기준이 이미 있습니다.");
   if(idx>=0) rules[idx]=data; else rules.push(data);
   const ok=await saveRetentionRulesToSettings(rules);
   if(!ok) return;
+
+  const eduRules=educationRules().slice();
+  const erIdx=eduRules.findIndex(r=>r.education_name===name);
+  const er={education_name:name, category:val("ret-category")||"사용자 지정", cycle_days:cycle, hours:val("ret-hours"), condition:val("ret-condition"), basis:val("ret-basis"), active};
+  if(erIdx>=0) eduRules[erIdx]=er; else eduRules.push(er);
+  const ok2=await saveRulesToSettings(eduRules);
+  if(!ok2) return;
+  clearDraftForPage("retention");
   clearRetentionForm(); await loadAll(); toast("보관기준 저장 완료");
 }
 function editRetentionRule(idx){
   const r=retentionRules()[idx]; if(!r) return;
-  setVal("ret-index", idx); setVal("ret-name", r.education_name); setVal("ret-years", r.retention_years); setVal("ret-note", r.note); setVal("ret-active", r.active===false?"false":"true"); scrollTo(0,0);
+  const er=getEducationRule(r.education_name) || educationRules().find(x=>x.education_name===r.education_name) || {};
+  setVal("ret-index", idx); setVal("ret-name", r.education_name); setVal("ret-years", r.retention_years); setVal("ret-cycle", er.cycle_days ?? ""); setVal("ret-category", er.category || ""); setVal("ret-hours", er.hours || ""); setVal("ret-condition", er.condition || ""); setVal("ret-basis", er.basis || r.note || ""); setVal("ret-active", (r.active===false || er.active===false)?"false":"true"); scrollTo(0,0);
+  saveDraftForPage("retention");
 }
-function clearRetentionForm(){ ["ret-index","ret-name","ret-years","ret-note"].forEach(x=>setVal(x,"")); setVal("ret-active","true"); }
+function clearRetentionForm(){ ["ret-index","ret-name","ret-years","ret-cycle","ret-category","ret-hours","ret-condition","ret-basis","ret-note"].forEach(x=>setVal(x,"")); setVal("ret-active","true"); clearDraftForPage("retention"); }
 async function deleteRetentionRule(idx){
   const rules=retentionRules().slice(); const r=rules[idx]; if(!r) return;
   if(!confirm(`${r.education_name} 보관기준을 삭제할까요? 교육이력은 삭제되지 않습니다.`)) return;
@@ -614,10 +616,16 @@ async function syncRetentionRulesFromEducation(){
   }
   const ok=await saveRetentionRulesToSettings(rules); if(!ok) return; await loadAll(); toast("교육기준 불러오기 완료");
 }
+async function deleteHistoryRecord(id){
+  if(!confirm("해당 교육이력을 실제 삭제할까요? 삭제 후 복구할 수 없습니다.")) return;
+  const res=await db.from("training_history").delete().eq("id", id);
+  if(res.error) return toast("교육이력 삭제 오류");
+  await loadAll();
+  toast("교육이력 삭제 완료");
+}
 async function ackRetention(key){
-  const keys=retentionAckKeys();
-  if(!keys.includes(key)) keys.push(key);
-  const ok=await saveRetentionAckKeys(keys); if(!ok) return; await loadAll(); toast("보관기한 경과 확인 완료");
+  // 이전 버전 호환용: 이제 확인 처리는 표시 전환이 아니라 실제 삭제 방식입니다.
+  toast("이 버전에서는 확인 후 삭제 버튼을 사용하세요.");
 }
 
 function renderEquipment(){
@@ -628,9 +636,9 @@ function renderEquipment(){
   const rows=state.equipment.map((e, idx)=>`<tr><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td><button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button></td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
   document.getElementById("page-equipment").innerHTML=`<div class="card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button></div></div><div class="card"><h2>장비 목록</h2><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearEqForm(); await loadAll(); }
+async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearDraftForPage("equipment"); clearEqForm(); await loadAll(); }
 function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); scrollTo(0,0); }
-function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); }
+function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
 async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
 
 function renderSettings(){
@@ -700,6 +708,7 @@ async function saveRule(){
   if(idx >= 0) rules[idx] = data; else rules.push(data);
   const ok = await saveRulesToSettings(rules);
   if(!ok) return;
+  clearDraftForPage("settings");
   clearRuleForm();
   await loadAll();
   toast("교육기준 저장 완료");
@@ -718,7 +727,7 @@ function editRule(idx){
   setVal("rule-active", r.active===false?"false":"true");
   scrollTo(0,0);
 }
-function clearRuleForm(){ ["rule-index","rule-name","rule-category","rule-cycle","rule-hours","rule-condition","rule-basis"].forEach(x=>setVal(x,"")); setVal("rule-active","true"); }
+function clearRuleForm(){ ["rule-index","rule-name","rule-category","rule-cycle","rule-hours","rule-condition","rule-basis"].forEach(x=>setVal(x,"")); setVal("rule-active","true"); clearDraftForPage("settings"); }
 async function deleteRule(idx){
   const rules = educationRules().slice();
   const r = rules[idx];
@@ -738,7 +747,40 @@ async function resetDefaultRules(){
   toast("기본 교육기준 복원 완료");
 }
 
-async function saveSettings(){ const value=val("sms-template"); const res=await db.from("settings").upsert({key:"sms_template", value}); if(res.error)return toast("저장 오류"); await loadAll(); toast("저장 완료"); }
+async function saveSettings(){ const value=val("sms-template"); const res=await db.from("settings").upsert({key:"sms_template", value}); if(res.error)return toast("저장 오류"); clearDraftForPage("settings"); await loadAll(); toast("저장 완료"); }
+
+function draftPrefix(page=currentPage){ return `educationSystemDraft:${page}:`; }
+function draftEnabledPage(page=currentPage){ return !["mobile","dashboard"].includes(page); }
+function saveDraftForPage(page=currentPage){
+  if(!draftEnabledPage(page)) return;
+  document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
+    if(!el.id) return;
+    localStorage.setItem(draftPrefix(page)+el.id, el.value ?? "");
+  });
+}
+function restoreDraftForPage(page=currentPage){
+  if(!draftEnabledPage(page)) return;
+  document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
+    if(!el.id) return;
+    const key=draftPrefix(page)+el.id;
+    const saved=localStorage.getItem(key);
+    if(saved!==null && saved!=="") el.value=saved;
+  });
+}
+function clearDraftForPage(page=currentPage){
+  const prefix=draftPrefix(page);
+  Object.keys(localStorage).filter(k=>k.startsWith(prefix)).forEach(k=>localStorage.removeItem(k));
+}
+function bindDraftInputs(){
+  if(!draftEnabledPage(currentPage)) return;
+  restoreDraftForPage(currentPage);
+  document.querySelectorAll(`#page-${currentPage} input, #page-${currentPage} select, #page-${currentPage} textarea`).forEach(el=>{
+    if(!el.id || el.dataset.draftBound==="1") return;
+    el.dataset.draftBound="1";
+    el.addEventListener("input",()=>saveDraftForPage(currentPage));
+    el.addEventListener("change",()=>saveDraftForPage(currentPage));
+  });
+}
 
 function val(id){ return document.getElementById(id)?.value?.trim() ?? ""; }
 function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v ?? ""; }
