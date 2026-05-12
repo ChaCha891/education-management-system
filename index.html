@@ -167,7 +167,7 @@ async function loadAll() {
     db.from("workers").select("*").order("name"),
     db.from("education_records").select("*").order("education_name"),
     db.from("training_history").select("*").order("education_date", { ascending:false }),
-    db.from("equipment").select("*").order("no"),
+    db.from("equipment").select("*").order("id"),
     db.from("settings").select("*")
   ]);
   if (w.error || e.error || h.error || eq.error || s.error) {
@@ -287,10 +287,19 @@ function eduOptions() {
   return educationTypeNames().map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
 }
 
+function uniqueValues(items, key) {
+  return [...new Set((items || []).map(x => (x?.[key] || "").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b, "ko"));
+}
+function dataListOptions(values) {
+  return (values || []).map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
+}
+
 function renderWorkers() {
+  const companyOptions = dataListOptions(uniqueValues(state.workers, "company"));
+  const noteOptions = dataListOptions(uniqueValues(state.workers, "note"));
   const rows = state.workers.map(w => `<tr><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td><button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="6">등록된 기사님이 없습니다.</td></tr>`;
   document.getElementById("page-workers").innerHTML = `
-    <div class="card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" placeholder="YYYY-MM-DD"></div><div><label>연락처</label><input id="worker-phone" placeholder="010-0000-0000"></div><div><label>소속</label><input id="worker-company"></div></div><div><label>비고</label><input id="worker-note"></div><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button></div></div>
+    <div class="card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" placeholder="YYYY-MM-DD"></div><div><label>연락처</label><input id="worker-phone" placeholder="010-0000-0000"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button></div></div>
     <div class="card"><h2>기사님 목록</h2><div class="table-wrap"><table><thead><tr><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 async function saveWorker() {
@@ -421,12 +430,16 @@ async function deleteHistory(id){ if(!confirm("삭제할까요?"))return; await 
 async function deleteWorkerHistory(workerId){ if(!confirm("해당 기사님의 교육이력을 모두 삭제할까요?"))return; await db.from("training_history").delete().eq("worker_id",workerId); await loadAll(); }
 
 function renderEquipment(){
-  const rows=state.equipment.map(e=>`<tr><td>${escapeHtml(e.no)}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td><button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button></td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
-  document.getElementById("page-equipment").innerHTML=`<div class="card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>No.</label><input id="eq-no"></div><div><label>차종</label><input id="eq-type"></div><div><label>작업종류</label><input id="eq-work"></div><div><label>차넘버</label><input id="eq-number"></div></div><div><label>비고</label><input id="eq-note"></div><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button></div></div><div class="card"><h2>장비 목록</h2><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  const typeOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_type"));
+  const workOptions = dataListOptions(uniqueValues(state.equipment, "work_type"));
+  const numberOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_number"));
+  const noteOptions = dataListOptions(uniqueValues(state.equipment, "note"));
+  const rows=state.equipment.map((e, idx)=>`<tr><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td><button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button></td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
+  document.getElementById("page-equipment").innerHTML=`<div class="card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button></div></div><div class="card"><h2>장비 목록</h2><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-async function saveEquipment(){ const id=val("eq-id"); const data={no:val("eq-no"),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearEqForm(); await loadAll(); }
-function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; setVal("eq-id",e.id); setVal("eq-no",e.no); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); scrollTo(0,0); }
-function clearEqForm(){ ["eq-id","eq-no","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); }
+async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearEqForm(); await loadAll(); }
+function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); scrollTo(0,0); }
+function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); }
 async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
 
 function renderSettings(){
