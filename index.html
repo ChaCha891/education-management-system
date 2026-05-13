@@ -24,7 +24,16 @@
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
-    @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}}
+
+    .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+    .calendar-title{font-size:20px;font-weight:900}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .calendar-head{font-weight:900;text-align:center;padding:8px;color:var(--muted)}
+    .day-cell{min-height:118px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;overflow:hidden}
+    .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
+    .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.check-item{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}
+    @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row,.worker-checks{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}.calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}}
   </style>
 </head>
 <body>
@@ -33,6 +42,7 @@
     <div class="nav">
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
       <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
+      <button onclick="showPage('calendar')" id="nav-calendar">근무달력</button>
       <button onclick="showPage('workers')" id="nav-workers">기사님</button>
       <button onclick="showPage('history')" id="nav-history">교육현황</button>
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
@@ -49,6 +59,7 @@
 
     <section id="page-mobile" class="page"></section>
     <section id="page-dashboard" class="page hidden"></section>
+    <section id="page-calendar" class="page hidden"></section>
     <section id="page-workers" class="page hidden"></section>
     <section id="page-history" class="page hidden"></section>
     <section id="page-retention" class="page hidden"></section>
@@ -79,6 +90,8 @@ const DEFAULT_EDUCATION_RULES = [
 let db = null;
 let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
 let currentPage = "mobile";
+let calendarCursor = new Date();
+let selectedShiftDate = todayStr();
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -190,6 +203,15 @@ function retentionAckKeys(){
     return Array.isArray(parsed) ? parsed : [];
   } catch(e) { return []; }
 }
+
+function shiftCalendar(){
+  try {
+    const parsed = JSON.parse(state.settings.shift_calendar || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+function shiftsByDate(dateText){ return shiftCalendar().filter(x => x.work_date === dateText); }
+function workerNameById(id){ return state.workers.find(w => Number(w.id) === Number(id))?.name || ""; }
 function historyRecordKey(h){ return h?.id ? `history:${h.id}` : `history:${h.worker_id}:${h.education_name}:${h.education_date}`; }
 function addYears(dateText, years){
   const d = new Date(dateText + "T00:00:00");
@@ -263,6 +285,7 @@ async function loadAll() {
   if (!state.settings.education_rules) state.settings.education_rules = JSON.stringify(DEFAULT_EDUCATION_RULES);
   if (!state.settings.retention_rules) state.settings.retention_rules = JSON.stringify(defaultRetentionRules());
   if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
+  if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
   makeDue();
   renderCurrent();
 }
@@ -332,6 +355,7 @@ function showPage(page) {
 function renderCurrent() {
   if (currentPage === "mobile") renderMobile();
   if (currentPage === "dashboard") renderDashboard();
+  if (currentPage === "calendar") renderCalendar();
   if (currentPage === "workers") renderWorkers();
   if (currentPage === "history") renderHistory();
   if (currentPage === "retention") renderRetention();
@@ -339,6 +363,71 @@ function renderCurrent() {
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
   bindDraftInputs();
+}
+
+function renderCalendar(){
+  const y = calendarCursor.getFullYear();
+  const m = calendarCursor.getMonth();
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m + 1, 0);
+  const startBlank = first.getDay();
+  const days = [];
+  for(let i=0;i<startBlank;i++) days.push(`<div class="day-cell empty"></div>`);
+  for(let d=1; d<=last.getDate(); d++){
+    const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const shifts = shiftsByDate(dateText);
+    const names = shifts.map(s => `<span class="shift-name">${escapeHtml(workerNameById(s.worker_id) || "이름없음")}${s.note ? ` · ${escapeHtml(s.note)}` : ""}</span>`).join("");
+    const todayClass = dateText === todayStr() ? " today" : "";
+    const selectedClass = dateText === selectedShiftDate ? " selected-date-box" : "";
+    days.push(`<div class="day-cell${todayClass}${selectedClass}" onclick="selectShiftDate('${dateText}')"><div class="day-num">${d}</div>${names || `<span class="small">-</span>`}</div>`);
+  }
+  const selected = shiftsByDate(selectedShiftDate);
+  const selectedIds = new Set(selected.map(x => String(x.worker_id)));
+  const note = selected[0]?.note || "";
+  const checks = state.workers.length ? state.workers.map(w => `<label class="check-item"><input type="checkbox" class="shift-worker-check" value="${w.id}" ${selectedIds.has(String(w.id)) ? "checked" : ""}> <span>${escapeHtml(w.name)} <span class="small">${escapeHtml(w.company || "")}</span></span></label>`).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
+  document.getElementById("page-calendar").innerHTML = `
+    <div class="card">
+      <div class="calendar-toolbar">
+        <button onclick="moveCalendarMonth(-1)">이전달</button>
+        <div class="calendar-title">${y}년 ${m+1}월 근무달력</div>
+        <button onclick="moveCalendarMonth(1)">다음달</button>
+      </div>
+      <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button></div>
+      <p class="small">날짜를 클릭하면 해당 날짜의 근무 기사님을 선택해서 저장할 수 있습니다.</p>
+    </div>
+    <div class="card">
+      <div class="calendar-grid">
+        ${["일","월","화","수","목","금","토"].map(x => `<div class="calendar-head">${x}</div>`).join("")}
+        ${days.join("")}
+      </div>
+    </div>
+    <div class="card">
+      <h2>${selectedShiftDate} 근무 입력</h2>
+      <div class="worker-checks">${checks}</div>
+      <div style="margin-top:10px"><label>메모</label><input id="shift-note" value="${escapeHtml(note)}" placeholder="예: 야적장, 저광사, 주간, 특이사항"></div>
+      <div class="actions"><button class="primary" onclick="saveShiftDate()">근무 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 비우기</button></div>
+    </div>`;
+}
+function selectShiftDate(dateText){ selectedShiftDate = dateText; renderCalendar(); }
+function moveCalendarMonth(offset){ calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
+function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); renderCalendar(); }
+async function saveShiftDate(){
+  const selectedIds = Array.from(document.querySelectorAll(".shift-worker-check:checked")).map(x => Number(x.value));
+  const note = val("shift-note");
+  const old = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
+  const added = selectedIds.map(id => ({ work_date:selectedShiftDate, worker_id:id, note }));
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
+  if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
+  await loadAll();
+  toast("근무 저장 완료");
+}
+async function clearShiftDate(){
+  if(!confirm(`${selectedShiftDate} 근무 배정을 모두 삭제할까요?`)) return;
+  const kept = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(kept) });
+  if(res.error){ console.error(res.error); return toast("삭제 오류"); }
+  await loadAll();
+  toast("삭제 완료");
 }
 
 function renderMobile() {
