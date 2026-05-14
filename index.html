@@ -24,6 +24,9 @@
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
+    .menu-toggle{display:none;width:auto;min-width:46px;padding:10px 12px;font-size:22px;line-height:1;background:#eef2f7}
+    .menu-backdrop{display:none;position:fixed;inset:0;background:rgba(17,24,39,.42);z-index:18}
+    .menu-backdrop.open{display:block}
 
     .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
     .calendar-title{font-size:20px;font-weight:900}
@@ -33,13 +36,28 @@
     .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
     .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
-    @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}.calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}}
+    @media(max-width:760px){
+      .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
+      .header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .menu-toggle{display:inline-block;width:46px;flex:0 0 auto}
+      .nav{position:fixed;top:0;right:-82%;width:82%;max-width:320px;height:100vh;background:#fff;z-index:20;display:flex;flex-direction:column;gap:8px;padding:18px 14px;border-left:1px solid var(--line);box-shadow:-8px 0 22px rgba(31,41,55,.18);transition:right .22s ease;overflow:auto}
+      .nav.open{right:0}
+      .nav::before{content:"메뉴";font-size:18px;font-weight:900;margin:2px 4px 8px;color:var(--text)}
+      .nav button{width:100%;text-align:left}
+      .container{padding:12px}
+      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}
+      button,.btn{width:100%}
+      .menu-toggle{width:46px}
+      th,td{font-size:13px;padding:8px}
+      .calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>교육관리 시스템</h1>
-    <div class="nav">
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기">☰</button>
+    <div class="nav" id="main-nav">
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
       <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
       <button onclick="showPage('calendar')" id="nav-calendar">근무달력</button>
@@ -50,6 +68,7 @@
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
   </div>
+  <div class="menu-backdrop" id="menu-backdrop" onclick="closeMenu()"></div>
 
   <div class="container">
     <div id="setup-warning" class="card hidden">
@@ -350,7 +369,17 @@ function dashboardStats(){
   return {overdue, soon, normal, oneTime, missing};
 }
 
+function toggleMenu() {
+  document.getElementById("main-nav")?.classList.toggle("open");
+  document.getElementById("menu-backdrop")?.classList.toggle("open");
+}
+function closeMenu() {
+  document.getElementById("main-nav")?.classList.remove("open");
+  document.getElementById("menu-backdrop")?.classList.remove("open");
+}
+
 function showPage(page) {
+  closeMenu();
   currentPage = page;
   document.querySelectorAll(".page").forEach(x => x.classList.add("hidden"));
   document.getElementById(`page-${page}`).classList.remove("hidden");
@@ -970,6 +999,8 @@ function bindDraftInputs(){
 
 function val(id){ return document.getElementById(id)?.value?.trim() ?? ""; }
 function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v ?? ""; }
+
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 
 window.addEventListener("load", async () => {
   if (!ready()) return;
