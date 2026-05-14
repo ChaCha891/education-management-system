@@ -28,6 +28,12 @@
     .menu-backdrop{display:none;position:fixed;inset:0;background:rgba(17,24,39,.42);z-index:40}
     .menu-backdrop.open{display:block}
 
+    .page-search-card{position:sticky;top:74px;z-index:30;background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:12px;box-shadow:0 4px 14px rgba(31,41,55,.06)}
+    .page-search-card input{font-weight:700}
+    .search-hidden{display:none!important}
+    .search-dim{opacity:.18}
+    .search-hit{outline:2px solid #bfdbfe}
+
     .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
     .calendar-title{font-size:20px;font-weight:900}
     .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
@@ -45,6 +51,8 @@
       .nav::before{content:"메뉴";font-size:18px;font-weight:900;margin:2px 4px 8px;color:var(--text)}
       .nav button{width:100%;text-align:left}
       .container{padding:12px}
+
+      .page-search-card{top:58px;padding:8px;margin-bottom:10px}
       .grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}
       button,.btn{width:100%}
       .menu-toggle{width:46px}
@@ -116,6 +124,8 @@ let activeShiftWorkerId = null;
 let workerShiftSearch = "";
 let workerShiftComposing = false;
 let clearShiftInputAfterSave = false;
+let pageSearchState = {};
+let pageSearchComposing = false;
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -394,6 +404,81 @@ function showPage(page) {
   document.getElementById(`nav-${page}`).classList.add("active");
   renderCurrent();
 }
+
+function pageSearchPlaceholder(page){
+  const map = {
+    mobile:"교육명, 기사님, 연락처 검색",
+    dashboard:"기사님, 교육명, 소속 검색",
+    calendar:"날짜, 기사님, 주간/야간, 메모 검색",
+    workers:"기사님, 소속, 연락처 검색",
+    history:"기사님, 교육명, 교육일자 검색",
+    retention:"기사님, 교육명, 보관상태 검색",
+    equipment:"차종, 작업종류, 차넘버 검색",
+    settings:"교육명, 기준, 문자문구 검색"
+  };
+  return map[page] || "검색어 입력";
+}
+function injectPageSearch(){
+  const page = document.getElementById(`page-${currentPage}`);
+  if(!page || page.querySelector('.page-search-card')) return;
+  const box = document.createElement('div');
+  box.className = 'page-search-card';
+  box.innerHTML = `<label>현재 메뉴 검색</label><input id="page-search-input" value="${escapeHtml(pageSearchState[currentPage] || '')}" placeholder="${escapeHtml(pageSearchPlaceholder(currentPage))}" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko">`;
+  page.prepend(box);
+  const input = document.getElementById('page-search-input');
+  if(!input) return;
+  input.addEventListener('compositionstart', () => { pageSearchComposing = true; });
+  input.addEventListener('compositionend', () => { pageSearchComposing = false; updatePageSearch(input.value); });
+  input.addEventListener('input', () => { if(!pageSearchComposing) updatePageSearch(input.value); });
+}
+function updatePageSearch(value){
+  pageSearchState[currentPage] = value || '';
+  applyPageSearch();
+}
+function clearSearchMarks(root){
+  root.querySelectorAll('.search-hidden').forEach(el => el.classList.remove('search-hidden'));
+  root.querySelectorAll('.search-dim').forEach(el => el.classList.remove('search-dim'));
+  root.querySelectorAll('.search-hit').forEach(el => el.classList.remove('search-hit'));
+}
+function textMatch(el, q){ return (el?.textContent || '').toLowerCase().includes(q); }
+function applyPageSearch(){
+  const page = document.getElementById(`page-${currentPage}`);
+  if(!page) return;
+  const q = (pageSearchState[currentPage] || '').trim().toLowerCase();
+  clearSearchMarks(page);
+  const input = document.getElementById('page-search-input');
+  if(input && input.value !== (pageSearchState[currentPage] || '')) input.value = pageSearchState[currentPage] || '';
+  if(!q) return;
+
+  // 표 목록 검색
+  page.querySelectorAll('tbody tr').forEach(row => {
+    const hit = textMatch(row, q);
+    row.classList.toggle('search-hidden', !hit);
+    row.classList.toggle('search-hit', hit);
+  });
+
+  // 카드형 목록 검색: 현장 모바일 카드
+  page.querySelectorAll('.mobile-card').forEach(card => {
+    const hit = textMatch(card, q);
+    card.classList.toggle('search-hidden', !hit);
+    card.classList.toggle('search-hit', hit);
+  });
+
+  // 근무달력 월간 화면은 그리드가 무너지지 않도록 숨기지 않고 흐리게 표시
+  page.querySelectorAll('.day-cell:not(.empty)').forEach(cell => {
+    const hit = textMatch(cell, q);
+    cell.classList.toggle('search-dim', !hit);
+    cell.classList.toggle('search-hit', hit);
+  });
+
+  // 근무 상세 화면 목록/기사님 버튼 검색
+  page.querySelectorAll('.detail-row, .worker-shift-btn').forEach(el => {
+    const hit = textMatch(el, q);
+    el.classList.toggle('search-hidden', !hit);
+    el.classList.toggle('search-hit', hit);
+  });
+}
+
 function renderCurrent() {
   if (currentPage === "mobile") renderMobile();
   if (currentPage === "dashboard") renderDashboard();
@@ -403,6 +488,8 @@ function renderCurrent() {
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "settings") renderSettings();
+  injectPageSearch();
+  applyPageSearch();
   bindAutoFormatInputs();
   bindDraftInputs();
 }
