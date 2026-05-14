@@ -32,7 +32,7 @@
     .day-cell{min-height:118px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;overflow:hidden}
     .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
     .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.check-item{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}
+    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
     @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row,.worker-checks{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}.calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}}
   </style>
 </head>
@@ -92,6 +92,7 @@ let state = { workers: [], education: [], history: [], equipment: [], settings: 
 let currentPage = "mobile";
 let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
+let calendarDetailDate = "";
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -368,6 +369,45 @@ function renderCurrent() {
 function renderCalendar(){
   const y = calendarCursor.getFullYear();
   const m = calendarCursor.getMonth();
+
+  if(calendarDetailDate){
+    const selected = shiftsByDate(calendarDetailDate);
+    const note = selected[0]?.note || "";
+    const workerMap = Object.fromEntries(state.workers.map(w => [String(w.id), w]));
+    const statusRows = selected.length ? selected.map(s => {
+      const w = workerMap[String(s.worker_id)];
+      const type = s.shift_type || "주간";
+      const cls = type === "야간" ? "shift-night" : "shift-day";
+      return `<div class="detail-row"><div><div class="detail-worker">${escapeHtml(w?.name || "이름없음")}</div><div class="small">${escapeHtml(w?.company || "")}</div></div><span class="badge ${cls}">${escapeHtml(type)}</span></div>`;
+    }).join("") : `<p class="small">이 날짜에 등록된 근무자가 없습니다.</p>`;
+    const selectedMap = Object.fromEntries(selected.map(x => [String(x.worker_id), x]));
+    const checks = state.workers.length ? state.workers.map(w => {
+      const saved = selectedMap[String(w.id)];
+      const type = saved?.shift_type || "주간";
+      return `<label class="check-item"><input type="checkbox" class="shift-worker-check" value="${w.id}" ${saved ? "checked" : ""}> <span>${escapeHtml(w.name)} <span class="small">${escapeHtml(w.company || "")}</span></span><select class="shift-type-select" data-worker-id="${w.id}"><option value="주간" ${type==="주간"?"selected":""}>주간</option><option value="야간" ${type==="야간"?"selected":""}>야간</option></select></label>`;
+    }).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
+    document.getElementById("page-calendar").innerHTML = `
+      <div class="card">
+        <div class="detail-top">
+          <h2>${calendarDetailDate} 근무 상세</h2>
+          <button onclick="closeShiftDetail()">← 달력으로 돌아가기</button>
+        </div>
+        <p class="small">이 날짜에 배정된 기사님, 주간/야간 구분, 메모를 큰 화면에서 확인하고 수정할 수 있습니다.</p>
+      </div>
+      <div class="card">
+        <h2>근무 현황</h2>
+        <div class="detail-list">${statusRows}</div>
+        <div style="margin-top:12px"><label>메모</label><div class="detail-note">${escapeHtml(note || "등록된 메모 없음")}</div></div>
+      </div>
+      <div class="card">
+        <h2>근무 수정</h2>
+        <div class="worker-checks">${checks}</div>
+        <div style="margin-top:10px"><label>메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(note)}</textarea></div>
+        <div class="actions"><button class="primary" onclick="saveShiftDate()">근무 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
+      </div>`;
+    return;
+  }
+
   const first = new Date(y, m, 1);
   const last = new Date(y, m + 1, 0);
   const startBlank = first.getDay();
@@ -376,15 +416,15 @@ function renderCalendar(){
   for(let d=1; d<=last.getDate(); d++){
     const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const shifts = shiftsByDate(dateText);
-    const names = shifts.map(s => `<span class="shift-name">${escapeHtml(workerNameById(s.worker_id) || "이름없음")}${s.note ? ` · ${escapeHtml(s.note)}` : ""}</span>`).join("");
+    const dayNames = shifts.filter(s => (s.shift_type || "주간") === "주간").map(s => workerNameById(s.worker_id)).filter(Boolean);
+    const nightNames = shifts.filter(s => (s.shift_type || "주간") === "야간").map(s => workerNameById(s.worker_id)).filter(Boolean);
+    const names = [
+      dayNames.length ? `<span class="shift-name shift-day">주간: ${escapeHtml(dayNames.join(", "))}</span>` : "",
+      nightNames.length ? `<span class="shift-name shift-night">야간: ${escapeHtml(nightNames.join(", "))}</span>` : ""
+    ].join("");
     const todayClass = dateText === todayStr() ? " today" : "";
-    const selectedClass = dateText === selectedShiftDate ? " selected-date-box" : "";
-    days.push(`<div class="day-cell${todayClass}${selectedClass}" onclick="selectShiftDate('${dateText}')"><div class="day-num">${d}</div>${names || `<span class="small">-</span>`}</div>`);
+    days.push(`<div class="day-cell${todayClass}" onclick="openShiftDetail('${dateText}')"><div class="day-num">${d}</div>${names || `<span class="small">-</span>`}</div>`);
   }
-  const selected = shiftsByDate(selectedShiftDate);
-  const selectedIds = new Set(selected.map(x => String(x.worker_id)));
-  const note = selected[0]?.note || "";
-  const checks = state.workers.length ? state.workers.map(w => `<label class="check-item"><input type="checkbox" class="shift-worker-check" value="${w.id}" ${selectedIds.has(String(w.id)) ? "checked" : ""}> <span>${escapeHtml(w.name)} <span class="small">${escapeHtml(w.company || "")}</span></span></label>`).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
   document.getElementById("page-calendar").innerHTML = `
     <div class="card">
       <div class="calendar-toolbar">
@@ -393,32 +433,33 @@ function renderCalendar(){
         <button onclick="moveCalendarMonth(1)">다음달</button>
       </div>
       <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button></div>
-      <p class="small">날짜를 클릭하면 해당 날짜의 근무 기사님을 선택해서 저장할 수 있습니다.</p>
+      <p class="small">날짜를 클릭하면 큰 화면에서 근무 현황과 메모를 확인하고, 주간/야간 근무를 입력할 수 있습니다.</p>
     </div>
     <div class="card">
       <div class="calendar-grid">
         ${["일","월","화","수","목","금","토"].map(x => `<div class="calendar-head">${x}</div>`).join("")}
         ${days.join("")}
       </div>
-    </div>
-    <div class="card">
-      <h2>${selectedShiftDate} 근무 입력</h2>
-      <div class="worker-checks">${checks}</div>
-      <div style="margin-top:10px"><label>메모</label><input id="shift-note" value="${escapeHtml(note)}" placeholder="예: 야적장, 저광사, 주간, 특이사항"></div>
-      <div class="actions"><button class="primary" onclick="saveShiftDate()">근무 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 비우기</button></div>
     </div>`;
 }
-function selectShiftDate(dateText){ selectedShiftDate = dateText; renderCalendar(); }
-function moveCalendarMonth(offset){ calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
-function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); renderCalendar(); }
+function selectShiftDate(dateText){ openShiftDetail(dateText); }
+function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
+function closeShiftDetail(){ calendarDetailDate = ""; renderCalendar(); }
+function moveCalendarMonth(offset){ calendarDetailDate = ""; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
+function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); renderCalendar(); }
 async function saveShiftDate(){
-  const selectedIds = Array.from(document.querySelectorAll(".shift-worker-check:checked")).map(x => Number(x.value));
   const note = val("shift-note");
+  const selected = Array.from(document.querySelectorAll(".shift-worker-check:checked"));
   const old = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
-  const added = selectedIds.map(id => ({ work_date:selectedShiftDate, worker_id:id, note }));
+  const added = selected.map(chk => {
+    const id = Number(chk.value);
+    const sel = document.querySelector(`.shift-type-select[data-worker-id="${id}"]`);
+    return { work_date:selectedShiftDate, worker_id:id, shift_type:sel?.value || "주간", note };
+  });
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
   if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
   await loadAll();
+  calendarDetailDate = selectedShiftDate;
   toast("근무 저장 완료");
 }
 async function clearShiftDate(){
