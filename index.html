@@ -44,6 +44,7 @@
       .nav.open{right:0}
       .nav::before{content:"메뉴";font-size:18px;font-weight:900;margin:2px 4px 8px;color:var(--text)}
       .nav button{width:100%;text-align:left}
+      #nav-dashboard,#nav-retention{display:none!important}
       .container{padding:12px}
       .grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}
       button,.btn{width:100%}
@@ -109,6 +110,7 @@ const DEFAULT_EDUCATION_RULES = [
 let db = null;
 let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
 let currentPage = "mobile";
+function isMobileView(){ return window.matchMedia && window.matchMedia("(max-width:760px)").matches; }
 let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
@@ -475,15 +477,15 @@ function renderCalendar(){
         <div class="detail-list">${statusRows}</div>
         <div style="margin-top:12px"><label>메모</label><div class="detail-note">${escapeHtml(note || "등록된 메모 없음")}</div></div>
       </div>
-      <div class="card">
+      ${isMobileView() ? `` : `<div class="card">
         <h2>근무 수정</h2>
         <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
         <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko" oncompositionstart="workerShiftComposing=true" oncompositionend="workerShiftComposing=false; filterWorkerShiftList(this.value)" oninput="if(!workerShiftComposing) filterWorkerShiftList(this.value)"></div>
         <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
         <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(inputNote)}</textarea></div>
         <div class="actions"><button class="primary" onclick="saveShiftNote()">메모 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
-      </div>
-      ${modalHtml}`;
+      </div>`}
+      ${isMobileView() ? `` : modalHtml}`;
     setTimeout(() => filterWorkerShiftList(workerShiftSearch), 0);
     return;
   }
@@ -672,11 +674,16 @@ function dataListOptions(values) {
 }
 
 function renderWorkers() {
+  const mobile = isMobileView();
   const companyOptions = dataListOptions(uniqueValues(state.workers, "company"));
   const noteOptions = dataListOptions(uniqueValues(state.workers, "note"));
-  const rows = state.workers.map(w => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td><button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="6">등록된 기사님이 없습니다.</td></tr>`;
+  const actionCell = (w) => mobile
+    ? `<button onclick="editWorker(${w.id})">수정</button>`
+    : `<button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button>`;
+  const rows = state.workers.map(w => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="6">등록된 기사님이 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
   document.getElementById("page-workers").innerHTML = `
-    <div class="card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button></div></div>
+    ${formCard}
     <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
 async function saveWorker() {
@@ -688,13 +695,14 @@ async function saveWorker() {
   if (res.error) return toast("저장 오류");
   clearDraftForPage("workers"); clearWorkerForm(); await loadAll(); toast("저장 완료");
 }
-function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); scrollTo(0,0); }
+function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
 function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
 async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
 
 // 교육주기 메뉴는 제거했습니다. 교육 기준/주기 관리는 [보관관리]와 [설정]의 교육기준을 마스터로 사용합니다.
 
-function groupedHistoryRows(){
+function groupedHistoryRows(showManage=true){
   const eduNames = educationTypeNames();
   const latestByWorker={};
 
@@ -717,7 +725,7 @@ function groupedHistoryRows(){
     .filter(([workerId,g]) => g.worker)
     .sort((a,b)=>(a[1].worker?.name||"").localeCompare(b[1].worker?.name||""));
 
-  if(!state.workers.length) return `<tr><td colspan="${eduNames.length+3}">등록된 기사님이 없습니다.</td></tr>`;
+  if(!state.workers.length) return `<tr><td colspan="${eduNames.length + (showManage ? 3 : 2)}">등록된 기사님이 없습니다.</td></tr>`;
 
   return groups.map(([workerId,g])=>{
     const eduCells=eduNames.map(name=>{
@@ -729,14 +737,16 @@ function groupedHistoryRows(){
     }).join("");
     const hasHistory = (g.ids || []).length > 0;
     const manageButton = hasHistory ? `<button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button>` : `<span class="small">이력 없음</span>`;
-    return `<tr data-search="${escapeHtml(`${g.worker?.name || ""} ${g.worker?.company || ""}`)}"><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}<td>${manageButton}</td></tr>`;
+    return `<tr data-search="${escapeHtml(`${g.worker?.name || ""} ${g.worker?.company || ""}`)}"><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}${showManage ? `<td>${manageButton}</td>` : ``}</tr>`;
   }).join("");
 }
 
 function renderHistory(){
+  const mobile = isMobileView();
   const eduHeads=educationTypeNames().map(x=>`<th>${escapeHtml(x)}</th>`).join("");
-  const rows=groupedHistoryRows();
-  document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions("", true)}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div><div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="list-search"><label>기사님 검색</label><input id="history-card-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('history-card-search','history-card-body')"></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}<th>관리</th></tr></thead><tbody id="history-card-body">${rows}<tr data-empty-row style="display:none"><td colspan="${educationTypeNames().length+3}">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+  const rows=groupedHistoryRows(!mobile);
+  const inputCard = mobile ? `` : `<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions("", true)}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div>`;
+  document.getElementById("page-history").innerHTML=`${inputCard}<div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="list-search"><label>기사님 검색</label><input id="history-card-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('history-card-search','history-card-body')"></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}${mobile ? `` : `<th>관리</th>`}</tr></thead><tbody id="history-card-body">${rows}<tr data-empty-row style="display:none"><td colspan="${educationTypeNames().length + (mobile ? 2 : 3)}">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
 
 async function upsertEducationHistory(workerId, educationName, educationDate, note=""){
@@ -913,15 +923,21 @@ async function ackRetention(key){
 }
 
 function renderEquipment(){
+  const mobile = isMobileView();
   const typeOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_type"));
   const workOptions = dataListOptions(uniqueValues(state.equipment, "work_type"));
   const numberOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_number"));
   const noteOptions = dataListOptions(uniqueValues(state.equipment, "note"));
-  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td><button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button></td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
-  document.getElementById("page-equipment").innerHTML=`<div class="card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button></div></div><div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+  const actionCell = (e) => mobile
+    ? `<button onclick="editEquipment(${e.id})">수정</button>`
+    : `<button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button>`;
+  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
+  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
 async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearDraftForPage("equipment"); clearEqForm(); await loadAll(); }
-function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); scrollTo(0,0); }
+function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; document.getElementById("equipment-form-card")?.classList.remove("hidden"); setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.classList.add("hidden"); clearEqForm(); }
 function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
 async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
 
