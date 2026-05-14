@@ -12,7 +12,7 @@
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    .header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
     h1{font-size:22px;margin:0}.nav{display:flex;gap:8px;flex-wrap:wrap}.container{max-width:1220px;margin:0 auto;padding:16px}
     button,.btn{border:0;border-radius:12px;padding:10px 14px;background:#eef2f7;color:#111827;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block;text-align:center;font-size:14px}
     button.primary,.btn.primary{background:var(--primary);color:#fff}button.green,.btn.green{background:var(--green);color:#fff}button.red,.btn.red{background:var(--red);color:#fff}
@@ -25,7 +25,7 @@
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
     .menu-toggle{display:none;width:auto;min-width:46px;padding:10px 12px;font-size:22px;line-height:1;background:#eef2f7}
-    .menu-backdrop{display:none;position:fixed;inset:0;background:rgba(17,24,39,.42);z-index:18}
+    .menu-backdrop{display:none;position:fixed;inset:0;background:rgba(17,24,39,.42);z-index:40}
     .menu-backdrop.open{display:block}
 
     .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
@@ -40,7 +40,7 @@
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
       .header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .menu-toggle{display:inline-block;width:46px;flex:0 0 auto}
-      .nav{position:fixed;top:0;right:-82%;width:82%;max-width:320px;height:100vh;background:#fff;z-index:20;display:flex;flex-direction:column;gap:8px;padding:18px 14px;border-left:1px solid var(--line);box-shadow:-8px 0 22px rgba(31,41,55,.18);transition:right .22s ease;overflow:auto}
+      .nav{position:fixed;top:0;right:-82%;width:82%;max-width:320px;height:100vh;background:#fff;z-index:60;display:flex;flex-direction:column;gap:8px;padding:18px 14px;border-left:1px solid var(--line);box-shadow:-8px 0 22px rgba(31,41,55,.18);transition:right .22s ease;overflow:auto}
       .nav.open{right:0}
       .nav::before{content:"메뉴";font-size:18px;font-weight:900;margin:2px 4px 8px;color:var(--text)}
       .nav button{width:100%;text-align:left}
@@ -56,8 +56,8 @@
 <body>
   <div class="header">
     <h1>교육관리 시스템</h1>
-    <button class="menu-toggle" onclick="toggleMenu()" aria-label="메뉴 열기">☰</button>
-    <div class="nav" id="main-nav">
+    <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu()" aria-label="메뉴 열기">☰</button>
+    <div class="nav" id="main-nav" onclick="event.stopPropagation()">
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
       <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
       <button onclick="showPage('calendar')" id="nav-calendar">근무달력</button>
@@ -370,8 +370,15 @@ function dashboardStats(){
 }
 
 function toggleMenu() {
-  document.getElementById("main-nav")?.classList.toggle("open");
-  document.getElementById("menu-backdrop")?.classList.toggle("open");
+  const nav = document.getElementById("main-nav");
+  const backdrop = document.getElementById("menu-backdrop");
+  const isOpen = nav?.classList.contains("open");
+  if (isOpen) closeMenu();
+  else openMenu();
+}
+function openMenu() {
+  document.getElementById("main-nav")?.classList.add("open");
+  document.getElementById("menu-backdrop")?.classList.add("open");
 }
 function closeMenu() {
   document.getElementById("main-nav")?.classList.remove("open");
