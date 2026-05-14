@@ -94,6 +94,7 @@ let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
 let activeShiftWorkerId = null;
+let workerShiftSearch = "";
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -387,7 +388,8 @@ function renderCalendar(){
       const saved = selectedMap[String(w.id)];
       const type = saved?.shift_type || "미배정";
       const cls = type === "야간" ? "shift-night" : type === "주간" ? "shift-day" : "";
-      return `<button class="worker-shift-btn" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved ? `<span class="badge ${cls}">${escapeHtml(type)}</span>` : `<span class="small">근무 미배정</span>`}</div></button>`;
+      const searchText = `${w.name || ""} ${w.company || ""}`.toLowerCase();
+      return `<button class="worker-shift-btn" data-worker-search="${escapeHtml(searchText)}" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved ? `<span class="badge ${cls}">${escapeHtml(type)}</span>` : `<span class="small">근무 미배정</span>`}</div></button>`;
     }).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
     const modalHtml = activeShiftWorkerId ? workerShiftModalHtml(activeShiftWorkerId, selectedMap[String(activeShiftWorkerId)]) : "";
     document.getElementById("page-calendar").innerHTML = `
@@ -406,11 +408,13 @@ function renderCalendar(){
       <div class="card">
         <h2>근무 수정</h2>
         <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
-        <div class="worker-shift-list">${workerCards}</div>
+        <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" oninput="filterWorkerShiftList(this.value)"></div>
+        <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
         <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(note)}</textarea></div>
         <div class="actions"><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
       </div>
       ${modalHtml}`;
+    setTimeout(() => filterWorkerShiftList(workerShiftSearch), 0);
     return;
   }
 
@@ -448,6 +452,14 @@ function renderCalendar(){
       </div>
     </div>`;
 }
+function filterWorkerShiftList(q){
+  workerShiftSearch = (q || "").toLowerCase().trim();
+  document.querySelectorAll("#worker-shift-list .worker-shift-btn").forEach(btn => {
+    const text = (btn.getAttribute("data-worker-search") || "").toLowerCase();
+    btn.style.display = !workerShiftSearch || text.includes(workerShiftSearch) ? "block" : "none";
+  });
+}
+
 function selectShiftDate(dateText){ openShiftDetail(dateText); }
 function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
 function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; renderCalendar(); }
