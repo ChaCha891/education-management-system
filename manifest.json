@@ -1,0 +1,25 @@
+{
+  "name": "교육관리 시스템",
+  "short_name": "교육관리",
+  "description": "교육현황, 근무달력, 장비관리를 통합 관리하는 현장용 교육관리 시스템",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7fa",
+  "theme_color": "#facc15",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

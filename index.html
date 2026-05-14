@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>교육관리 시스템</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#facc15">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="교육관리">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:#f5f7fa; --card:#fff; --line:#d9dee7; --text:#1f2937; --muted:#6b7280;
+      --primary:#2563eb; --primary-dark:#1d4ed8; --green:#16a34a; --red:#dc2626; --yellow:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    h1{font-size:22px;margin:0}.nav{display:flex;gap:8px;flex-wrap:wrap}.container{max-width:1220px;margin:0 auto;padding:16px}
+    button,.btn{border:0;border-radius:12px;padding:10px 14px;background:#eef2f7;color:#111827;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block;text-align:center;font-size:14px}
+    button.primary,.btn.primary{background:var(--primary);color:#fff}button.green,.btn.green{background:var(--green);color:#fff}button.red,.btn.red{background:var(--red);color:#fff}
+    button.active{background:var(--primary);color:#fff}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(31,41,55,.05)}
+    h2{font-size:18px;margin:0 0 12px}.small{font-size:13px;color:var(--muted)}.left{text-align:left}.mini{display:block;font-size:12px;color:var(--muted);margin-top:4px}.info{background:#e0f2fe;color:#075985}.danger-text{color:#dc2626}.warn-text{color:#b45309}.ok-text{color:#166534}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.form-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+    label{font-size:13px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}textarea{min-height:95px;resize:vertical}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
+    .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
+    .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
+    .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
+    .menu-toggle{display:none;width:auto;min-width:46px;padding:10px 12px;font-size:22px;line-height:1;background:#eef2f7}
+    .menu-backdrop{display:none;position:fixed;inset:0;background:rgba(17,24,39,.42);z-index:40}
+    .menu-backdrop.open{display:block}
+
+    .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+    .calendar-title{font-size:20px;font-weight:900}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .calendar-head{font-weight:900;text-align:center;padding:8px;color:var(--muted)}
+    .day-cell{min-height:118px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;overflow:hidden}
+    .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
+    .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+    @media(max-width:760px){
+      .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
+      .header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .menu-toggle{display:inline-block;width:46px;flex:0 0 auto}
+      .nav{position:fixed;top:0;right:-82%;width:82%;max-width:320px;height:100vh;background:#fff;z-index:60;display:flex;flex-direction:column;gap:8px;padding:18px 14px;border-left:1px solid var(--line);box-shadow:-8px 0 22px rgba(31,41,55,.18);transition:right .22s ease;overflow:auto}
+      .nav.open{right:0}
+      .nav::before{content:"메뉴";font-size:18px;font-weight:900;margin:2px 4px 8px;color:var(--text)}
+      .nav button{width:100%;text-align:left}
+      #nav-dashboard,#nav-retention{display:none!important}
+      .container{padding:12px}
+      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}
+      button,.btn{width:100%}
+      .menu-toggle{width:46px}
+      th,td{font-size:13px;padding:8px}
+      .calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>교육관리 시스템</h1>
+    <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu()" aria-label="메뉴 열기">☰</button>
+    <div class="nav" id="main-nav" onclick="event.stopPropagation()">
+      <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
+      <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
+      <button onclick="showPage('calendar')" id="nav-calendar">근무달력</button>
+      <button onclick="showPage('workers')" id="nav-workers">기사님</button>
+      <button onclick="showPage('history')" id="nav-history">교육현황</button>
+      <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
+      <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
+      <button onclick="showPage('memo')" id="nav-memo">메모</button>
+      <button onclick="showPage('settings')" id="nav-settings">설정</button>
+    </div>
+  </div>
+  <div class="menu-backdrop" id="menu-backdrop" onclick="closeMenu()"></div>
+
+  <div class="container">
+    <div id="setup-warning" class="card hidden">
+      <h2>Supabase 연결 설정 필요</h2>
+      <p class="small">HTML 파일 상단의 SUPABASE_URL, SUPABASE_ANON_KEY 값을 본인 Supabase 프로젝트 값으로 바꿔야 작동합니다.</p>
+    </div>
+
+    <section id="page-mobile" class="page"></section>
+    <section id="page-dashboard" class="page hidden"></section>
+    <section id="page-calendar" class="page hidden"></section>
+    <section id="page-workers" class="page hidden"></section>
+    <section id="page-history" class="page hidden"></section>
+    <section id="page-retention" class="page hidden"></section>
+    <section id="page-equipment" class="page hidden"></section>
+    <section id="page-memo" class="page hidden"></section>
+    <section id="page-settings" class="page hidden"></section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+// =========================
+// 1) 여기에 Supabase 값을 넣으세요.
+// =========================
+const SUPABASE_URL = "https://widvjrtvjjuvknpjujkf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpZHZqcnR2amp1dmtucGp1amtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODY0NzIsImV4cCI6MjA5NDA2MjQ3Mn0.ThmHVS56_yf1L3yGq8sJHBtSiLHu8javo5aboqwvKBA";
+
+const DEFAULT_TEMPLATE = `[교육 안내]\n{name} 기사님, {education} 일정 안내드립니다.\n교육 예정일: {next_date} ({dday})\n기한 내 교육 이수 부탁드립니다.`;
+// 기본 교육기준표: 최초 실행 또는 설정값이 없을 때만 사용합니다.
+// 이후에는 [설정] 화면에서 추가/수정/삭제한 education_rules 설정값을 우선 사용합니다.
+const DEFAULT_EDUCATION_RULES = [
+  { education_name: "MSDS 안전보건교육", category: "반복/변경 시", cycle_days: 365, hours: "물질 변경/신규 취급 시 별도", condition: "MSDS 대상물질 취급자", basis: "MSDS 교육 관리", active: true },
+  { education_name: "신규채용자 안전보건교육", category: "1회성", cycle_days: 0, hours: "최초 1회", condition: "신규 투입자", basis: "채용 시 교육", active: true },
+  { education_name: "특별안전보건교육", category: "조건부", cycle_days: 0, hours: "작업 투입/변경 시", condition: "특별교육 대상작업 투입자", basis: "특별교육 대상작업", active: true },
+  { education_name: "정기안전보건교육", category: "반복", cycle_days: 90, hours: "분기 단위 관리", condition: "정기교육 대상자", basis: "정기교육 관리", active: true },
+  { education_name: "출입교육", category: "반복", cycle_days: 365, hours: "현장 기준", condition: "협력업체 및 외부 출입자", basis: "사업장 출입·협력업체 관리 기준", active: true }
+];
+
+let db = null;
+let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
+let currentPage = "mobile";
+function isMobileView(){ return window.matchMedia && window.matchMedia("(max-width:760px)").matches; }
+let calendarCursor = new Date();
+let selectedShiftDate = todayStr();
+let calendarDetailDate = "";
+let activeShiftWorkerId = null;
+let workerShiftSearch = "";
+let workerShiftComposing = false;
+let clearShiftInputAfterSave = false;
+
+function ready() {
+  if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
+    document.getElementById("setup-warning").classList.remove("hidden");
+    return false;
+  }
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return true;
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 1800);
+}
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function onlyDigits(v){ return String(v || "").replace(/\D/g, ""); }
+function autoHyphenDate(v){
+  const d = onlyDigits(v).slice(0,8);
+  if(d.length <= 4) return d;
+  if(d.length <= 6) return `${d.slice(0,4)}-${d.slice(4)}`;
+  return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+}
+function autoHyphenPhone(v){
+  const d = onlyDigits(v).slice(0,11);
+  if(d.startsWith("02")){
+    if(d.length <= 2) return d;
+    if(d.length <= 5) return `${d.slice(0,2)}-${d.slice(2)}`;
+    if(d.length <= 9) return `${d.slice(0,2)}-${d.slice(2,5)}-${d.slice(5)}`;
+    return `${d.slice(0,2)}-${d.slice(2,6)}-${d.slice(6)}`;
+  }
+  if(d.length <= 3) return d;
+  if(d.length <= 7) return `${d.slice(0,3)}-${d.slice(3)}`;
+  return `${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`;
+}
+function isValidDateText(v){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v || "")) return false;
+  const [y,m,d] = v.split("-").map(Number);
+  const date = new Date(`${v}T00:00:00`);
+  return date.getFullYear()===y && date.getMonth()+1===m && date.getDate()===d;
+}
+function dateVal(id){ return autoHyphenDate(val(id)); }
+function phoneVal(id){ return autoHyphenPhone(val(id)); }
+function bindAutoFormatInputs(){
+  document.querySelectorAll('input[data-format="date"]').forEach(el => {
+    if(el.dataset.bound === "1") return;
+    el.dataset.bound = "1";
+    el.setAttribute("inputmode", "numeric");
+    el.setAttribute("maxlength", "10");
+    el.addEventListener("input", () => { el.value = autoHyphenDate(el.value); });
+    el.addEventListener("blur", () => { el.value = autoHyphenDate(el.value); });
+  });
+  document.querySelectorAll('input[data-format="phone"]').forEach(el => {
+    if(el.dataset.bound === "1") return;
+    el.dataset.bound = "1";
+    el.setAttribute("inputmode", "numeric");
+    el.setAttribute("maxlength", "13");
+    el.addEventListener("input", () => { el.value = autoHyphenPhone(el.value); });
+    el.addEventListener("blur", () => { el.value = autoHyphenPhone(el.value); });
+  });
+}
+
+function addDays(dateText, days) {
+  const d = new Date(dateText + "T00:00:00");
+  d.setDate(d.getDate() + Number(days));
+  return d;
+}
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function remainDays(target) {
+  const today = new Date(todayStr() + "T00:00:00");
+  return Math.round((target - today) / (1000*60*60*24));
+}
+function ddayText(remain) {
+  if (remain === null || remain === undefined || Number.isNaN(remain)) return "반복없음";
+  if (remain < 0) return `D+${Math.abs(remain)}`;
+  if (remain === 0) return "D-Day";
+  return `D-${remain}`;
+}
+function isOneTimeCycle(cycleDays){ return Number(cycleDays) <= 0; }
+function educationRules(){
+  try {
+    const parsed = JSON.parse(state.settings.education_rules || "");
+    if (Array.isArray(parsed)) return parsed;
+  } catch(e) {}
+  return DEFAULT_EDUCATION_RULES;
+}
+function activeEducationRules(){ return educationRules().filter(r => r.active !== false); }
+function defaultRetentionRules(){
+  return educationRules().map(r => ({ education_name:r.education_name, retention_years:5, note:"", active:r.active !== false }));
+}
+function retentionRules(){
+  try {
+    const parsed = JSON.parse(state.settings.retention_rules || "");
+    if (Array.isArray(parsed)) return parsed;
+  } catch(e) {}
+  return defaultRetentionRules();
+}
+function getRetentionRule(name){ return retentionRules().find(r => r.education_name === name && r.active !== false) || null; }
+function retentionAckKeys(){
+  try {
+    const parsed = JSON.parse(state.settings.retention_ack_keys || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+
+function shiftCalendar(){
+  try {
+    const parsed = JSON.parse(state.settings.shift_calendar || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+function shiftNotes(){
+  try {
+    const parsed = JSON.parse(state.settings.shift_notes || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch(e) { return {}; }
+}
+function shiftNoteByDate(dateText){
+  const notes = shiftNotes();
+  if (notes[dateText] !== undefined) return notes[dateText] || "";
+  const found = shiftCalendar().find(x => x.work_date === dateText && x.note);
+  return found?.note || "";
+}
+function shiftsByDate(dateText){ return shiftCalendar().filter(x => x.work_date === dateText); }
+function addDaysText(dateText, days){ return formatDate(addDays(dateText, days)); }
+function workerNameById(id){ return state.workers.find(w => Number(w.id) === Number(id))?.name || ""; }
+function historyRecordKey(h){ return h?.id ? `history:${h.id}` : `history:${h.worker_id}:${h.education_name}:${h.education_date}`; }
+function addYears(dateText, years){
+  const d = new Date(dateText + "T00:00:00");
+  d.setFullYear(d.getFullYear() + Number(years));
+  return d;
+}
+function retentionStatus(h){
+  const rule = getRetentionRule(h.education_name);
+  if(!rule || !h.education_date || Number(rule.retention_years) <= 0) return {managed:false, expired:false, expiryText:"-", ack:false, years:"-"};
+  const expiry = addYears(h.education_date, Number(rule.retention_years));
+  const expired = remainDays(expiry) < 0;
+  const key = historyRecordKey(h);
+  const ack = retentionAckKeys().includes(key);
+  return {managed:true, expired, expiryText:formatDate(expiry), ack, key, years:Number(rule.retention_years)};
+}
+function educationTypeNames(){ return activeEducationRules().map(r => r.education_name).filter(Boolean); }
+function getEducationRule(name){ return activeEducationRules().find(r => r.education_name === name) || null; }
+function educationMeta(name){ const r=getEducationRule(name); return r ? `${r.category || "구분없음"} · ${r.hours || "시간/조건 미입력"}` : "사용자 지정"; }
+function calcSchedule(lastDate, cycleDays){
+  if(!lastDate) return { nextText:"-", remain:null, dday:"-", cls:"gray", status:"미등록" };
+  if(isOneTimeCycle(cycleDays)) return { nextText:"반복없음", remain:null, dday:"완료", cls:"info", status:"이수" };
+  const nd=addDays(lastDate, cycleDays);
+  const remain=remainDays(nd);
+  const status=remain<0?"기한초과":remain<=14?"임박":"정상";
+  return { nextText:formatDate(nd), remain, dday:ddayText(remain), cls:badgeClass(remain), status };
+}
+function badgeClass(remain) {
+  if (remain === null || remain === undefined || Number.isNaN(remain)) return "info";
+  if (remain < 0) return "due";
+  if (remain <= 14) return "soon";
+  return "ok";
+}
+function escapeHtml(v) {
+  return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+}
+function smsBody(item) {
+  const template = state.settings.sms_template || DEFAULT_TEMPLATE;
+  return template
+    .replaceAll("{name}", item.name || "")
+    .replaceAll("{education}", item.education_name || "")
+    .replaceAll("{next_date}", item.next_date || "")
+    .replaceAll("{dday}", item.dday || "")
+    .replaceAll("{phone}", item.phone || "");
+}
+function smsLink(item) {
+  const phone = String(item.phone || "").replaceAll("-","").replaceAll(" ","");
+  return `sms:${phone}?body=${encodeURIComponent(smsBody(item))}`;
+}
+
+async function loadAll() {
+  if (!db) return;
+  const [w, e, h, eq, s] = await Promise.all([
+    db.from("workers").select("*").order("name"),
+    db.from("education_records").select("*").order("education_name"),
+    db.from("training_history").select("*").order("education_date", { ascending:false }),
+    db.from("equipment").select("*").order("id"),
+    db.from("settings").select("*")
+  ]);
+  if (w.error || e.error || h.error || eq.error || s.error) {
+    toast("DB 조회 오류: 테이블 생성 여부를 확인하세요.");
+    console.error(w.error || e.error || h.error || eq.error || s.error);
+    return;
+  }
+  state.workers = w.data || [];
+  state.education = e.data || [];
+  state.history = h.data || [];
+  state.equipment = eq.data || [];
+  state.settings = {};
+  (s.data || []).forEach(x => state.settings[x.key] = x.value);
+  if (!state.settings.sms_template) state.settings.sms_template = DEFAULT_TEMPLATE;
+  if (!state.settings.education_rules) state.settings.education_rules = JSON.stringify(DEFAULT_EDUCATION_RULES);
+  if (!state.settings.retention_rules) state.settings.retention_rules = JSON.stringify(defaultRetentionRules());
+  if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
+  if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
+  if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
+  if (state.settings.general_memo === undefined) state.settings.general_memo = "";
+  makeDue();
+  renderCurrent();
+}
+
+function latestHistoryDate(workerId, educationName) {
+  const dates = state.history
+    .filter(h => Number(h.worker_id) === Number(workerId) && h.education_name === educationName)
+    .map(h => h.education_date)
+    .filter(Boolean)
+    .sort()
+    .reverse();
+  return dates[0] || "";
+}
+
+function makeDue() {
+  const result = [];
+  const rules = activeEducationRules();
+  for (const w of state.workers) {
+    for (const r of rules) {
+      const last = latestHistoryDate(w.id, r.education_name);
+      const sch = calcSchedule(last, Number(r.cycle_days));
+      if (sch.remain !== null && sch.remain <= 30) {
+        result.push({
+          worker_id:w.id,
+          education_name:r.education_name,
+          cycle_days:Number(r.cycle_days),
+          name:w.name,
+          phone:w.phone || "",
+          company:w.company || "",
+          last_date:last,
+          next_date:sch.nextText,
+          remain:sch.remain,
+          dday:sch.dday,
+          status:sch.status
+        });
+      }
+    }
+  }
+  result.sort((a,b) => a.remain - b.remain || a.name.localeCompare(b.name, "ko"));
+  state.due = result;
+}
+
+function dashboardStats(){
+  let overdue=0, soon=0, normal=0, oneTime=0, missing=0;
+  for(const w of state.workers){
+    for(const r of activeEducationRules()){
+      const last = latestHistoryDate(w.id, r.education_name);
+      if(!last){ missing++; continue; }
+      const sch=calcSchedule(last, Number(r.cycle_days));
+      if(sch.remain===null) oneTime++;
+      else if(sch.remain<0) overdue++;
+      else if(sch.remain<=14) soon++;
+      else normal++;
+    }
+  }
+  return {overdue, soon, normal, oneTime, missing};
+}
+
+function toggleMenu() {
+  const nav = document.getElementById("main-nav");
+  const backdrop = document.getElementById("menu-backdrop");
+  const isOpen = nav?.classList.contains("open");
+  if (isOpen) closeMenu();
+  else openMenu();
+}
+function openMenu() {
+  document.getElementById("main-nav")?.classList.add("open");
+  document.getElementById("menu-backdrop")?.classList.add("open");
+}
+function closeMenu() {
+  document.getElementById("main-nav")?.classList.remove("open");
+  document.getElementById("menu-backdrop")?.classList.remove("open");
+}
+
+function showPage(page) {
+  closeMenu();
+  currentPage = page;
+  document.querySelectorAll(".page").forEach(x => x.classList.add("hidden"));
+  document.getElementById(`page-${page}`).classList.remove("hidden");
+  document.querySelectorAll(".nav button").forEach(x => x.classList.remove("active"));
+  document.getElementById(`nav-${page}`).classList.add("active");
+  renderCurrent();
+}
+
+function normalizeSearchText(v){ return String(v || "").toLowerCase().replace(/\s+/g, "").trim(); }
+function filterListRows(inputId, tbodyId){
+  const input = document.getElementById(inputId);
+  const tbody = document.getElementById(tbodyId);
+  if(!input || !tbody) return;
+  const q = normalizeSearchText(input.value);
+  let visible = 0;
+  tbody.querySelectorAll("tr[data-search]").forEach(row => {
+    const text = normalizeSearchText(row.getAttribute("data-search"));
+    const show = !q || text.includes(q);
+    row.style.display = show ? "" : "none";
+    if(show) visible++;
+  });
+  const empty = tbody.querySelector("tr[data-empty-row]");
+  if(empty) empty.style.display = visible === 0 ? "" : "none";
+}
+
+function renderCurrent() {
+  if (currentPage === "mobile") renderMobile();
+  if (currentPage === "dashboard") renderDashboard();
+  if (currentPage === "calendar") renderCalendar();
+  if (currentPage === "workers") renderWorkers();
+  if (currentPage === "history") renderHistory();
+  if (currentPage === "retention") renderRetention();
+  if (currentPage === "equipment") renderEquipment();
+  if (currentPage === "memo") renderMemo();
+  if (currentPage === "settings") renderSettings();
+  bindAutoFormatInputs();
+  bindDraftInputs();
+}
+
+function renderCalendar(){
+  const y = calendarCursor.getFullYear();
+  const m = calendarCursor.getMonth();
+
+  if(calendarDetailDate){
+    const selected = shiftsByDate(calendarDetailDate);
+    const note = shiftNoteByDate(calendarDetailDate);
+    const inputNote = clearShiftInputAfterSave ? "" : (activeShiftWorkerId ? (val("shift-note") || note) : note);
+    const workerMap = Object.fromEntries(state.workers.map(w => [String(w.id), w]));
+    const statusRows = selected.length ? selected.map(s => {
+      const w = workerMap[String(s.worker_id)];
+      const type = s.shift_type || "주간";
+      const cls = type === "야간" ? "shift-night" : "shift-day";
+      return `<div class="detail-row"><div><div class="detail-worker">${escapeHtml(w?.name || "이름없음")}</div><div class="small">${escapeHtml(w?.company || "")}</div></div><span class="badge ${cls}">${escapeHtml(type)}</span></div>`;
+    }).join("") : `<p class="small">이 날짜에 등록된 근무자가 없습니다.</p>`;
+    const selectedMap = Object.fromEntries(selected.map(x => [String(x.worker_id), x]));
+    const workerCards = state.workers.length ? state.workers.map(w => {
+      const saved = selectedMap[String(w.id)];
+      const type = saved?.shift_type || "미배정";
+      const cls = type === "야간" ? "shift-night" : type === "주간" ? "shift-day" : "";
+      const searchText = `${w.name || ""} ${w.company || ""}`.toLowerCase();
+      return `<button class="worker-shift-btn" data-worker-search="${escapeHtml(searchText)}" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved ? `<span class="badge ${cls}">${escapeHtml(type)}</span>` : `<span class="small">근무 미배정</span>`}</div></button>`;
+    }).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
+    const modalHtml = activeShiftWorkerId ? workerShiftModalHtml(activeShiftWorkerId, selectedMap[String(activeShiftWorkerId)]) : "";
+    document.getElementById("page-calendar").innerHTML = `
+      <div class="card">
+        <div class="detail-top">
+          <h2>${calendarDetailDate} 근무 상세</h2>
+          <button onclick="closeShiftDetail()">← 달력으로 돌아가기</button>
+        </div>
+        <p class="small">이 날짜에 배정된 기사님, 주간/야간 구분, 메모를 큰 화면에서 확인하고 수정할 수 있습니다.</p>
+      </div>
+      <div class="card">
+        <h2>근무 현황</h2>
+        <div class="detail-list">${statusRows}</div>
+        <div style="margin-top:12px"><label>메모</label><div class="detail-note">${escapeHtml(note || "등록된 메모 없음")}</div></div>
+      </div>
+      ${isMobileView() ? `` : `<div class="card">
+        <h2>근무 수정</h2>
+        <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
+        <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko" oncompositionstart="workerShiftComposing=true" oncompositionend="workerShiftComposing=false; filterWorkerShiftList(this.value)" oninput="if(!workerShiftComposing) filterWorkerShiftList(this.value)"></div>
+        <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
+        <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(inputNote)}</textarea></div>
+        <div class="actions"><button class="primary" onclick="saveShiftNote()">메모 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
+      </div>`}
+      ${isMobileView() ? `` : modalHtml}`;
+    setTimeout(() => filterWorkerShiftList(workerShiftSearch), 0);
+    return;
+  }
+
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m + 1, 0);
+  const startBlank = first.getDay();
+  const days = [];
+  for(let i=0;i<startBlank;i++) days.push(`<div class="day-cell empty"></div>`);
+  for(let d=1; d<=last.getDate(); d++){
+    const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const shifts = shiftsByDate(dateText);
+    const dayNames = shifts.filter(s => (s.shift_type || "주간") === "주간").map(s => workerNameById(s.worker_id)).filter(Boolean);
+    const nightNames = shifts.filter(s => (s.shift_type || "주간") === "야간").map(s => workerNameById(s.worker_id)).filter(Boolean);
+    const names = [
+      dayNames.length ? `<span class="shift-name shift-day">주간: ${escapeHtml(dayNames.join(", "))}</span>` : "",
+      nightNames.length ? `<span class="shift-name shift-night">야간: ${escapeHtml(nightNames.join(", "))}</span>` : ""
+    ].join("");
+    const todayClass = dateText === todayStr() ? " today" : "";
+    days.push(`<div class="day-cell${todayClass}" onclick="openShiftDetail('${dateText}')"><div class="day-num">${d}</div>${names || `<span class="small">-</span>`}</div>`);
+  }
+  document.getElementById("page-calendar").innerHTML = `
+    <div class="card">
+      <div class="calendar-toolbar">
+        <button onclick="moveCalendarMonth(-1)">이전달</button>
+        <div class="calendar-title">${y}년 ${m+1}월 근무달력</div>
+        <button onclick="moveCalendarMonth(1)">다음달</button>
+      </div>
+      <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button></div>
+      <p class="small">날짜를 클릭하면 큰 화면에서 근무 현황과 메모를 확인하고, 주간/야간 근무를 입력할 수 있습니다.</p>
+    </div>
+    <div class="card">
+      <div class="calendar-grid">
+        ${["일","월","화","수","목","금","토"].map(x => `<div class="calendar-head">${x}</div>`).join("")}
+        ${days.join("")}
+      </div>
+    </div>`;
+}
+function filterWorkerShiftList(q){
+  workerShiftSearch = (q || "").toLowerCase().trim();
+  document.querySelectorAll("#worker-shift-list .worker-shift-btn").forEach(btn => {
+    const text = (btn.getAttribute("data-worker-search") || "").toLowerCase();
+    btn.style.display = !workerShiftSearch || text.includes(workerShiftSearch) ? "block" : "none";
+  });
+}
+
+function selectShiftDate(dateText){ openShiftDetail(dateText); }
+function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
+function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; workerShiftSearch = ""; clearShiftInputAfterSave = false; renderCalendar(); }
+function moveCalendarMonth(offset){ calendarDetailDate = ""; activeShiftWorkerId = null; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
+function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); renderCalendar(); }
+function openWorkerShiftModal(workerId){ activeShiftWorkerId = Number(workerId); renderCalendar(); }
+function closeWorkerShiftModal(){ activeShiftWorkerId = null; renderCalendar(); }
+function workerShiftModalHtml(workerId, saved){
+  const w = state.workers.find(x => Number(x.id) === Number(workerId));
+  if(!w) return "";
+  const currentType = saved?.shift_type || "주간";
+  const note = val("shift-note") || "";
+  return `<div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 설정</div>
+      <p class="small">소속: ${escapeHtml(w.company || "소속 없음")}</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div><label>근무형태</label><select id="modal-shift-type"><option value="주간" ${currentType==="주간"?"selected":""}>주간</option><option value="야간" ${currentType==="야간"?"selected":""}>야간</option></select></div>
+        <div><label>근무주기</label><input id="modal-shift-days" type="number" min="1" value="1" placeholder="예: 4"></div>
+      </div>
+      <p class="small">예: ${selectedShiftDate}에 야간 / 근무주기 4일 입력 → 선택일 포함 4일간 야간 배치</p>
+      <div class="actions"><button class="primary" onclick="saveWorkerShiftRange(${workerId})">저장</button><button class="red" onclick="removeWorkerShift(${workerId})">이 날짜 근무삭제</button><button onclick="closeWorkerShiftModal()">닫기</button></div>
+    </div>
+  </div>`;
+}
+async function saveShiftNote(){
+  if(!selectedShiftDate) return toast("날짜를 찾을 수 없습니다.");
+  const notes = shiftNotes();
+  const note = val("shift-note");
+  if(note) notes[selectedShiftDate] = note;
+  else delete notes[selectedShiftDate];
+  const res = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(res.error){ console.error(res.error); return toast("메모 저장 오류"); }
+
+  // 기존 근무 데이터와의 호환을 위해 같은 날짜의 근무 항목에도 메모를 같이 반영합니다.
+  const shifts = shiftCalendar().map(x => x.work_date === selectedShiftDate ? { ...x, note } : x);
+  const res2 = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(shifts) });
+  if(res2.error){ console.error(res2.error); return toast("근무 메모 반영 오류"); }
+
+  state.settings.shift_notes = JSON.stringify(notes);
+  state.settings.shift_calendar = JSON.stringify(shifts);
+  clearShiftInputAfterSave = false;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast("메모 저장 완료");
+}
+
+async function saveWorkerShiftRange(workerId){
+  const shiftType = val("modal-shift-type") || "주간";
+  const period = Math.max(1, Number(val("modal-shift-days") || 1));
+  const note = val("shift-note");
+  const rangeDates = Array.from({length:period}, (_, i) => addDaysText(selectedShiftDate, i));
+  const old = shiftCalendar().filter(x => !(Number(x.worker_id) === Number(workerId) && rangeDates.includes(x.work_date)));
+  const added = rangeDates.map(work_date => ({ work_date, worker_id:Number(workerId), shift_type:shiftType, note }));
+  const nextShifts = [...old, ...added];
+  const notes = shiftNotes();
+  if(note) notes[selectedShiftDate] = note;
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(nextShifts) });
+  if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
+  const resNote = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(resNote.error){ console.error(resNote.error); return toast("메모 저장 오류"); }
+  activeShiftWorkerId = null;
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast(`근무 ${period}일 저장 완료`);
+}
+async function removeWorkerShift(workerId){
+  const old = shiftCalendar().filter(x => !(x.work_date === selectedShiftDate && Number(x.worker_id) === Number(workerId)));
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(old) });
+  if(res.error){ console.error(res.error); return toast("근무 삭제 오류"); }
+  activeShiftWorkerId = null;
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast("근무 삭제 완료");
+}
+async function clearShiftDate(){
+  if(!confirm(`${selectedShiftDate} 근무 배정을 모두 삭제할까요?`)) return;
+  const kept = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
+  const notes = shiftNotes();
+  delete notes[selectedShiftDate];
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(kept) });
+  if(res.error){ console.error(res.error); return toast("삭제 오류"); }
+  const resNote = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(resNote.error){ console.error(resNote.error); return toast("메모 삭제 오류"); }
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
+  await loadAll();
+  toast("삭제 완료");
+}
+
+function renderMobile() {
+  const cards = state.due.length ? state.due.map(x => `
+    <div class="mobile-card">
+      <h2>${escapeHtml(x.name)} 기사님</h2>
+      <p><b>교육:</b> ${escapeHtml(x.education_name)} <span class="mini">${escapeHtml(educationMeta(x.education_name))}</span></p>
+      <p><b>최근교육일:</b> ${escapeHtml(x.last_date || "-")}</p>
+      <p><b>예정일:</b> ${x.next_date} <span class="badge ${badgeClass(x.remain)}">${x.dday}</span></p>
+      <p><b>연락처:</b> ${escapeHtml(x.phone || "연락처 없음")}</p>
+      <textarea readonly>${escapeHtml(smsBody(x))}</textarea>
+      <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">교육완료</button></div>
+      <p class="small">교육완료를 누르면 교육현황에 이력이 누적 저장됩니다.</p>
+    </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">표시 기준: 기한초과 전체 + D-30 이내</p></div>`;
+  document.getElementById("page-mobile").innerHTML = `
+    <div class="actions" style="margin-bottom:12px"><button onclick="loadAll()">새로고침</button></div>
+    ${cards}`;
+}
+
+function renderDashboard() {
+  const st=dashboardStats();
+  const rows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button></td></tr>`).join("") || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
+  document.getElementById("page-dashboard").innerHTML = `
+    <div class="grid3">
+      <div class="card"><h2>${state.workers.length}명</h2><p class="small">등록 기사님</p></div>
+      <div class="card"><h2>${st.overdue}건</h2><p class="small danger-text">기한초과</p></div>
+      <div class="card"><h2>${st.soon}건</h2><p class="small warn-text">14일 이내 임박</p></div>
+      <div class="card"><h2>${activeEducationRules().length}종</h2><p class="small">사용 중 교육기준</p></div>
+      <div class="card"><h2>${st.normal}건</h2><p class="small ok-text">정상 관리</p></div>
+      <div class="card"><h2>${state.equipment.length}대</h2><p class="small">장비</p></div>
+    </div>
+    <div class="card"><h2>우선 처리 목록</h2><p class="small">기한초과 전체와 D-30 이내 교육만 표시합니다. 완료 버튼으로 즉시 교육현황까지 반영됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>최근교육일</th><th>예정일</th><th>D-Day</th><th>연락처</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+function workerOptions(selected="", includeBlank=false) {
+  const blank = includeBlank ? `<option value="">선택</option>` : "";
+  return blank + state.workers.map(w => `<option value="${w.id}" ${String(selected)===String(w.id)?"selected":""}>${escapeHtml(w.name)}</option>`).join("");
+}
+function eduOptions() {
+  return educationTypeNames().map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
+}
+
+function uniqueValues(items, key) {
+  return [...new Set((items || []).map(x => (x?.[key] || "").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b, "ko"));
+}
+function dataListOptions(values) {
+  return (values || []).map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
+}
+
+function renderWorkers() {
+  const mobile = isMobileView();
+  const companyOptions = dataListOptions(uniqueValues(state.workers, "company"));
+  const noteOptions = dataListOptions(uniqueValues(state.workers, "note"));
+  const actionCell = (w) => mobile
+    ? `<button onclick="editWorker(${w.id})">수정</button>`
+    : `<button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button>`;
+  const rows = state.workers.map(w => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="6">등록된 기사님이 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
+  document.getElementById("page-workers").innerHTML = `
+    ${formCard}
+    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+}
+async function saveWorker() {
+  const id = document.getElementById("worker-id").value;
+  const data = { name:val("worker-name"), birth:dateVal("worker-birth"), phone:phoneVal("worker-phone"), company:val("worker-company"), note:val("worker-note") };
+  if (!data.name) return toast("이름을 입력하세요.");
+  if (data.birth && !isValidDateText(data.birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
+  const res = id ? await db.from("workers").update(data).eq("id", id) : await db.from("workers").insert(data);
+  if (res.error) return toast("저장 오류");
+  clearDraftForPage("workers"); clearWorkerForm(); await loadAll(); toast("저장 완료");
+}
+function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
+function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
+async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
+
+// 교육주기 메뉴는 제거했습니다. 교육 기준/주기 관리는 [보관관리]와 [설정]의 교육기준을 마스터로 사용합니다.
+
+function groupedHistoryRows(showManage=true){
+  const eduNames = educationTypeNames();
+  const latestByWorker={};
+
+  // 교육현황은 기사님 전체를 기준으로 먼저 행을 만들고,
+  // 설정의 교육기준 목록을 기준으로 교육 컬럼을 자동 생성합니다.
+  // 그래서 아직 이력이 없는 기사님도 교육기준 항목이 빈칸(-)으로 같이 보입니다.
+  for(const w of state.workers){
+    latestByWorker[String(w.id)] = { worker:w, records:{}, ids:[] };
+  }
+
+  for(const h of state.history){
+    const key=String(h.worker_id);
+    if(!latestByWorker[key]) latestByWorker[key]={worker:null, records:{}, ids:[]};
+    const old=latestByWorker[key].records[h.education_name];
+    if(!old || String(h.education_date) > String(old.education_date)) latestByWorker[key].records[h.education_name]=h;
+    latestByWorker[key].ids.push(h.id);
+  }
+
+  const groups=Object.entries(latestByWorker)
+    .filter(([workerId,g]) => g.worker)
+    .sort((a,b)=>(a[1].worker?.name||"").localeCompare(b[1].worker?.name||""));
+
+  if(!state.workers.length) return `<tr><td colspan="${eduNames.length + (showManage ? 3 : 2)}">등록된 기사님이 없습니다.</td></tr>`;
+
+  return groups.map(([workerId,g])=>{
+    const eduCells=eduNames.map(name=>{
+      const r=g.records[name];
+      if(!r) return `<td><span class="small">-</span></td>`;
+      const cycle=(getEducationRule(name)?.cycle_days ?? 365);
+      const sch=calcSchedule(r.education_date, cycle);
+      return `<td><span class="edu-chip">${escapeHtml(r.education_date)}</span><span class="mini"><span class="badge ${sch.cls}">${sch.dday}</span></span></td>`;
+    }).join("");
+    const hasHistory = (g.ids || []).length > 0;
+    const manageButton = hasHistory ? `<button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button>` : `<span class="small">이력 없음</span>`;
+    return `<tr data-search="${escapeHtml(`${g.worker?.name || ""} ${g.worker?.company || ""}`)}"><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}${showManage ? `<td>${manageButton}</td>` : ``}</tr>`;
+  }).join("");
+}
+
+function renderHistory(){
+  const mobile = isMobileView();
+  const eduHeads=educationTypeNames().map(x=>`<th>${escapeHtml(x)}</th>`).join("");
+  const rows=groupedHistoryRows(!mobile);
+  const inputCard = mobile ? `` : `<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions("", true)}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div>`;
+  document.getElementById("page-history").innerHTML=`${inputCard}<div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="list-search"><label>기사님 검색</label><input id="history-card-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('history-card-search','history-card-body')"></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}${mobile ? `` : `<th>관리</th>`}</tr></thead><tbody id="history-card-body">${rows}<tr data-empty-row style="display:none"><td colspan="${educationTypeNames().length + (mobile ? 2 : 3)}">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+}
+
+async function upsertEducationHistory(workerId, educationName, educationDate, note=""){
+  // 교육 이력은 감사/보관 목적 때문에 덮어쓰지 않고 계속 누적 저장합니다.
+  const data={worker_id:Number(workerId),education_name:educationName,education_date:educationDate,note};
+  return await db.from("training_history").insert(data);
+}
+
+async function syncEducationRecordLastDate(workerId, educationName, educationDate){
+  const match=state.education.find(e=>Number(e.worker_id)===Number(workerId) && e.education_name===educationName);
+  if(match) return await db.from("education_records").update({ last_date: educationDate }).eq("id", match.id);
+  return { error: null };
+}
+
+async function saveHistory(){
+  const data={worker_id:Number(val("hist-worker")),education_name:val("hist-name"),education_date:dateVal("hist-date"),note:val("hist-note")};
+  if(!data.worker_id||!data.education_name||!data.education_date)return toast("모두 입력하세요.");
+  if(!isValidDateText(data.education_date)) return toast("교육일자는 YYYY-MM-DD 형식으로 입력하세요.");
+  const res=await upsertEducationHistory(data.worker_id,data.education_name,data.education_date,data.note);
+  if(res.error)return toast("저장 오류: 교육현황 저장 실패");
+  clearDraftForPage("history");
+  await loadAll();
+  toast("교육현황 저장 완료");
+}
+async function deleteHistory(id){ if(!confirm("삭제할까요?"))return; await db.from("training_history").delete().eq("id",id); await loadAll(); }
+async function deleteWorkerHistory(workerId){ if(!confirm("해당 기사님의 교육이력을 모두 삭제할까요?"))return; await db.from("training_history").delete().eq("worker_id",workerId); await loadAll(); }
+
+
+
+function jsString(v){ return String(v ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
+async function completeEducationByWorker(workerId, educationName){
+  if(!workerId || !educationName) return toast("교육 정보를 찾을 수 없습니다.");
+  const doneDate=todayStr();
+  const histRes=await upsertEducationHistory(workerId, educationName, doneDate, "교육완료 버튼 처리");
+  if(histRes.error) return toast("교육현황 저장 오류");
+  await loadAll();
+  toast("교육완료 처리 완료");
+}
+
+function renderRetention(){
+  const workerMap=Object.fromEntries(state.workers.map(w=>[w.id,w]));
+  const rules=retentionRules();
+  const eduRuleMap=Object.fromEntries(educationRules().map(r=>[r.education_name,r]));
+  const ruleRows=rules.map((r, idx)=>{
+    const er=eduRuleMap[r.education_name] || {};
+    return `<tr data-search="${escapeHtml(`${r.education_name || ""} ${er.category || ""} ${er.basis || r.note || ""}`)}">
+      <td>${escapeHtml(r.education_name)}</td>
+      <td>${Number(er.cycle_days)===0?"반복없음":escapeHtml(er.cycle_days ?? "-")+"일"}</td>
+      <td>${escapeHtml(r.retention_years)}</td>
+      <td class="left">${escapeHtml(er.category || "")}</td>
+      <td class="left">${escapeHtml(er.basis || r.note || "")}</td>
+      <td>${(r.active===false || er.active===false)?"미사용":"사용"}</td>
+      <td><button onclick="editRetentionRule(${idx})">수정</button> <button class="red" onclick="deleteRetentionRule(${idx})">삭제</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7">등록된 보관기준이 없습니다.</td></tr>`;
+
+  const historyRows=state.history.map(h=>{
+    const w=workerMap[h.worker_id];
+    const r=rules.find(x=>x.education_name===h.education_name);
+    const er=eduRuleMap[h.education_name];
+    const missing=!r || !er;
+    const inactive=(r?.active===false) || (er?.active===false);
+    const st=retentionStatus(h);
+    let mark="";
+    let action="-";
+    if(missing){
+      mark=`<span class="badge due">블라인드</span><span class="mini">보관기준 목록에 없는 교육</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(inactive){
+      mark=`<span class="badge due">블라인드</span><span class="mini">미사용 교육</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(st.managed && st.expired){
+      mark=`<span class="badge due">보관기간 초과</span><span class="mini">만료일: ${st.expiryText}</span>`;
+      action=`<button class="red" onclick="deleteHistoryRecord(${h.id})">확인 후 삭제</button>`;
+    }else if(st.managed){
+      mark=`<span class="badge ok">보관중</span><span class="mini">만료일: ${st.expiryText}</span>`;
+    }else{
+      mark=`<span class="badge info">보관기준 없음</span>`;
+    }
+    return `<tr><td>${escapeHtml(w?.name||"")}</td><td>${escapeHtml(w?.company||"")}</td><td>${escapeHtml(h.education_name)}</td><td>${escapeHtml(h.education_date)}</td><td>${escapeHtml(st.years)}</td><td>${mark}</td><td>${escapeHtml(h.note||"")}</td><td>${action}</td></tr>`;
+  }).join("") || `<tr><td colspan="8">등록된 교육 이력이 없습니다.</td></tr>`;
+  document.getElementById("page-retention").innerHTML=`
+    <div class="card"><h2>교육 보관기준 등록/수정</h2>
+      <input type="hidden" id="ret-index">
+      <div class="form-row">
+        <div><label>교육명</label><input id="ret-name" list="ret-edu-list"><datalist id="ret-edu-list">${eduOptions()}</datalist></div>
+        <div><label>교육주기(일)</label><input id="ret-cycle" placeholder="365, 90, 0"></div>
+        <div><label>보관년수</label><input id="ret-years" placeholder="예: 5"></div>
+        <div><label>사용 여부</label><select id="ret-active"><option value="true">사용</option><option value="false">미사용</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>구분</label><input id="ret-category" placeholder="반복 / 1회성 / 조건부"></div>
+        <div><label>시간/조건</label><input id="ret-hours" placeholder="예: 분기 6시간"></div>
+        <div><label>대상/조건</label><input id="ret-condition" placeholder="예: 신규 투입자"></div>
+        <div><label>관리근거</label><input id="ret-basis" placeholder="법령/사내기준"></div>
+      </div>
+      <p class="small">이 화면의 교육명·교육주기·보관년수·사용여부를 기준 마스터로 사용합니다. 보관기간 초과, 미사용, 기준 없는 이력은 확인 후 실제 삭제됩니다.</p>
+      <div class="actions"><button class="primary" onclick="saveRetentionRule()">보관기준 저장</button><button onclick="clearRetentionForm()">초기화</button><button onclick="syncRetentionRulesFromEducation()">교육기준에서 불러오기</button></div>
+    </div>
+    <div class="card"><h2>보관기준 목록</h2><div class="list-search"><label>교육내용 검색</label><input id="retention-rule-search" placeholder="교육명 또는 관리근거 입력" autocomplete="off" oninput="filterListRows('retention-rule-search','retention-rule-body')"></div><div class="table-wrap"><table><thead><tr><th>교육명</th><th>교육주기</th><th>보관년수</th><th>구분</th><th>관리근거</th><th>사용</th><th>관리</th></tr></thead><tbody id="retention-rule-body">${ruleRows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div></div>
+    <div class="card"><h2>교육이력 보관상태</h2><p class="small">보관기준에 없거나 미사용 처리된 교육, 보관기간이 지난 교육은 삭제 대상으로 표시됩니다. 확인 후 삭제를 누르면 해당 교육이력 데이터가 실제 삭제됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육명</th><th>교육일자</th><th>보관년수</th><th>상태</th><th>비고</th><th>확인</th></tr></thead><tbody>${historyRows}</tbody></table></div></div>`;
+}
+
+async function saveRetentionRulesToSettings(rules){
+  const res=await db.from("settings").upsert({key:"retention_rules", value:JSON.stringify(rules)});
+  if(res.error){ toast("보관기준 저장 오류"); return false; }
+  state.settings.retention_rules=JSON.stringify(rules);
+  return true;
+}
+async function saveRetentionAckKeys(keys){
+  const res=await db.from("settings").upsert({key:"retention_ack_keys", value:JSON.stringify(keys)});
+  if(res.error){ toast("확인 처리 저장 오류"); return false; }
+  state.settings.retention_ack_keys=JSON.stringify(keys);
+  return true;
+}
+async function saveRetentionRule(){
+  const name=val("ret-name");
+  const years=Number(val("ret-years"));
+  const cycle=Number(val("ret-cycle"));
+  if(!name) return toast("교육명을 입력하세요.");
+  if(Number.isNaN(cycle)) return toast("교육주기(일)는 숫자로 입력하세요. 반복없음은 0입니다.");
+  if(Number.isNaN(years) || years < 0) return toast("보관년수는 0 이상의 숫자로 입력하세요.");
+  const idxText=val("ret-index");
+  const idx=idxText==="" ? -1 : Number(idxText);
+  const active=val("ret-active")!=="false";
+
+  const rules=retentionRules().slice();
+  const data={education_name:name, retention_years:years, note:val("ret-basis") || val("ret-note"), active};
+  const dup=rules.findIndex((r,i)=>i!==idx && r.education_name===name);
+  if(dup>=0) return toast("같은 교육명의 보관기준이 이미 있습니다.");
+  if(idx>=0) rules[idx]=data; else rules.push(data);
+  const ok=await saveRetentionRulesToSettings(rules);
+  if(!ok) return;
+
+  const eduRules=educationRules().slice();
+  const erIdx=eduRules.findIndex(r=>r.education_name===name);
+  const er={education_name:name, category:val("ret-category")||"사용자 지정", cycle_days:cycle, hours:val("ret-hours"), condition:val("ret-condition"), basis:val("ret-basis"), active};
+  if(erIdx>=0) eduRules[erIdx]=er; else eduRules.push(er);
+  const ok2=await saveRulesToSettings(eduRules);
+  if(!ok2) return;
+  clearDraftForPage("retention");
+  clearRetentionForm(); await loadAll(); toast("보관기준 저장 완료");
+}
+function editRetentionRule(idx){
+  const r=retentionRules()[idx]; if(!r) return;
+  const er=getEducationRule(r.education_name) || educationRules().find(x=>x.education_name===r.education_name) || {};
+  setVal("ret-index", idx); setVal("ret-name", r.education_name); setVal("ret-years", r.retention_years); setVal("ret-cycle", er.cycle_days ?? ""); setVal("ret-category", er.category || ""); setVal("ret-hours", er.hours || ""); setVal("ret-condition", er.condition || ""); setVal("ret-basis", er.basis || r.note || ""); setVal("ret-active", (r.active===false || er.active===false)?"false":"true"); scrollTo(0,0);
+  saveDraftForPage("retention");
+}
+function clearRetentionForm(){ ["ret-index","ret-name","ret-years","ret-cycle","ret-category","ret-hours","ret-condition","ret-basis","ret-note"].forEach(x=>setVal(x,"")); setVal("ret-active","true"); clearDraftForPage("retention"); }
+async function deleteRetentionRule(idx){
+  const rules=retentionRules().slice(); const r=rules[idx]; if(!r) return;
+  if(!confirm(`${r.education_name} 보관기준을 삭제할까요? 교육이력은 삭제되지 않습니다.`)) return;
+  rules.splice(idx,1); const ok=await saveRetentionRulesToSettings(rules); if(!ok) return; await loadAll(); toast("보관기준 삭제 완료");
+}
+async function syncRetentionRulesFromEducation(){
+  if(!confirm("교육기준 목록을 기준으로 보관기준을 다시 구성할까요? 기존 보관기준은 교육명 기준으로 유지하고, 없는 교육만 추가합니다.")) return;
+  const rules=retentionRules().slice();
+  for(const name of educationTypeNames()){
+    if(!rules.some(r=>r.education_name===name)) rules.push({education_name:name, retention_years:5, note:"교육기준에서 자동추가", active:true});
+  }
+  const ok=await saveRetentionRulesToSettings(rules); if(!ok) return; await loadAll(); toast("교육기준 불러오기 완료");
+}
+async function deleteHistoryRecord(id){
+  if(!confirm("해당 교육이력을 실제 삭제할까요? 삭제 후 복구할 수 없습니다.")) return;
+  const res=await db.from("training_history").delete().eq("id", id);
+  if(res.error) return toast("교육이력 삭제 오류");
+  await loadAll();
+  toast("교육이력 삭제 완료");
+}
+async function ackRetention(key){
+  // 이전 버전 호환용: 이제 확인 처리는 표시 전환이 아니라 실제 삭제 방식입니다.
+  toast("이 버전에서는 확인 후 삭제 버튼을 사용하세요.");
+}
+
+function renderEquipment(){
+  const mobile = isMobileView();
+  const typeOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_type"));
+  const workOptions = dataListOptions(uniqueValues(state.equipment, "work_type"));
+  const numberOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_number"));
+  const noteOptions = dataListOptions(uniqueValues(state.equipment, "note"));
+  const actionCell = (e) => mobile
+    ? `<button onclick="editEquipment(${e.id})">수정</button>`
+    : `<button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button>`;
+  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
+  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+}
+async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearDraftForPage("equipment"); clearEqForm(); await loadAll(); }
+function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; document.getElementById("equipment-form-card")?.classList.remove("hidden"); setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.classList.add("hidden"); clearEqForm(); }
+function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
+async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
+
+
+function renderMemo(){
+  document.getElementById("page-memo").innerHTML = `
+    <div class="card">
+      <h2>메모</h2>
+      <p class="small">PC와 휴대폰에서 같이 확인하고 수정할 수 있는 공용 메모입니다.</p>
+      <textarea id="general-memo" style="min-height:360px" placeholder="필요한 내용을 자유롭게 적어두세요.">${escapeHtml(state.settings.general_memo || "")}</textarea>
+      <div class="actions"><button class="primary" onclick="saveGeneralMemo()">메모 저장</button><button onclick="loadAll()">새로고침</button></div>
+    </div>`;
+}
+
+async function saveGeneralMemo(){
+  const value = val("general-memo");
+  const res = await db.from("settings").upsert({key:"general_memo", value});
+  if(res.error){ console.error(res.error); return toast("메모 저장 오류"); }
+  state.settings.general_memo = value;
+  toast("메모 저장 완료");
+}
+
+function renderSettings(){
+  const rules = educationRules();
+  const ruleRows = rules.map((r, idx)=>`<tr>
+    <td>${escapeHtml(r.education_name)}</td>
+    <td>${Number(r.cycle_days)===0?"반복없음":escapeHtml(r.cycle_days)+"일"}</td>
+    <td>${escapeHtml(r.category)}</td>
+    <td>${escapeHtml(r.hours)}</td>
+    <td>${escapeHtml(r.condition)}</td>
+    <td class="left">${escapeHtml(r.basis)}</td>
+    <td>${r.active===false?"미사용":"사용"}</td>
+    <td><button onclick="editRule(${idx})">수정</button> <button class="red" onclick="deleteRule(${idx})">삭제</button></td>
+  </tr>`).join("") || `<tr><td colspan="8">등록된 교육기준이 없습니다.</td></tr>`;
+  document.getElementById("page-settings").innerHTML=`
+    <div class="card"><h2>문자 기본문구</h2><p class="small">치환값: {name}, {education}, {next_date}, {dday}, {phone}</p><textarea id="sms-template">${escapeHtml(state.settings.sms_template||DEFAULT_TEMPLATE)}</textarea><div class="actions"><button class="primary" onclick="saveSettings()">문구 저장</button></div></div>
+
+    <div class="card"><h2>교육기준 등록/수정</h2>
+      <input type="hidden" id="rule-index">
+      <div class="form-row">
+        <div><label>교육명</label><input id="rule-name" placeholder="예: 출입교육"></div>
+        <div><label>구분</label><input id="rule-category" placeholder="예: 반복 / 1회성 / 조건부"></div>
+        <div><label>주기(일)</label><input id="rule-cycle" placeholder="365, 90, 0"></div>
+        <div><label>사용 여부</label><select id="rule-active"><option value="true">사용</option><option value="false">미사용</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>시간/조건</label><input id="rule-hours" placeholder="예: 분기 6시간, 최초 1회"></div>
+        <div><label>대상/조건</label><input id="rule-condition" placeholder="예: 신규 투입자, MSDS 대상물질 취급자"></div>
+        <div style="grid-column:span 2"><label>관리근거</label><input id="rule-basis" placeholder="예: 산업안전보건법 시행규칙, 사업장 출입 기준 등"></div>
+      </div>
+      <p class="small">여기서 저장한 기준은 교육주기 등록, 기본교육 자동생성, 교육현황 카드의 교육명 목록에 바로 반영됩니다. 주기 0일은 반복 없는 1회성/조건부 교육으로 처리됩니다.</p>
+      <div class="actions"><button class="primary" onclick="saveRule()">교육기준 저장</button><button onclick="clearRuleForm()">초기화</button><button onclick="resetDefaultRules()">기본값 복원</button></div>
+    </div>
+
+    <div class="card"><h2>교육기준 목록</h2>
+      <div class="table-wrap"><table><thead><tr><th>교육명</th><th>주기</th><th>구분</th><th>시간/조건</th><th>대상/조건</th><th>관리근거</th><th>사용</th><th>관리</th></tr></thead><tbody>${ruleRows}</tbody></table></div>
+    </div>
+    <div class="card"><h2>앱 설치 안내</h2><p>휴대폰 Chrome에서 이 페이지 접속 후 <b>⋮ → 홈 화면에 추가</b>를 누르면 앱처럼 사용할 수 있습니다.</p></div>`;
+}
+
+async function saveRulesToSettings(rules){
+  const res = await db.from("settings").upsert({key:"education_rules", value:JSON.stringify(rules)});
+  if(res.error){ toast("교육기준 저장 오류"); return false; }
+  state.settings.education_rules = JSON.stringify(rules);
+  return true;
+}
+
+async function saveRule(){
+  const name = val("rule-name");
+  const cycle = Number(val("rule-cycle"));
+  if(!name) return toast("교육명을 입력하세요.");
+  if(Number.isNaN(cycle)) return toast("주기(일)는 숫자로 입력하세요. 반복없음은 0입니다.");
+  const idxText = val("rule-index");
+  const idx = idxText === "" ? -1 : Number(idxText);
+  const rules = educationRules().slice();
+  const data = {
+    education_name:name,
+    category:val("rule-category") || "사용자 지정",
+    cycle_days:cycle,
+    hours:val("rule-hours"),
+    condition:val("rule-condition"),
+    basis:val("rule-basis"),
+    active:val("rule-active") !== "false"
+  };
+  const dup = rules.findIndex((r,i)=>i!==idx && r.education_name===name);
+  if(dup >= 0) return toast("같은 교육명이 이미 있습니다.");
+  if(idx >= 0) rules[idx] = data; else rules.push(data);
+  const ok = await saveRulesToSettings(rules);
+  if(!ok) return;
+  clearDraftForPage("settings");
+  clearRuleForm();
+  await loadAll();
+  toast("교육기준 저장 완료");
+}
+
+function editRule(idx){
+  const r = educationRules()[idx];
+  if(!r) return;
+  setVal("rule-index", idx);
+  setVal("rule-name", r.education_name);
+  setVal("rule-category", r.category);
+  setVal("rule-cycle", r.cycle_days);
+  setVal("rule-hours", r.hours);
+  setVal("rule-condition", r.condition);
+  setVal("rule-basis", r.basis);
+  setVal("rule-active", r.active===false?"false":"true");
+  scrollTo(0,0);
+}
+function clearRuleForm(){ ["rule-index","rule-name","rule-category","rule-cycle","rule-hours","rule-condition","rule-basis"].forEach(x=>setVal(x,"")); setVal("rule-active","true"); clearDraftForPage("settings"); }
+async function deleteRule(idx){
+  const rules = educationRules().slice();
+  const r = rules[idx];
+  if(!r) return;
+  if(!confirm(`${r.education_name} 교육기준을 삭제할까요? 기존 교육이력은 삭제되지 않습니다.`)) return;
+  rules.splice(idx,1);
+  const ok = await saveRulesToSettings(rules);
+  if(!ok) return;
+  await loadAll();
+  toast("교육기준 삭제 완료");
+}
+async function resetDefaultRules(){
+  if(!confirm("교육기준을 기본값으로 복원할까요? 현재 수정한 기준표는 덮어쓰기 됩니다.")) return;
+  const ok = await saveRulesToSettings(DEFAULT_EDUCATION_RULES);
+  if(!ok) return;
+  await loadAll();
+  toast("기본 교육기준 복원 완료");
+}
+
+async function saveSettings(){ const value=val("sms-template"); const res=await db.from("settings").upsert({key:"sms_template", value}); if(res.error)return toast("저장 오류"); clearDraftForPage("settings"); await loadAll(); toast("저장 완료"); }
+
+function draftPrefix(page=currentPage){ return `educationSystemDraft:${page}:`; }
+function draftEnabledPage(page=currentPage){ return !["mobile","dashboard"].includes(page); }
+function saveDraftForPage(page=currentPage){
+  if(!draftEnabledPage(page)) return;
+  document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
+    if(!el.id) return;
+    localStorage.setItem(draftPrefix(page)+el.id, el.value ?? "");
+  });
+}
+function restoreDraftForPage(page=currentPage){
+  if(!draftEnabledPage(page)) return;
+  document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
+    if(!el.id) return;
+    const key=draftPrefix(page)+el.id;
+    const saved=localStorage.getItem(key);
+    if(saved!==null && saved!=="") el.value=saved;
+  });
+}
+function clearDraftForPage(page=currentPage){
+  const prefix=draftPrefix(page);
+  Object.keys(localStorage).filter(k=>k.startsWith(prefix)).forEach(k=>localStorage.removeItem(k));
+}
+function bindDraftInputs(){
+  if(!draftEnabledPage(currentPage)) return;
+  restoreDraftForPage(currentPage);
+  document.querySelectorAll(`#page-${currentPage} input, #page-${currentPage} select, #page-${currentPage} textarea`).forEach(el=>{
+    if(!el.id || el.dataset.draftBound==="1") return;
+    el.dataset.draftBound="1";
+    el.addEventListener("input",()=>saveDraftForPage(currentPage));
+    el.addEventListener("change",()=>saveDraftForPage(currentPage));
+  });
+}
+
+function val(id){ return document.getElementById(id)?.value?.trim() ?? ""; }
+function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v ?? ""; }
+
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
+
+window.addEventListener("load", async () => {
+  if (!ready()) return;
+  await loadAll();
+  showPage("mobile");
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("Service Worker registered"))
+      .catch(err => console.warn("Service Worker registration failed", err));
+  });
+}
+
+</script>
+</body>
+</html>
