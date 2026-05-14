@@ -95,6 +95,8 @@ let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
 let activeShiftWorkerId = null;
 let workerShiftSearch = "";
+let workerShiftComposing = false;
+let clearShiftInputAfterSave = false;
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -376,6 +378,7 @@ function renderCalendar(){
   if(calendarDetailDate){
     const selected = shiftsByDate(calendarDetailDate);
     const note = selected[0]?.note || "";
+    const inputNote = clearShiftInputAfterSave ? "" : (activeShiftWorkerId ? (val("shift-note") || "") : "");
     const workerMap = Object.fromEntries(state.workers.map(w => [String(w.id), w]));
     const statusRows = selected.length ? selected.map(s => {
       const w = workerMap[String(s.worker_id)];
@@ -408,9 +411,9 @@ function renderCalendar(){
       <div class="card">
         <h2>근무 수정</h2>
         <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
-        <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" oninput="filterWorkerShiftList(this.value)"></div>
+        <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko" oncompositionstart="workerShiftComposing=true" oncompositionend="workerShiftComposing=false; filterWorkerShiftList(this.value)" oninput="if(!workerShiftComposing) filterWorkerShiftList(this.value)"></div>
         <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
-        <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(note)}</textarea></div>
+        <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(inputNote)}</textarea></div>
         <div class="actions"><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
       </div>
       ${modalHtml}`;
@@ -462,7 +465,7 @@ function filterWorkerShiftList(q){
 
 function selectShiftDate(dateText){ openShiftDetail(dateText); }
 function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
-function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; renderCalendar(); }
+function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; workerShiftSearch = ""; clearShiftInputAfterSave = false; renderCalendar(); }
 function moveCalendarMonth(offset){ calendarDetailDate = ""; activeShiftWorkerId = null; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
 function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); renderCalendar(); }
 function openWorkerShiftModal(workerId){ activeShiftWorkerId = Number(workerId); renderCalendar(); }
@@ -471,7 +474,7 @@ function workerShiftModalHtml(workerId, saved){
   const w = state.workers.find(x => Number(x.id) === Number(workerId));
   if(!w) return "";
   const currentType = saved?.shift_type || "주간";
-  const note = val("shift-note") || saved?.note || shiftsByDate(selectedShiftDate)[0]?.note || "";
+  const note = val("shift-note") || "";
   return `<div class="modal-backdrop">
     <div class="modal">
       <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 설정</div>
@@ -495,6 +498,8 @@ async function saveWorkerShiftRange(workerId){
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
   if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
   activeShiftWorkerId = null;
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
   await loadAll();
   calendarDetailDate = selectedShiftDate;
   toast(`근무 ${period}일 저장 완료`);
@@ -504,6 +509,8 @@ async function removeWorkerShift(workerId){
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(old) });
   if(res.error){ console.error(res.error); return toast("근무 삭제 오류"); }
   activeShiftWorkerId = null;
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
   await loadAll();
   calendarDetailDate = selectedShiftDate;
   toast("근무 삭제 완료");
@@ -513,6 +520,8 @@ async function clearShiftDate(){
   const kept = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(kept) });
   if(res.error){ console.error(res.error); return toast("삭제 오류"); }
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
   await loadAll();
   toast("삭제 완료");
 }
