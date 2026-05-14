@@ -32,8 +32,8 @@
     .day-cell{min-height:118px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;overflow:hidden}
     .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
     .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
-    @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row,.worker-checks{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}.calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}}
+    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+    @media(max-width:760px){.header{align-items:flex-start}.nav,.nav button{width:100%}.container{padding:12px}.grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}button,.btn{width:100%}th,td{font-size:13px;padding:8px}h1{font-size:19px}.calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}}
   </style>
 </head>
 <body>
@@ -93,6 +93,7 @@ let currentPage = "mobile";
 let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
+let activeShiftWorkerId = null;
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -212,6 +213,7 @@ function shiftCalendar(){
   } catch(e) { return []; }
 }
 function shiftsByDate(dateText){ return shiftCalendar().filter(x => x.work_date === dateText); }
+function addDaysText(dateText, days){ return formatDate(addDays(dateText, days)); }
 function workerNameById(id){ return state.workers.find(w => Number(w.id) === Number(id))?.name || ""; }
 function historyRecordKey(h){ return h?.id ? `history:${h.id}` : `history:${h.worker_id}:${h.education_name}:${h.education_date}`; }
 function addYears(dateText, years){
@@ -381,11 +383,13 @@ function renderCalendar(){
       return `<div class="detail-row"><div><div class="detail-worker">${escapeHtml(w?.name || "이름없음")}</div><div class="small">${escapeHtml(w?.company || "")}</div></div><span class="badge ${cls}">${escapeHtml(type)}</span></div>`;
     }).join("") : `<p class="small">이 날짜에 등록된 근무자가 없습니다.</p>`;
     const selectedMap = Object.fromEntries(selected.map(x => [String(x.worker_id), x]));
-    const checks = state.workers.length ? state.workers.map(w => {
+    const workerCards = state.workers.length ? state.workers.map(w => {
       const saved = selectedMap[String(w.id)];
-      const type = saved?.shift_type || "주간";
-      return `<label class="check-item"><input type="checkbox" class="shift-worker-check" value="${w.id}" ${saved ? "checked" : ""}> <span>${escapeHtml(w.name)} <span class="small">${escapeHtml(w.company || "")}</span></span><select class="shift-type-select" data-worker-id="${w.id}"><option value="주간" ${type==="주간"?"selected":""}>주간</option><option value="야간" ${type==="야간"?"selected":""}>야간</option></select></label>`;
+      const type = saved?.shift_type || "미배정";
+      const cls = type === "야간" ? "shift-night" : type === "주간" ? "shift-day" : "";
+      return `<button class="worker-shift-btn" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved ? `<span class="badge ${cls}">${escapeHtml(type)}</span>` : `<span class="small">근무 미배정</span>`}</div></button>`;
     }).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
+    const modalHtml = activeShiftWorkerId ? workerShiftModalHtml(activeShiftWorkerId, selectedMap[String(activeShiftWorkerId)]) : "";
     document.getElementById("page-calendar").innerHTML = `
       <div class="card">
         <div class="detail-top">
@@ -401,10 +405,12 @@ function renderCalendar(){
       </div>
       <div class="card">
         <h2>근무 수정</h2>
-        <div class="worker-checks">${checks}</div>
-        <div style="margin-top:10px"><label>메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(note)}</textarea></div>
-        <div class="actions"><button class="primary" onclick="saveShiftDate()">근무 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
-      </div>`;
+        <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
+        <div class="worker-shift-list">${workerCards}</div>
+        <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(note)}</textarea></div>
+        <div class="actions"><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
+      </div>
+      ${modalHtml}`;
     return;
   }
 
@@ -444,23 +450,51 @@ function renderCalendar(){
 }
 function selectShiftDate(dateText){ openShiftDetail(dateText); }
 function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
-function closeShiftDetail(){ calendarDetailDate = ""; renderCalendar(); }
-function moveCalendarMonth(offset){ calendarDetailDate = ""; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
+function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; renderCalendar(); }
+function moveCalendarMonth(offset){ calendarDetailDate = ""; activeShiftWorkerId = null; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
 function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); renderCalendar(); }
-async function saveShiftDate(){
+function openWorkerShiftModal(workerId){ activeShiftWorkerId = Number(workerId); renderCalendar(); }
+function closeWorkerShiftModal(){ activeShiftWorkerId = null; renderCalendar(); }
+function workerShiftModalHtml(workerId, saved){
+  const w = state.workers.find(x => Number(x.id) === Number(workerId));
+  if(!w) return "";
+  const currentType = saved?.shift_type || "주간";
+  const note = val("shift-note") || saved?.note || shiftsByDate(selectedShiftDate)[0]?.note || "";
+  return `<div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 설정</div>
+      <p class="small">소속: ${escapeHtml(w.company || "소속 없음")}</p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div><label>근무형태</label><select id="modal-shift-type"><option value="주간" ${currentType==="주간"?"selected":""}>주간</option><option value="야간" ${currentType==="야간"?"selected":""}>야간</option></select></div>
+        <div><label>근무주기</label><input id="modal-shift-days" type="number" min="1" value="1" placeholder="예: 4"></div>
+      </div>
+      <p class="small">예: ${selectedShiftDate}에 야간 / 근무주기 4일 입력 → 선택일 포함 4일간 야간 배치</p>
+      <div class="actions"><button class="primary" onclick="saveWorkerShiftRange(${workerId})">저장</button><button class="red" onclick="removeWorkerShift(${workerId})">이 날짜 근무삭제</button><button onclick="closeWorkerShiftModal()">닫기</button></div>
+    </div>
+  </div>`;
+}
+async function saveWorkerShiftRange(workerId){
+  const shiftType = val("modal-shift-type") || "주간";
+  const period = Math.max(1, Number(val("modal-shift-days") || 1));
   const note = val("shift-note");
-  const selected = Array.from(document.querySelectorAll(".shift-worker-check:checked"));
-  const old = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
-  const added = selected.map(chk => {
-    const id = Number(chk.value);
-    const sel = document.querySelector(`.shift-type-select[data-worker-id="${id}"]`);
-    return { work_date:selectedShiftDate, worker_id:id, shift_type:sel?.value || "주간", note };
-  });
+  const rangeDates = Array.from({length:period}, (_, i) => addDaysText(selectedShiftDate, i));
+  const old = shiftCalendar().filter(x => !(Number(x.worker_id) === Number(workerId) && rangeDates.includes(x.work_date)));
+  const added = rangeDates.map(work_date => ({ work_date, worker_id:Number(workerId), shift_type:shiftType, note }));
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
   if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
+  activeShiftWorkerId = null;
   await loadAll();
   calendarDetailDate = selectedShiftDate;
-  toast("근무 저장 완료");
+  toast(`근무 ${period}일 저장 완료`);
+}
+async function removeWorkerShift(workerId){
+  const old = shiftCalendar().filter(x => !(x.work_date === selectedShiftDate && Number(x.worker_id) === Number(workerId)));
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(old) });
+  if(res.error){ console.error(res.error); return toast("근무 삭제 오류"); }
+  activeShiftWorkerId = null;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast("근무 삭제 완료");
 }
 async function clearShiftDate(){
   if(!confirm(`${selectedShiftDate} 근무 배정을 모두 삭제할까요?`)) return;
@@ -503,8 +537,9 @@ function renderDashboard() {
     <div class="card"><h2>우선 처리 목록</h2><p class="small">기한초과 전체와 D-30 이내 교육만 표시합니다. 완료 버튼으로 즉시 교육현황까지 반영됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>최근교육일</th><th>예정일</th><th>D-Day</th><th>연락처</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
-function workerOptions(selected="") {
-  return state.workers.map(w => `<option value="${w.id}" ${String(selected)===String(w.id)?"selected":""}>${escapeHtml(w.name)}</option>`).join("");
+function workerOptions(selected="", includeBlank=false) {
+  const blank = includeBlank ? `<option value="">선택</option>` : "";
+  return blank + state.workers.map(w => `<option value="${w.id}" ${String(selected)===String(w.id)?"selected":""}>${escapeHtml(w.name)}</option>`).join("");
 }
 function eduOptions() {
   return educationTypeNames().map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
@@ -582,7 +617,7 @@ function groupedHistoryRows(){
 function renderHistory(){
   const eduHeads=educationTypeNames().map(x=>`<th>${escapeHtml(x)}</th>`).join("");
   const rows=groupedHistoryRows();
-  document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions()}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div><div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}<th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions("", true)}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div><div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th>${eduHeads}<th>관리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
 async function upsertEducationHistory(workerId, educationName, educationDate, note=""){
