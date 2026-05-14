@@ -66,6 +66,7 @@
       <button onclick="showPage('history')" id="nav-history">교육현황</button>
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
+      <button onclick="showPage('memo')" id="nav-memo">메모</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
   </div>
@@ -84,6 +85,7 @@
     <section id="page-history" class="page hidden"></section>
     <section id="page-retention" class="page hidden"></section>
     <section id="page-equipment" class="page hidden"></section>
+    <section id="page-memo" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
 
@@ -326,6 +328,7 @@ async function loadAll() {
   if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
   if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
   if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
+  if (state.settings.general_memo === undefined) state.settings.general_memo = "";
   makeDue();
   renderCurrent();
 }
@@ -435,6 +438,7 @@ function renderCurrent() {
   if (currentPage === "history") renderHistory();
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
+  if (currentPage === "memo") renderMemo();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
   bindDraftInputs();
@@ -639,7 +643,7 @@ function renderMobile() {
       <p class="small">교육완료를 누르면 교육현황에 이력이 누적 저장됩니다.</p>
     </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">표시 기준: 기한초과 전체 + D-30 이내</p></div>`;
   document.getElementById("page-mobile").innerHTML = `
-    <div class="card"><h2>현장용 화면</h2><p class="small">문자 발송 → 교육완료 처리까지 휴대폰에서 바로 처리합니다.</p><div class="actions"><button onclick="loadAll()">새로고침</button></div></div>
+    <div class="actions" style="margin-bottom:12px"><button onclick="loadAll()">새로고침</button></div>
     ${cards}`;
 }
 
@@ -940,6 +944,25 @@ function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)re
 function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.classList.add("hidden"); clearEqForm(); }
 function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
 async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
+
+
+function renderMemo(){
+  document.getElementById("page-memo").innerHTML = `
+    <div class="card">
+      <h2>메모</h2>
+      <p class="small">PC와 휴대폰에서 같이 확인하고 수정할 수 있는 공용 메모입니다.</p>
+      <textarea id="general-memo" style="min-height:360px" placeholder="필요한 내용을 자유롭게 적어두세요.">${escapeHtml(state.settings.general_memo || "")}</textarea>
+      <div class="actions"><button class="primary" onclick="saveGeneralMemo()">메모 저장</button><button onclick="loadAll()">새로고침</button></div>
+    </div>`;
+}
+
+async function saveGeneralMemo(){
+  const value = val("general-memo");
+  const res = await db.from("settings").upsert({key:"general_memo", value});
+  if(res.error){ console.error(res.error); return toast("메모 저장 오류"); }
+  state.settings.general_memo = value;
+  toast("메모 저장 완료");
+}
 
 function renderSettings(){
   const rules = educationRules();
