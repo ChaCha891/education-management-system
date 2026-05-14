@@ -234,6 +234,18 @@ function shiftCalendar(){
     return Array.isArray(parsed) ? parsed : [];
   } catch(e) { return []; }
 }
+function shiftNotes(){
+  try {
+    const parsed = JSON.parse(state.settings.shift_notes || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch(e) { return {}; }
+}
+function shiftNoteByDate(dateText){
+  const notes = shiftNotes();
+  if (notes[dateText] !== undefined) return notes[dateText] || "";
+  const found = shiftCalendar().find(x => x.work_date === dateText && x.note);
+  return found?.note || "";
+}
 function shiftsByDate(dateText){ return shiftCalendar().filter(x => x.work_date === dateText); }
 function addDaysText(dateText, days){ return formatDate(addDays(dateText, days)); }
 function workerNameById(id){ return state.workers.find(w => Number(w.id) === Number(id))?.name || ""; }
@@ -311,6 +323,7 @@ async function loadAll() {
   if (!state.settings.retention_rules) state.settings.retention_rules = JSON.stringify(defaultRetentionRules());
   if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
   if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
+  if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
   makeDue();
   renderCurrent();
 }
@@ -431,8 +444,8 @@ function renderCalendar(){
 
   if(calendarDetailDate){
     const selected = shiftsByDate(calendarDetailDate);
-    const note = selected[0]?.note || "";
-    const inputNote = clearShiftInputAfterSave ? "" : (activeShiftWorkerId ? (val("shift-note") || "") : "");
+    const note = shiftNoteByDate(calendarDetailDate);
+    const inputNote = clearShiftInputAfterSave ? "" : (activeShiftWorkerId ? (val("shift-note") || note) : note);
     const workerMap = Object.fromEntries(state.workers.map(w => [String(w.id), w]));
     const statusRows = selected.length ? selected.map(s => {
       const w = workerMap[String(s.worker_id)];
@@ -468,7 +481,7 @@ function renderCalendar(){
         <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko" oncompositionstart="workerShiftComposing=true" oncompositionend="workerShiftComposing=false; filterWorkerShiftList(this.value)" oninput="if(!workerShiftComposing) filterWorkerShiftList(this.value)"></div>
         <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
         <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(inputNote)}</textarea></div>
-        <div class="actions"><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
+        <div class="actions"><button class="primary" onclick="saveShiftNote()">메모 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
       </div>
       ${modalHtml}`;
     setTimeout(() => filterWorkerShiftList(workerShiftSearch), 0);
@@ -542,6 +555,28 @@ function workerShiftModalHtml(workerId, saved){
     </div>
   </div>`;
 }
+async function saveShiftNote(){
+  if(!selectedShiftDate) return toast("날짜를 찾을 수 없습니다.");
+  const notes = shiftNotes();
+  const note = val("shift-note");
+  if(note) notes[selectedShiftDate] = note;
+  else delete notes[selectedShiftDate];
+  const res = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(res.error){ console.error(res.error); return toast("메모 저장 오류"); }
+
+  // 기존 근무 데이터와의 호환을 위해 같은 날짜의 근무 항목에도 메모를 같이 반영합니다.
+  const shifts = shiftCalendar().map(x => x.work_date === selectedShiftDate ? { ...x, note } : x);
+  const res2 = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(shifts) });
+  if(res2.error){ console.error(res2.error); return toast("근무 메모 반영 오류"); }
+
+  state.settings.shift_notes = JSON.stringify(notes);
+  state.settings.shift_calendar = JSON.stringify(shifts);
+  clearShiftInputAfterSave = false;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast("메모 저장 완료");
+}
+
 async function saveWorkerShiftRange(workerId){
   const shiftType = val("modal-shift-type") || "주간";
   const period = Math.max(1, Number(val("modal-shift-days") || 1));
@@ -549,8 +584,13 @@ async function saveWorkerShiftRange(workerId){
   const rangeDates = Array.from({length:period}, (_, i) => addDaysText(selectedShiftDate, i));
   const old = shiftCalendar().filter(x => !(Number(x.worker_id) === Number(workerId) && rangeDates.includes(x.work_date)));
   const added = rangeDates.map(work_date => ({ work_date, worker_id:Number(workerId), shift_type:shiftType, note }));
-  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
+  const nextShifts = [...old, ...added];
+  const notes = shiftNotes();
+  if(note) notes[selectedShiftDate] = note;
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(nextShifts) });
   if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
+  const resNote = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(resNote.error){ console.error(resNote.error); return toast("메모 저장 오류"); }
   activeShiftWorkerId = null;
   workerShiftSearch = "";
   clearShiftInputAfterSave = true;
@@ -572,8 +612,12 @@ async function removeWorkerShift(workerId){
 async function clearShiftDate(){
   if(!confirm(`${selectedShiftDate} 근무 배정을 모두 삭제할까요?`)) return;
   const kept = shiftCalendar().filter(x => x.work_date !== selectedShiftDate);
+  const notes = shiftNotes();
+  delete notes[selectedShiftDate];
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(kept) });
   if(res.error){ console.error(res.error); return toast("삭제 오류"); }
+  const resNote = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
+  if(resNote.error){ console.error(resNote.error); return toast("메모 삭제 오류"); }
   workerShiftSearch = "";
   clearShiftInputAfterSave = true;
   await loadAll();
