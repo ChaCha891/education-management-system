@@ -43,6 +43,10 @@
     .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
     .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+
+    .patrol-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.patrol-thumb{width:86px;height:66px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+    .patrol-report{background:#fff;color:#111}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:34px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell{height:170px;overflow:hidden}.patrol-photo-cell img{width:100%;height:100%;object-fit:cover;display:block}.patrol-empty-cell{height:170px;background:#fff}
+    @media print{body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell{height:185px!important}.card{box-shadow:none!important;border:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
       .header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -74,6 +78,7 @@
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
       <button onclick="showPage('memo')" id="nav-memo">메모</button>
+      <button onclick="showPage('patrol')" id="nav-patrol">순회점검</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
   </div>
@@ -93,6 +98,7 @@
     <section id="page-retention" class="page hidden"></section>
     <section id="page-equipment" class="page hidden"></section>
     <section id="page-memo" class="page hidden"></section>
+    <section id="page-patrol" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
 
@@ -127,6 +133,7 @@ let activeShiftWorkerId = null;
 let workerShiftSearch = "";
 let workerShiftComposing = false;
 let clearShiftInputAfterSave = false;
+let patrolPrintDate = todayStr();
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -334,6 +341,7 @@ async function loadAll() {
   if (!state.settings.retention_rules) state.settings.retention_rules = JSON.stringify(defaultRetentionRules());
   if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
   if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
+  if (!state.settings.patrol_records) state.settings.patrol_records = JSON.stringify([]);
   if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
   if (state.settings.general_memo === undefined) state.settings.general_memo = "";
   makeDue();
@@ -437,6 +445,129 @@ function filterListRows(inputId, tbodyId){
   if(empty) empty.style.display = visible === 0 ? "" : "none";
 }
 
+
+function patrolRecords(){
+  try {
+    const parsed = JSON.parse(state.settings.patrol_records || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+function patrolRecordsByDate(dateText){ return patrolRecords().filter(x => x.date === dateText); }
+function patrolWorkerText(id){ return workerNameById(id) || "-"; }
+function readImageAsDataUrl(file, maxSize=1100, quality=0.75){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("이미지 처리 실패"));
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function previewPatrolFiles(){
+  const files = Array.from(document.getElementById("patrol-files")?.files || []).slice(0,18);
+  const box = document.getElementById("patrol-preview");
+  if(!box) return;
+  box.innerHTML = files.length ? `<p class="small">선택 사진: ${files.length}장</p>` : `<p class="small">선택된 사진이 없습니다.</p>`;
+}
+async function savePatrolRecord(){
+  const date = dateVal("patrol-date") || todayStr();
+  if(!isValidDateText(date)) return toast("점검일자는 YYYY-MM-DD 형식으로 입력하세요.");
+  const files = Array.from(document.getElementById("patrol-files")?.files || []);
+  if(files.length === 0) return toast("사진을 1장 이상 선택하세요.");
+  if(files.length > 18) return toast("한 번에 최대 18장까지 저장할 수 있습니다.");
+  toast("사진 압축 중...");
+  let images = [];
+  try {
+    for(const f of files){ images.push(await readImageAsDataUrl(f)); }
+  } catch(e) {
+    console.error(e);
+    return toast("사진 처리 오류");
+  }
+  const record = {
+    id: Date.now(),
+    date,
+    place: val("patrol-place"),
+    worker_id: Number(val("patrol-worker") || 0),
+    work: val("patrol-work"),
+    note: val("patrol-note"),
+    images,
+    created_at: new Date().toISOString()
+  };
+  const all = patrolRecords();
+  all.push(record);
+  const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(all)});
+  if(res.error){ console.error(res.error); return toast("순회점검 저장 오류: 사진 용량이 너무 클 수 있습니다."); }
+  clearDraftForPage("patrol");
+  patrolPrintDate = date;
+  await loadAll();
+  toast("순회점검 사진 저장 완료");
+}
+async function deletePatrolRecord(id){
+  if(!confirm("해당 순회점검 사진 묶음을 삭제할까요?")) return;
+  const all = patrolRecords().filter(x => String(x.id) !== String(id));
+  const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(all)});
+  if(res.error) return toast("삭제 오류");
+  await loadAll();
+  toast("삭제 완료");
+}
+function setPatrolPrintDate(v){ patrolPrintDate = autoHyphenDate(v || todayStr()); renderPatrol(); }
+function patrolReportHtml(dateText){
+  const records = patrolRecordsByDate(dateText);
+  const photos = records.flatMap(r => (r.images || []).map(src => ({src, record:r}))).slice(0,18);
+  const d = isValidDateText(dateText) ? new Date(dateText + "T00:00:00") : new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2," ");
+  const day = String(d.getDate()).padStart(2," ");
+  let cells = "";
+  for(let i=0;i<18;i++){
+    const p = photos[i];
+    cells += `<td class="${p ? "patrol-photo-cell" : "patrol-empty-cell"}">${p ? `<img src="${p.src}" alt="현장사진 ${i+1}">` : ""}</td>`;
+    if((i+1)%6===0 && i<17) cells += `</tr><tr>`;
+  }
+  return `<div id="patrol-print-area" class="patrol-report">
+    <table class="patrol-report-table">
+      <tr><th colspan="3" class="patrol-report-title">현 장 사 진</th><th colspan="3" class="patrol-report-date">${y} 년&nbsp;&nbsp;( ${m.trim()} ) 월&nbsp;&nbsp;( ${day.trim()} ) 일</th></tr>
+      <tr>${cells}</tr>
+    </table>
+  </div>`;
+}
+function printPatrolReport(){ window.print(); }
+function renderPatrol(){
+  const dateDefault = patrolPrintDate || todayStr();
+  const workerOpts = workerOptions("", true);
+  const records = patrolRecords().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(b.created_at).localeCompare(String(a.created_at)));
+  const recordRows = records.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.place || "-")}</td><td>${escapeHtml(patrolWorkerText(r.worker_id))}</td><td>${escapeHtml(r.work || "-")}</td><td>${(r.images||[]).length}장</td><td><button onclick="patrolPrintDate='${jsString(r.date)}'; renderPatrol()">양식보기</button> <button class="red" onclick="deletePatrolRecord(${r.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="6">저장된 순회점검 사진이 없습니다.</td></tr>`;
+  document.getElementById("page-patrol").innerHTML = `
+    <div class="card no-print"><h2>순회점검 사진 업로드</h2>
+      <div class="form-row">
+        <div><label>점검일자</label><input id="patrol-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260518"></div>
+        <div><label>작업장소</label><input id="patrol-place" placeholder="예: 저광사 / 야적장"></div>
+        <div><label>기사님</label><select id="patrol-worker">${workerOpts}</select></div>
+        <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
+      </div>
+      <div><label>비고</label><input id="patrol-note" placeholder="특이사항"></div>
+      <div style="margin-top:10px"><label>현장 사진</label><input id="patrol-files" type="file" accept="image/*" multiple onchange="previewPatrolFiles()"><div id="patrol-preview" class="patrol-preview"><p class="small">사진은 최대 18장까지 선택하세요. 휴대폰에서는 카메라 촬영 또는 앨범 선택이 가능합니다.</p></div></div>
+      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearDraftForPage('patrol'); renderPatrol()">초기화</button></div>
+      <p class="small">사진은 자동으로 압축해 저장합니다. 용량이 큰 사진을 너무 많이 저장하면 Supabase 설정 저장 한도에 걸릴 수 있습니다.</p>
+    </div>
+    <div class="card no-print"><h2>순회점검 사진 목록</h2><div class="table-wrap"><table><thead><tr><th>날짜</th><th>장소</th><th>기사님</th><th>작업내용</th><th>사진</th><th>관리</th></tr></thead><tbody>${recordRows}</tbody></table></div></div>
+    <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식에 자동 배치합니다.</p></div>
+    <div class="card">${patrolReportHtml(dateDefault)}</div>`;
+}
+
 function renderCurrent() {
   if (currentPage === "mobile") renderMobile();
   if (currentPage === "dashboard") renderDashboard();
@@ -446,6 +577,7 @@ function renderCurrent() {
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "memo") renderMemo();
+  if (currentPage === "patrol") renderPatrol();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
   bindDraftInputs();
