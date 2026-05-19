@@ -452,6 +452,23 @@ function patrolRecords(){
     return Array.isArray(parsed) ? parsed : [];
   } catch(e) { return []; }
 }
+async function cleanupPatrolRecordsIfNewDay(){
+  if(!db) return;
+  const today = todayStr();
+  const last = state.settings.patrol_cleanup_date || today;
+  if(last !== today){
+    const updates = [
+      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify([])}),
+      db.from("settings").upsert({key:"patrol_cleanup_date", value:today})
+    ];
+    const [r1, r2] = await Promise.all(updates);
+    if(!r1.error && !r2.error){
+      state.settings.patrol_records = JSON.stringify([]);
+      state.settings.patrol_cleanup_date = today;
+      patrolPrintDate = today;
+    }
+  }
+}
 function patrolRecordsByDate(dateText){ return patrolRecords().filter(x => x.date === dateText); }
 function patrolWorkerText(recordOrId){
   if (typeof recordOrId === "object" && recordOrId) return recordOrId.worker_name || workerNameById(recordOrId.worker_id) || "-";
@@ -486,21 +503,27 @@ function previewPatrolFiles(){
   box.innerHTML = files.length ? `<p class="small">선택 사진: ${files.length}장</p>` : `<p class="small">선택된 사진이 없습니다.</p>`;
 }
 async function savePatrolRecord(){
+  const editId = val("patrol-edit-id");
   const date = dateVal("patrol-date") || todayStr();
   if(!isValidDateText(date)) return toast("점검일자는 YYYY-MM-DD 형식으로 입력하세요.");
   const files = Array.from(document.getElementById("patrol-files")?.files || []);
-  if(files.length === 0) return toast("사진을 1장 이상 선택하세요.");
+  if(!editId && files.length === 0) return toast("사진을 1장 이상 선택하세요.");
   if(files.length > 18) return toast("한 번에 최대 18장까지 저장할 수 있습니다.");
-  toast("사진 압축 중...");
-  let images = [];
-  try {
-    for(const f of files){ images.push(await readImageAsDataUrl(f)); }
-  } catch(e) {
-    console.error(e);
-    return toast("사진 처리 오류");
+  const all = patrolRecords();
+  const oldRecord = editId ? all.find(x => String(x.id) === String(editId)) : null;
+  let images = oldRecord?.images || [];
+  if(files.length){
+    toast("사진 압축 중...");
+    images = [];
+    try {
+      for(const f of files){ images.push(await readImageAsDataUrl(f)); }
+    } catch(e) {
+      console.error(e);
+      return toast("사진 처리 오류");
+    }
   }
   const record = {
-    id: Date.now(),
+    id: oldRecord?.id || Date.now(),
     date,
     place: val("patrol-place"),
     worker_name: val("patrol-worker-name"),
@@ -509,16 +532,38 @@ async function savePatrolRecord(){
     vehicle_number: val("patrol-vehicle"),
     note: "",
     images,
-    created_at: new Date().toISOString()
+    created_at: oldRecord?.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
-  const all = patrolRecords();
-  all.push(record);
-  const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(all)});
+  const next = oldRecord ? all.map(x => String(x.id) === String(editId) ? record : x) : [...all, record];
+  const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(next)});
   if(res.error){ console.error(res.error); return toast("순회점검 저장 오류: 사진 용량이 너무 클 수 있습니다."); }
   clearDraftForPage("patrol");
   patrolPrintDate = date;
   await loadAll();
-  toast("순회점검 사진 저장 완료");
+  toast(oldRecord ? "순회점검 수정 완료" : "순회점검 사진 저장 완료");
+}
+function editPatrolRecord(id){
+  const r = patrolRecords().find(x => String(x.id) === String(id));
+  if(!r) return toast("수정할 데이터를 찾을 수 없습니다.");
+  setVal("patrol-edit-id", r.id);
+  setVal("patrol-date", r.date || todayStr());
+  setVal("patrol-vehicle", r.vehicle_number || "");
+  setVal("patrol-worker-name", r.worker_name || patrolWorkerText(r));
+  setVal("patrol-place", r.place || "");
+  setVal("patrol-work", r.work || "");
+  const box = document.getElementById("patrol-preview");
+  if(box) box.innerHTML = `<p class="small">기존 사진 ${(r.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>`;
+  scrollTo(0,0);
+}
+function clearPatrolForm(){
+  ["patrol-edit-id","patrol-vehicle","patrol-worker-name","patrol-place","patrol-work"].forEach(x=>setVal(x,""));
+  setVal("patrol-date", todayStr());
+  const file = document.getElementById("patrol-files");
+  if(file) file.value = "";
+  const box = document.getElementById("patrol-preview");
+  if(box) box.innerHTML = `<p class="small">사진은 최대 18장까지 선택하세요. 휴대폰에서는 카메라 촬영 또는 앨범 선택이 가능합니다.</p>`;
+  clearDraftForPage("patrol");
 }
 async function deletePatrolRecord(id){
   if(!confirm("해당 순회점검 사진 묶음을 삭제할까요?")) return;
@@ -583,9 +628,10 @@ function downloadPatrolCsv(dateText){
 function renderPatrol(){
   const dateDefault = patrolPrintDate || todayStr();
   const records = patrolRecords().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(b.created_at).localeCompare(String(a.created_at)));
-  const recordRows = records.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.vehicle_number || "-")}</td><td>${escapeHtml(patrolWorkerText(r))}</td><td>${escapeHtml(r.place || "-")}</td><td>${escapeHtml(r.work || "-")}</td><td>${(r.images||[]).length}장</td><td><button onclick="patrolPrintDate='${jsString(r.date)}'; renderPatrol()">양식보기</button> <button class="red" onclick="deletePatrolRecord(${r.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="7">저장된 순회점검 사진이 없습니다.</td></tr>`;
+  const recordRows = records.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.vehicle_number || "-")}</td><td>${escapeHtml(patrolWorkerText(r))}</td><td>${escapeHtml(r.place || "-")}</td><td>${escapeHtml(r.work || "-")}</td><td>${(r.images||[]).length}장</td><td><button onclick="editPatrolRecord(${r.id})">수정</button> <button class="red" onclick="deletePatrolRecord(${r.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="7">저장된 순회점검 사진이 없습니다.</td></tr>`;
   document.getElementById("page-patrol").innerHTML = `
-    <div class="card no-print"><h2>순회점검 사진 업로드</h2>
+    <div class="card no-print"><h2>순회점검 사진 업로드/수정</h2>
+      <input type="hidden" id="patrol-edit-id">
       <div class="form-row">
         <div><label>점검일자</label><input id="patrol-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260518"></div>
         <div><label>차량번호</label><input id="patrol-vehicle" placeholder="예: 5951 / 002러 6033"></div>
@@ -594,10 +640,10 @@ function renderPatrol(){
         <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
       </div>
       <div style="margin-top:10px"><label>현장 사진</label><input id="patrol-files" type="file" accept="image/*" multiple onchange="previewPatrolFiles()"><div id="patrol-preview" class="patrol-preview"><p class="small">사진은 최대 18장까지 선택하세요. 휴대폰에서는 카메라 촬영 또는 앨범 선택이 가능합니다.</p></div></div>
-      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearDraftForPage('patrol'); renderPatrol()">초기화</button></div>
-      <p class="small">사진은 자동으로 압축해 저장합니다. 용량이 큰 사진을 너무 많이 저장하면 Supabase 설정 저장 한도에 걸릴 수 있습니다.</p>
+      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">초기화</button></div>
+      <p class="small">일일 순회점검용입니다. 날짜가 바뀌면 이전 날짜의 순회점검 데이터는 용량 관리를 위해 자동 삭제됩니다. 수정 시 새 사진을 선택하지 않으면 기존 사진이 유지됩니다.</p>
     </div>
-    <div class="card no-print"><h2>순회점검 사진 목록</h2><p class="small">같은 날짜로 여러 번 저장한 사진은 출력 양식에서 한 장의 순회점검일지에 자동으로 모입니다.</p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>차량번호</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>관리</th></tr></thead><tbody>${recordRows}</tbody></table></div></div>
+    <div class="card no-print"><h2>순회점검 사진 목록</h2><p class="small">같은 날짜로 여러 번 저장한 사진은 출력 양식에서 한 장의 순회점검일지에 자동으로 모입니다. 수정 버튼으로 세부내용을 다시 불러올 수 있습니다.</p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>차량번호</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>관리</th></tr></thead><tbody>${recordRows}</tbody></table></div></div>
     <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 사진이 있는 칸은 위에서부터 차량번호 / 사진 / 기사님 성함 / 작업장소·작업내용 순서로 표시되고, 빈칸은 불필요한 작은 칸 없이 비워집니다. 화면에서는 스크롤로 양식 전체를 확인할 수 있습니다.</p></div>
     <div class="card"><div class="patrol-report-scroll">${patrolReportHtml(dateDefault)}</div></div>`;
 }
