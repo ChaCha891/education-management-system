@@ -45,7 +45,7 @@
     .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
 
     .patrol-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.patrol-thumb{width:86px;height:66px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
-    .patrol-report{background:#fff;color:#111;width:100%;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:22px 1fr 28px}.patrol-caption-top,.patrol-caption-bottom{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #111;line-height:1.15;padding:2px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-bottom{border-top:1px solid #111;border-bottom:0;white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}
+    .patrol-report{background:#fff;color:#111;width:100%;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:21px 1fr 21px 27px}.patrol-caption-vehicle,.patrol-caption-worker,.patrol-caption-work{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1.12;padding:2px 4px;overflow:hidden;text-align:center}.patrol-caption-vehicle{border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-worker{border-top:1px solid #111;border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-work{white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}
     @page{size:A4 landscape;margin:8mm}@media print{body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
@@ -506,7 +506,7 @@ async function savePatrolRecord(){
     worker_name: val("patrol-worker-name"),
     worker_id: 0,
     work: val("patrol-work"),
-    vehicle_number: "",
+    vehicle_number: val("patrol-vehicle"),
     note: "",
     images,
     created_at: new Date().toISOString()
@@ -534,6 +534,7 @@ function patrolReportHtml(dateText){
   const photos = records.flatMap(r => (r.images || []).map(src => ({
     src,
     record:r,
+    vehicle_number:r.vehicle_number || "",
     worker_name:r.worker_name || patrolWorkerText(r),
     place:r.place || "",
     work:r.work || ""
@@ -545,7 +546,7 @@ function patrolReportHtml(dateText){
   let cells = "";
   for(let i=0;i<18;i++){
     const p = photos[i];
-    cells += `<td class="${p ? "patrol-photo-cell" : "patrol-empty-cell"}">${p ? `<div class="patrol-cell-wrap"><div class="patrol-caption-top">${escapeHtml(p.worker_name || "기사님 성함")}</div><div class="patrol-img-box"><img src="${p.src}" alt="현장사진 ${i+1}"></div><div class="patrol-caption-bottom">${escapeHtml([p.place, p.work].filter(Boolean).join(" / "))}</div></div>` : `<div class="patrol-cell-wrap"><div class="patrol-caption-top"></div><div class="patrol-img-box"></div><div class="patrol-caption-bottom"></div></div>`}</td>`;
+    cells += `<td class="${p ? "patrol-photo-cell" : "patrol-empty-cell"}">${p ? `<div class="patrol-cell-wrap"><div class="patrol-caption-vehicle">${escapeHtml(p.vehicle_number || "차량번호")}</div><div class="patrol-img-box"><img src="${p.src}" alt="현장사진 ${i+1}"></div><div class="patrol-caption-worker">${escapeHtml(p.worker_name || "기사님 성함")}</div><div class="patrol-caption-work">${escapeHtml([p.place, p.work].filter(Boolean).join(" / "))}</div></div>` : `<div class="patrol-cell-wrap"><div class="patrol-caption-vehicle"></div><div class="patrol-img-box"></div><div class="patrol-caption-worker"></div><div class="patrol-caption-work"></div></div>`}</td>`;
     if((i+1)%6===0 && i<17) cells += `</tr><tr>`;
   }
   return `<div id="patrol-print-area" class="patrol-report">
@@ -559,11 +560,12 @@ function printPatrolReport(){ window.print(); }
 function downloadPatrolCsv(dateText){
   const rows = patrolRecordsByDate(dateText);
   if(!rows.length) return toast("내보낼 순회점검 데이터가 없습니다.");
-  const header = ["점검일자","기사님성함","작업장소","작업내용","사진수"];
+  const header = ["점검일자","차량번호","기사님성함","작업장소","작업내용","사진수"];
   const escapeCsv = v => `"${String(v ?? "").replaceAll('"','""')}"`;
   const lines = [header.map(escapeCsv).join(",")];
   rows.forEach(r => lines.push([
     r.date,
+    r.vehicle_number || "",
     r.worker_name || patrolWorkerText(r),
     r.place || "",
     r.work || "",
@@ -581,11 +583,12 @@ function downloadPatrolCsv(dateText){
 function renderPatrol(){
   const dateDefault = patrolPrintDate || todayStr();
   const records = patrolRecords().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(b.created_at).localeCompare(String(a.created_at)));
-  const recordRows = records.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(patrolWorkerText(r))}</td><td>${escapeHtml(r.place || "-")}</td><td>${escapeHtml(r.work || "-")}</td><td>${(r.images||[]).length}장</td><td><button onclick="patrolPrintDate='${jsString(r.date)}'; renderPatrol()">양식보기</button> <button class="red" onclick="deletePatrolRecord(${r.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="6">저장된 순회점검 사진이 없습니다.</td></tr>`;
+  const recordRows = records.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.vehicle_number || "-")}</td><td>${escapeHtml(patrolWorkerText(r))}</td><td>${escapeHtml(r.place || "-")}</td><td>${escapeHtml(r.work || "-")}</td><td>${(r.images||[]).length}장</td><td><button onclick="patrolPrintDate='${jsString(r.date)}'; renderPatrol()">양식보기</button> <button class="red" onclick="deletePatrolRecord(${r.id})">삭제</button></td></tr>`).join("") || `<tr><td colspan="7">저장된 순회점검 사진이 없습니다.</td></tr>`;
   document.getElementById("page-patrol").innerHTML = `
     <div class="card no-print"><h2>순회점검 사진 업로드</h2>
       <div class="form-row">
         <div><label>점검일자</label><input id="patrol-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260518"></div>
+        <div><label>차량번호</label><input id="patrol-vehicle" placeholder="예: 5951 / 002러 6033"></div>
         <div><label>기사님 성함</label><input id="patrol-worker-name" placeholder="기사님 성함 직접 입력"></div>
         <div><label>작업장소</label><input id="patrol-place" placeholder="예: 저광사 / 야적장"></div>
         <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
@@ -594,8 +597,8 @@ function renderPatrol(){
       <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearDraftForPage('patrol'); renderPatrol()">초기화</button></div>
       <p class="small">사진은 자동으로 압축해 저장합니다. 용량이 큰 사진을 너무 많이 저장하면 Supabase 설정 저장 한도에 걸릴 수 있습니다.</p>
     </div>
-    <div class="card no-print"><h2>순회점검 사진 목록</h2><p class="small">같은 날짜로 여러 번 저장한 사진은 출력 양식에서 한 장의 순회점검일지에 자동으로 모입니다.</p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>관리</th></tr></thead><tbody>${recordRows}</tbody></table></div></div>
-    <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 사진 위 칸에는 기사님 성함, 사진 아래 칸에는 작업장소/작업내용이 표시됩니다.</p></div>
+    <div class="card no-print"><h2>순회점검 사진 목록</h2><p class="small">같은 날짜로 여러 번 저장한 사진은 출력 양식에서 한 장의 순회점검일지에 자동으로 모입니다.</p><div class="table-wrap"><table><thead><tr><th>날짜</th><th>차량번호</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>관리</th></tr></thead><tbody>${recordRows}</tbody></table></div></div>
+    <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 각 사진칸은 위에서부터 차량번호 / 사진 / 기사님 성함 / 작업장소·작업내용 순서로 표시됩니다.</p></div>
     <div class="card">${patrolReportHtml(dateDefault)}</div>`;
 }
 
