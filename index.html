@@ -46,6 +46,18 @@
 
     .patrol-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.patrol-thumb{width:86px;height:66px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
     .patrol-report-scroll{width:100%;max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0}.patrol-report{background:#fff;color:#111;width:100%;min-width:980px;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:21px 1fr 21px 27px}.patrol-caption-vehicle,.patrol-caption-worker,.patrol-caption-work{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1.12;padding:2px 4px;overflow:hidden;text-align:center}.patrol-caption-vehicle{border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-worker{border-top:1px solid #111;border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-work{white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}.patrol-empty-box{height:170px;background:#fff}
+
+    .worklog-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+    .worklog-week-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+    .worklog-day-card{border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-height:420px}
+    .worklog-date-head{background:#eef2f7;font-size:17px;font-weight:900;text-align:center;padding:12px;border-bottom:1px solid var(--line)}
+    .worklog-block{padding:10px;border-bottom:1px solid #edf0f5;flex:1;display:flex;flex-direction:column}
+    .worklog-block:last-of-type{border-bottom:0}
+    .worklog-block label{font-size:14px;color:#111827;margin-bottom:8px}
+    .worklog-textarea{min-height:135px;flex:1;resize:vertical;line-height:1.45}
+    .worklog-textarea[readonly]{background:#f8fafc;color:#374151}
+    .worklog-card-actions{padding:10px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
+    .worklog-mobile-date{display:none}
     @page{size:A4 landscape;margin:8mm}@media print{.patrol-report-scroll{overflow:visible!important;max-height:none!important;border:0!important;padding:0!important}body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap,.patrol-empty-box{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
@@ -62,6 +74,9 @@
       .menu-toggle{width:46px}
       th,td{font-size:13px;padding:8px}
       .calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}
+      .worklog-week-grid{grid-template-columns:1fr}
+      .worklog-day-card{min-height:auto}
+      .worklog-mobile-date{display:block}
     }
   </style>
 </head>
@@ -78,6 +93,7 @@
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
       <button onclick="showPage('memo')" id="nav-memo">메모</button>
+      <button onclick="showPage('worklog')" id="nav-worklog">업무일지</button>
       <button onclick="showPage('patrol')" id="nav-patrol">순회점검</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
@@ -98,6 +114,7 @@
     <section id="page-retention" class="page hidden"></section>
     <section id="page-equipment" class="page hidden"></section>
     <section id="page-memo" class="page hidden"></section>
+    <section id="page-worklog" class="page hidden"></section>
     <section id="page-patrol" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
@@ -134,6 +151,8 @@ let workerShiftSearch = "";
 let workerShiftComposing = false;
 let clearShiftInputAfterSave = false;
 let patrolPrintDate = todayStr();
+let worklogCursorDate = todayStr();
+let worklogEditDates = new Set();
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -344,6 +363,7 @@ async function loadAll() {
   if (!state.settings.patrol_records) state.settings.patrol_records = JSON.stringify([]);
   if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
   if (state.settings.general_memo === undefined) state.settings.general_memo = "";
+  if (!state.settings.work_journal) state.settings.work_journal = JSON.stringify({});
   makeDue();
   renderCurrent();
 }
@@ -723,6 +743,7 @@ function renderCurrent() {
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "memo") renderMemo();
+  if (currentPage === "worklog") renderWorklog();
   if (currentPage === "patrol") renderPatrol();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
@@ -1261,6 +1282,117 @@ function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.cl
 function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
 async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
 
+
+
+function workJournal(){
+  try {
+    const parsed = JSON.parse(state.settings.work_journal || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch(e) { return {}; }
+}
+function dayNameKo(dateText){
+  const names = ["일","월","화","수","목","금","토"];
+  const d = new Date(dateText + "T00:00:00");
+  return names[d.getDay()] || "";
+}
+function shortDateWithDay(dateText){
+  const d = new Date(dateText + "T00:00:00");
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${mm}.${dd}(${dayNameKo(dateText)})`;
+}
+function mondayOfWeek(dateText){
+  const d = new Date((dateText || todayStr()) + "T00:00:00");
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return formatDate(d);
+}
+function worklogVisibleDates(){
+  if(isMobileView()) return [worklogCursorDate || todayStr()];
+  const mon = mondayOfWeek(worklogCursorDate || todayStr());
+  return Array.from({length:5}, (_, i) => addDaysText(mon, i));
+}
+function moveWorklogWeek(offset){
+  worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset) * 7);
+  worklogEditDates.clear();
+  renderWorklog();
+}
+function goWorklogToday(){
+  worklogCursorDate = todayStr();
+  worklogEditDates.clear();
+  renderWorklog();
+}
+function setWorklogDate(v){
+  const d = autoHyphenDate(v || todayStr());
+  if(!isValidDateText(d)) return toast("날짜는 YYYY-MM-DD 형식으로 입력하세요.");
+  worklogCursorDate = d;
+  worklogEditDates.clear();
+  renderWorklog();
+}
+function editWorklogDate(dateText){
+  worklogEditDates.add(dateText);
+  renderWorklog();
+}
+function worklogDayCard(dateText){
+  const journal = workJournal();
+  const item = journal[dateText] || {};
+  const editing = worklogEditDates.has(dateText);
+  const readonly = editing ? "" : "readonly";
+  const updated = item.updated_at ? `<div class="small">최종 수정: ${escapeHtml(item.updated_at.slice(0,16).replace("T"," "))}</div>` : `<div class="small">미작성</div>`;
+  return `<div class="worklog-day-card">
+    <div class="worklog-date-head">${shortDateWithDay(dateText)}</div>
+    <div class="worklog-block">
+      <label>금일 업무</label>
+      <textarea id="worklog-today-${dateText}" class="worklog-textarea" ${readonly} placeholder="오늘 진행한 업무 내용을 입력하세요.">${escapeHtml(item.today_work || "")}</textarea>
+    </div>
+    <div class="worklog-block">
+      <label>업무 결과</label>
+      <textarea id="worklog-result-${dateText}" class="worklog-textarea" ${readonly} placeholder="업무 결과, 조치사항, 특이사항을 입력하세요.">${escapeHtml(item.result_work || "")}</textarea>
+    </div>
+    <div class="worklog-card-actions">
+      <button onclick="editWorklogDate('${dateText}')">수정</button>
+      <button class="primary" onclick="saveWorklogDate('${dateText}')" ${editing ? "" : "disabled"}>저장</button>
+      ${updated}
+    </div>
+  </div>`;
+}
+function renderWorklog(){
+  const dates = worklogVisibleDates();
+  const weekStart = mondayOfWeek(worklogCursorDate || todayStr());
+  const weekEnd = addDaysText(weekStart, 4);
+  const title = isMobileView() ? `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지` : `${shortDateWithDay(weekStart)} ~ ${shortDateWithDay(weekEnd)} 업무일지`;
+  document.getElementById("page-worklog").innerHTML = `
+    <div class="card">
+      <div class="worklog-toolbar">
+        <button onclick="moveWorklogWeek(-1)">이전주</button>
+        <h2 style="margin:0">${title}</h2>
+        <button onclick="moveWorklogWeek(1)">다음주</button>
+      </div>
+      <div class="actions">
+        <button onclick="goWorklogToday()">오늘로 이동</button>
+        <button onclick="loadAll()">새로고침</button>
+      </div>
+      <div class="worklog-mobile-date" style="margin-top:10px"><label>날짜 선택</label><input id="worklog-date-picker" data-format="date" value="${escapeHtml(worklogCursorDate || todayStr())}" onchange="setWorklogDate(this.value)"></div>
+      <p class="small">PC에서는 월~금 5일치가 한 번에 보이고, 모바일에서는 선택한 하루만 표시됩니다. 각 날짜의 수정 버튼을 누른 뒤 금일 업무와 업무 결과를 저장하세요.</p>
+    </div>
+    <div class="worklog-week-grid">${dates.map(worklogDayCard).join("")}</div>`;
+  bindAutoFormatInputs();
+}
+async function saveWorklogDate(dateText){
+  const journal = workJournal();
+  journal[dateText] = {
+    today_work: val(`worklog-today-${dateText}`),
+    result_work: val(`worklog-result-${dateText}`),
+    updated_at: new Date().toISOString()
+  };
+  const res = await db.from("settings").upsert({key:"work_journal", value:JSON.stringify(journal)});
+  if(res.error){ console.error(res.error); return toast("업무일지 저장 오류"); }
+  state.settings.work_journal = JSON.stringify(journal);
+  worklogEditDates.delete(dateText);
+  toast("업무일지 저장 완료");
+  renderWorklog();
+}
 
 function renderMemo(){
   document.getElementById("page-memo").innerHTML = `
