@@ -498,6 +498,11 @@ function equipmentDisplayNo(eq){ return String(eq?.vehicle_number || eq?.no || e
 function equipmentDisplayText(eq){
   return [equipmentDisplayNo(eq), eq?.vehicle_type, eq?.work_type].filter(Boolean).join(" / ");
 }
+function extractConsignedWorkerName(note){
+  const text = String(note || "");
+  const match = text.match(/지입\s*\(([^)]+)\)/);
+  return match ? match[1].trim() : "";
+}
 function findPatrolRecordForEquipment(dateText, eq){
   const eqId = String(eq?.id || "");
   const vno = equipmentDisplayNo(eq);
@@ -543,13 +548,14 @@ function openPatrolEquipment(equipmentId){
   setVal("patrol-equipment-id", eq.id);
   setVal("patrol-date", date);
   setVal("patrol-vehicle", equipmentDisplayNo(eq));
-  setVal("patrol-worker-name", record?.worker_name || "");
+  setVal("patrol-worker-name", record?.worker_name || extractConsignedWorkerName(eq.note) || "");
   setVal("patrol-place", record?.place || "");
   setVal("patrol-work", record?.work || "");
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   const box = document.getElementById("patrol-preview");
-  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${(record.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.</p>`;
+  const consignedWorkerName = extractConsignedWorkerName(eq.note);
+  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${(record.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.${consignedWorkerName ? ` 비고의 지입 기사님 이름(${escapeHtml(consignedWorkerName)})을 자동 입력했습니다.` : ``}</p>`;
   scrollTo(0,0);
 }
 async function savePatrolRecord(){
