@@ -50,13 +50,13 @@
     .worklog-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
     .worklog-week-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
     .worklog-day-card{border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-height:420px}
-    .worklog-date-head{background:#eef2f7;font-size:17px;font-weight:900;text-align:center;padding:12px;border-bottom:1px solid var(--line)}
-    .worklog-block{padding:10px;border-bottom:1px solid #edf0f5;flex:1;display:flex;flex-direction:column}
+    .worklog-date-head{width:100%;border:0;border-radius:0;background:#eef2f7;font-size:15px;font-weight:900;text-align:center;padding:10px;border-bottom:1px solid var(--line);cursor:pointer}
+    .worklog-date-head:hover{background:#dbeafe}
+    .worklog-block{padding:9px;border-bottom:1px solid #edf0f5;flex:1;display:flex;flex-direction:column}
     .worklog-block:last-of-type{border-bottom:0}
-    .worklog-block label{font-size:14px;color:#111827;margin-bottom:8px}
-    .worklog-textarea{min-height:135px;flex:1;resize:vertical;line-height:1.45}
-    .worklog-textarea[readonly]{background:#f8fafc;color:#374151}
-    .worklog-card-actions{padding:10px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
+    .worklog-block label{font-size:13px;color:#111827;margin-bottom:6px}
+    .worklog-display{min-height:120px;flex:1;line-height:1.45;font-size:13px;text-align:left;white-space:normal;word-break:break-word;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;color:#374151}
+    .worklog-card-actions{padding:8px 10px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
     .worklog-mobile-date{display:none}
     @page{size:A4 landscape;margin:8mm}@media print{.patrol-report-scroll{overflow:visible!important;max-height:none!important;border:0!important;padding:0!important}body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap,.patrol-empty-box{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
@@ -937,7 +937,8 @@ async function clearShiftDate(){
 }
 
 function renderMobile() {
-  const cards = state.due.length ? state.due.map(x => `
+  const mobileDue = state.due.filter(x => x.education_name !== "정기안전보건교육");
+  const cards = mobileDue.length ? mobileDue.map(x => `
     <div class="mobile-card">
       <h2>${escapeHtml(x.name)} 기사님</h2>
       <p><b>교육:</b> ${escapeHtml(x.education_name)} <span class="mini">${escapeHtml(educationMeta(x.education_name))}</span></p>
@@ -947,7 +948,7 @@ function renderMobile() {
       <textarea readonly>${escapeHtml(smsBody(x))}</textarea>
       <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">교육완료</button></div>
       <p class="small">교육완료를 누르면 교육현황에 이력이 누적 저장됩니다.</p>
-    </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">표시 기준: 기한초과 전체 + D-30 이내</p></div>`;
+    </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">현장 모바일에서는 정기안전보건교육 임박자 표시를 제외합니다.</p></div>`;
   document.getElementById("page-mobile").innerHTML = `
     <div class="actions" style="margin-bottom:12px"><button onclick="loadAll()">새로고침</button></div>
     ${cards}`;
@@ -1290,6 +1291,7 @@ function workJournal(){
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch(e) { return {}; }
 }
+let activeWorklogDate = "";
 function dayNameKo(dateText){
   const names = ["일","월","화","수","목","금","토"];
   const d = new Date(dateText + "T00:00:00");
@@ -1315,81 +1317,111 @@ function worklogVisibleDates(){
 }
 function moveWorklogWeek(offset){
   worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset) * 7);
-  worklogEditDates.clear();
+  activeWorklogDate = "";
+  renderWorklog();
+}
+function moveWorklogDay(offset){
+  worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset));
+  activeWorklogDate = "";
   renderWorklog();
 }
 function goWorklogToday(){
   worklogCursorDate = todayStr();
-  worklogEditDates.clear();
+  activeWorklogDate = "";
   renderWorklog();
 }
-function setWorklogDate(v){
-  const d = autoHyphenDate(v || todayStr());
-  if(!isValidDateText(d)) return toast("날짜는 YYYY-MM-DD 형식으로 입력하세요.");
-  worklogCursorDate = d;
-  worklogEditDates.clear();
+function openWorklogModal(dateText){
+  activeWorklogDate = dateText;
   renderWorklog();
 }
-function editWorklogDate(dateText){
-  worklogEditDates.add(dateText);
+function closeWorklogModal(){
+  activeWorklogDate = "";
   renderWorklog();
+}
+function worklogDisplayText(v){
+  const text = String(v || "").trim();
+  return text ? escapeHtml(text).replace(/\n/g, "<br>") : `<span class="small">미작성</span>`;
 }
 function worklogDayCard(dateText){
   const journal = workJournal();
   const item = journal[dateText] || {};
-  const editing = worklogEditDates.has(dateText);
-  const readonly = editing ? "" : "readonly";
   const updated = item.updated_at ? `<div class="small">최종 수정: ${escapeHtml(item.updated_at.slice(0,16).replace("T"," "))}</div>` : `<div class="small">미작성</div>`;
   return `<div class="worklog-day-card">
-    <div class="worklog-date-head">${shortDateWithDay(dateText)}</div>
+    <button class="worklog-date-head" onclick="openWorklogModal('${dateText}')" title="클릭해서 업무일지 수정">${shortDateWithDay(dateText)}</button>
     <div class="worklog-block">
       <label>금일 업무</label>
-      <textarea id="worklog-today-${dateText}" class="worklog-textarea" ${readonly} placeholder="오늘 진행한 업무 내용을 입력하세요.">${escapeHtml(item.today_work || "")}</textarea>
+      <div class="worklog-display">${worklogDisplayText(item.today_work)}</div>
     </div>
     <div class="worklog-block">
       <label>업무 결과</label>
-      <textarea id="worklog-result-${dateText}" class="worklog-textarea" ${readonly} placeholder="업무 결과, 조치사항, 특이사항을 입력하세요.">${escapeHtml(item.result_work || "")}</textarea>
+      <div class="worklog-display">${worklogDisplayText(item.result_work)}</div>
     </div>
-    <div class="worklog-card-actions">
-      <button onclick="editWorklogDate('${dateText}')">수정</button>
-      <button class="primary" onclick="saveWorklogDate('${dateText}')" ${editing ? "" : "disabled"}>저장</button>
-      ${updated}
+    <div class="worklog-card-actions">${updated}</div>
+  </div>`;
+}
+function worklogModalHtml(){
+  if(!activeWorklogDate) return "";
+  const journal = workJournal();
+  const item = journal[activeWorklogDate] || {};
+  return `<div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-title">${shortDateWithDay(activeWorklogDate)} 업무일지 수정</div>
+      <p class="small">금일 업무와 업무 결과를 입력한 뒤 저장하세요.</p>
+      <div style="margin-top:10px">
+        <label>금일 업무</label>
+        <textarea id="worklog-modal-today" placeholder="오늘 진행한 업무 내용을 입력하세요.">${escapeHtml(item.today_work || "")}</textarea>
+      </div>
+      <div style="margin-top:10px">
+        <label>업무 결과</label>
+        <textarea id="worklog-modal-result" placeholder="업무 결과, 조치사항, 특이사항을 입력하세요.">${escapeHtml(item.result_work || "")}</textarea>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="saveWorklogModal()">저장</button>
+        <button onclick="closeWorklogModal()">닫기</button>
+      </div>
     </div>
   </div>`;
 }
 function renderWorklog(){
+  const mobile = isMobileView();
   const dates = worklogVisibleDates();
   const weekStart = mondayOfWeek(worklogCursorDate || todayStr());
   const weekEnd = addDaysText(weekStart, 4);
-  const title = isMobileView() ? `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지` : `${shortDateWithDay(weekStart)} ~ ${shortDateWithDay(weekEnd)} 업무일지`;
+  const title = mobile ? `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지` : `${shortDateWithDay(weekStart)} ~ ${shortDateWithDay(weekEnd)} 업무일지`;
+  const leftBtn = mobile
+    ? `<button onclick="moveWorklogDay(-1)">◀</button>`
+    : `<button onclick="moveWorklogWeek(-1)">이전주</button>`;
+  const rightBtn = mobile
+    ? `<button onclick="moveWorklogDay(1)">▶</button>`
+    : `<button onclick="moveWorklogWeek(1)">다음주</button>`;
   document.getElementById("page-worklog").innerHTML = `
     <div class="card">
       <div class="worklog-toolbar">
-        <button onclick="moveWorklogWeek(-1)">이전주</button>
+        ${leftBtn}
         <h2 style="margin:0">${title}</h2>
-        <button onclick="moveWorklogWeek(1)">다음주</button>
+        ${rightBtn}
       </div>
       <div class="actions">
         <button onclick="goWorklogToday()">오늘로 이동</button>
         <button onclick="loadAll()">새로고침</button>
       </div>
-      <div class="worklog-mobile-date" style="margin-top:10px"><label>날짜 선택</label><input id="worklog-date-picker" data-format="date" value="${escapeHtml(worklogCursorDate || todayStr())}" onchange="setWorklogDate(this.value)"></div>
-      <p class="small">PC에서는 월~금 5일치가 한 번에 보이고, 모바일에서는 선택한 하루만 표시됩니다. 각 날짜의 수정 버튼을 누른 뒤 금일 업무와 업무 결과를 저장하세요.</p>
+      <p class="small">날짜 칸을 클릭하면 업무일지 수정 창이 열립니다. PC에서는 월~금 5일치가 한 번에 보이고, 모바일에서는 ◀ / ▶ 버튼으로 하루씩 이동합니다.</p>
     </div>
-    <div class="worklog-week-grid">${dates.map(worklogDayCard).join("")}</div>`;
-  bindAutoFormatInputs();
+    <div class="worklog-week-grid">${dates.map(worklogDayCard).join("")}</div>
+    ${worklogModalHtml()}`;
 }
-async function saveWorklogDate(dateText){
+async function saveWorklogModal(){
+  if(!activeWorklogDate) return toast("수정할 날짜를 찾을 수 없습니다.");
   const journal = workJournal();
-  journal[dateText] = {
-    today_work: val(`worklog-today-${dateText}`),
-    result_work: val(`worklog-result-${dateText}`),
+  journal[activeWorklogDate] = {
+    today_work: val("worklog-modal-today"),
+    result_work: val("worklog-modal-result"),
     updated_at: new Date().toISOString()
   };
   const res = await db.from("settings").upsert({key:"work_journal", value:JSON.stringify(journal)});
   if(res.error){ console.error(res.error); return toast("업무일지 저장 오류"); }
   state.settings.work_journal = JSON.stringify(journal);
-  worklogEditDates.delete(dateText);
+  activeWorklogDate = "";
   toast("업무일지 저장 완료");
   renderWorklog();
 }
