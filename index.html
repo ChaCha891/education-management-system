@@ -58,6 +58,21 @@
     .worklog-display{min-height:120px;flex:1;line-height:1.45;font-size:13px;text-align:left;white-space:normal;word-break:break-word;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;color:#374151}
     .worklog-card-actions{padding:8px 10px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
     .worklog-mobile-date{display:none}
+    .shift-select-modal{width:min(820px,100%)}
+    .shift-type-picker{display:flex;gap:8px;margin:10px 0 12px}
+    .shift-type-picker button{flex:1;border:2px solid transparent}
+    .shift-type-picker button.shift-mode-active-day{background:#facc15;color:#713f12;border-color:#f59e0b}
+    .shift-type-picker button.shift-mode-active-night{background:#7c3aed;color:#fff;border-color:#5b21b6}
+    .shift-mini-calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0}
+    .shift-mini-calendar-title{font-weight:900;font-size:17px}
+    .shift-mini-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .shift-mini-head{text-align:center;font-size:12px;font-weight:900;color:var(--muted);padding:5px}
+    .shift-mini-day{min-height:58px;border:1px solid var(--line);border-radius:12px;background:#fff;font-weight:900;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+    .shift-mini-day:hover{outline:2px solid #bfdbfe}
+    .shift-mini-day.empty{border:0;background:transparent;cursor:default}
+    .shift-mini-day.shift-selected-day{background:#fef3c7;border-color:#f59e0b;color:#713f12}
+    .shift-mini-day.shift-selected-night{background:#ede9fe;border-color:#7c3aed;color:#4c1d95}
+    .shift-mini-tag{font-size:11px;font-weight:900}
     @page{size:A4 landscape;margin:8mm}@media print{.patrol-report-scroll{overflow:visible!important;max-height:none!important;border:0!important;padding:0!important}body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap,.patrol-empty-box{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
@@ -147,6 +162,9 @@ let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
 let activeShiftWorkerId = null;
+let activeShiftMode = "주간";
+let shiftModalMonth = new Date();
+let shiftDraftSelections = {};
 let workerShiftSearch = "";
 let workerShiftComposing = false;
 let clearShiftInputAfterSave = false;
@@ -483,19 +501,35 @@ function patrolRecords(){
 async function cleanupPatrolRecordsIfNewDay(){
   if(!db) return;
   const today = todayStr();
+  const all = patrolRecords();
+  const todayOnly = all.filter(x => x.date === today);
   const last = state.settings.patrol_cleanup_date || today;
-  if(last !== today){
+
+  // 이전 날짜에 저장된 사진/순회점검 데이터는 앱이 느려지는 원인이 되므로 로드할 때마다 오늘 데이터만 남깁니다.
+  if(last !== today || todayOnly.length !== all.length){
     const updates = [
-      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify([])}),
+      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(todayOnly)}),
       db.from("settings").upsert({key:"patrol_cleanup_date", value:today})
     ];
     const [r1, r2] = await Promise.all(updates);
     if(!r1.error && !r2.error){
-      state.settings.patrol_records = JSON.stringify([]);
+      state.settings.patrol_records = JSON.stringify(todayOnly);
       state.settings.patrol_cleanup_date = today;
       patrolPrintDate = today;
     }
   }
+}
+async function clearAllPatrolRecords(){
+  if(!confirm("저장된 순회점검 사진/입력 데이터를 전부 삭제할까요? 장비관리 목록은 삭제되지 않습니다.")) return;
+  const r1 = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify([])});
+  const r2 = await db.from("settings").upsert({key:"patrol_cleanup_date", value:todayStr()});
+  if(r1.error || r2.error){ console.error(r1.error || r2.error); return toast("순회점검 전체 초기화 오류"); }
+  state.settings.patrol_records = JSON.stringify([]);
+  state.settings.patrol_cleanup_date = todayStr();
+  patrolPrintDate = todayStr();
+  clearPatrolForm();
+  await loadAll();
+  toast("순회점검 저장 데이터 전체 삭제 완료");
 }
 function patrolRecordsByDate(dateText){ return patrolRecords().filter(x => x.date === dateText); }
 function patrolWorkerText(recordOrId){
@@ -740,7 +774,7 @@ function renderPatrol(){
         <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
       </div>
       <div style="margin-top:10px"><label>현장 사진</label><input id="patrol-files" type="file" accept="image/*" multiple onchange="previewPatrolFiles()"><div id="patrol-preview" class="patrol-preview"><p class="small">장비 목록에서 장비번호를 클릭한 뒤 내용을 입력하세요. 새 사진을 선택하지 않고 저장하면 기존 사진은 유지됩니다.</p></div></div>
-      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">입력칸 초기화</button><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-date'))">선택 날짜 전체 삭제</button></div>
+      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">입력칸 초기화</button><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-date'))">선택 날짜 전체 삭제</button><button class="red" onclick="clearAllPatrolRecords()">저장 데이터 전체 초기화</button></div>
       <p class="small">장비관리의 장비가 순회점검 목록에 전부 표시됩니다. 삭제와 전체 삭제는 장비 삭제가 아니라 해당 날짜의 입력 내용만 삭제하며, 장비 행은 그대로 남습니다. 날짜가 바뀌면 이전 순회점검 데이터는 용량 관리를 위해 자동 삭제됩니다.</p>
     </div>
     <div class="card no-print"><h2>순회점검 장비 목록</h2><p class="small">장비번호를 클릭하면 해당 장비의 순회점검 내용을 입력할 수 있습니다. 미점검 장비가 그대로 보이므로 오늘 확인하지 못한 장비를 파악하기 쉽습니다.</p><div class="table-wrap"><table><thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>상태</th><th>관리</th></tr></thead><tbody>${equipmentRows}</tbody></table></div></div>
@@ -893,25 +927,80 @@ function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetail
 function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; workerShiftSearch = ""; clearShiftInputAfterSave = false; renderCalendar(); }
 function moveCalendarMonth(offset){ calendarDetailDate = ""; activeShiftWorkerId = null; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
 function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); renderCalendar(); }
-function openWorkerShiftModal(workerId){ activeShiftWorkerId = Number(workerId); renderCalendar(); }
-function closeWorkerShiftModal(){ activeShiftWorkerId = null; renderCalendar(); }
+function openWorkerShiftModal(workerId){
+  activeShiftWorkerId = Number(workerId);
+  activeShiftMode = "주간";
+  shiftModalMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+  shiftDraftSelections = {};
+  shiftCalendar().filter(x => Number(x.worker_id) === Number(workerId)).forEach(x => {
+    shiftDraftSelections[x.work_date] = x.shift_type || "주간";
+  });
+  renderCalendar();
+}
+function closeWorkerShiftModal(){ activeShiftWorkerId = null; shiftDraftSelections = {}; renderCalendar(); }
 function workerShiftModalHtml(workerId, saved){
   const w = state.workers.find(x => Number(x.id) === Number(workerId));
   if(!w) return "";
-  const currentType = saved?.shift_type || "주간";
-  const note = val("shift-note") || "";
-  return `<div class="modal-backdrop">
-    <div class="modal">
-      <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 설정</div>
-      <p class="small">소속: ${escapeHtml(w.company || "소속 없음")}</p>
-      <div class="form-row" style="grid-template-columns:1fr 1fr">
-        <div><label>근무형태</label><select id="modal-shift-type"><option value="주간" ${currentType==="주간"?"selected":""}>주간</option><option value="야간" ${currentType==="야간"?"selected":""}>야간</option></select></div>
-        <div><label>근무주기</label><input id="modal-shift-days" type="number" min="1" value="1" placeholder="예: 4"></div>
+  const y = shiftModalMonth.getFullYear();
+  const m = shiftModalMonth.getMonth();
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m + 1, 0);
+  const cells = [];
+  for(let i=0;i<first.getDay();i++) cells.push(`<button class="shift-mini-day empty" type="button" tabindex="-1"></button>`);
+  for(let d=1; d<=last.getDate(); d++){
+    const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const selectedType = shiftDraftSelections[dateText] || "";
+    const cls = selectedType === "야간" ? " shift-selected-night" : selectedType === "주간" ? " shift-selected-day" : "";
+    const tag = selectedType ? `<span class="shift-mini-tag">${selectedType}</span>` : `<span class="small">-</span>`;
+    cells.push(`<button type="button" class="shift-mini-day${cls}" onclick="toggleShiftDraftDate('${dateText}')"><span>${d}</span>${tag}</button>`);
+  }
+  return `<div class="modal-backdrop" onclick="if(event.target===this) closeWorkerShiftModal()">
+    <div class="modal shift-select-modal">
+      <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 날짜 선택</div>
+      <p class="small">주간/야간 버튼을 먼저 누른 뒤 날짜를 여러 개 선택하세요. 이미 선택된 날짜를 다시 누르면 해제됩니다.</p>
+      <div class="shift-type-picker">
+        <button type="button" class="${activeShiftMode === "주간" ? "shift-mode-active-day" : ""}" onclick="setShiftMode('주간')">주간</button>
+        <button type="button" class="${activeShiftMode === "야간" ? "shift-mode-active-night" : ""}" onclick="setShiftMode('야간')">야간</button>
       </div>
-      <p class="small">예: ${selectedShiftDate}에 야간 / 근무주기 4일 입력 → 선택일 포함 4일간 야간 배치</p>
-      <div class="actions"><button class="primary" onclick="saveWorkerShiftRange(${workerId})">저장</button><button class="red" onclick="removeWorkerShift(${workerId})">이 날짜 근무삭제</button><button onclick="closeWorkerShiftModal()">닫기</button></div>
+      <div class="shift-mini-calendar-toolbar">
+        <button type="button" onclick="moveShiftModalMonth(-1)">이전달</button>
+        <div class="shift-mini-calendar-title">${y}년 ${m+1}월</div>
+        <button type="button" onclick="moveShiftModalMonth(1)">다음달</button>
+      </div>
+      <div class="shift-mini-calendar">
+        ${["일","월","화","수","목","금","토"].map(x => `<div class="shift-mini-head">${x}</div>`).join("")}
+        ${cells.join("")}
+      </div>
+      <div class="actions"><button class="primary" onclick="saveWorkerShiftSelections(${workerId})">확인</button><button class="red" onclick="clearWorkerShiftSelections()">선택 전체 해제</button><button onclick="closeWorkerShiftModal()">닫기</button></div>
+      <p class="small">확인을 누르면 이 기사님의 기존 근무일은 새 선택값 기준으로 교체됩니다. 다른 기사님의 근무는 그대로 유지됩니다.</p>
     </div>
   </div>`;
+}
+function setShiftMode(mode){ activeShiftMode = mode === "야간" ? "야간" : "주간"; renderCalendar(); }
+function moveShiftModalMonth(offset){ shiftModalMonth = new Date(shiftModalMonth.getFullYear(), shiftModalMonth.getMonth() + offset, 1); renderCalendar(); }
+function toggleShiftDraftDate(dateText){
+  if(shiftDraftSelections[dateText] === activeShiftMode) delete shiftDraftSelections[dateText];
+  else shiftDraftSelections[dateText] = activeShiftMode;
+  renderCalendar();
+}
+function clearWorkerShiftSelections(){
+  if(!confirm("현재 선택창에서 이 기사님의 근무 선택을 전부 해제할까요? 확인 저장 전까지는 DB에 반영되지 않습니다.")) return;
+  shiftDraftSelections = {};
+  renderCalendar();
+}
+async function saveWorkerShiftSelections(workerId){
+  const note = val("shift-note");
+  const dates = Object.keys(shiftDraftSelections).sort();
+  const old = shiftCalendar().filter(x => Number(x.worker_id) !== Number(workerId));
+  const added = dates.map(work_date => ({ work_date, worker_id:Number(workerId), shift_type:shiftDraftSelections[work_date], note }));
+  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify([...old, ...added]) });
+  if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
+  activeShiftWorkerId = null;
+  workerShiftSearch = "";
+  clearShiftInputAfterSave = true;
+  await loadAll();
+  calendarDetailDate = selectedShiftDate;
+  toast(`근무 ${dates.length}일 저장 완료`);
 }
 async function saveShiftNote(){
   if(!selectedShiftDate) return toast("날짜를 찾을 수 없습니다.");
@@ -935,28 +1024,8 @@ async function saveShiftNote(){
   toast("메모 저장 완료");
 }
 
-async function saveWorkerShiftRange(workerId){
-  const shiftType = val("modal-shift-type") || "주간";
-  const period = Math.max(1, Number(val("modal-shift-days") || 1));
-  const note = val("shift-note");
-  const rangeDates = Array.from({length:period}, (_, i) => addDaysText(selectedShiftDate, i));
-  const old = shiftCalendar().filter(x => !(Number(x.worker_id) === Number(workerId) && rangeDates.includes(x.work_date)));
-  const added = rangeDates.map(work_date => ({ work_date, worker_id:Number(workerId), shift_type:shiftType, note }));
-  const nextShifts = [...old, ...added];
-  const notes = shiftNotes();
-  if(note) notes[selectedShiftDate] = note;
-  const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(nextShifts) });
-  if(res.error){ console.error(res.error); return toast("근무 저장 오류"); }
-  const resNote = await db.from("settings").upsert({ key:"shift_notes", value:JSON.stringify(notes) });
-  if(resNote.error){ console.error(resNote.error); return toast("메모 저장 오류"); }
-  activeShiftWorkerId = null;
-  workerShiftSearch = "";
-  clearShiftInputAfterSave = true;
-  await loadAll();
-  calendarDetailDate = selectedShiftDate;
-  toast(`근무 ${period}일 저장 완료`);
-}
 async function removeWorkerShift(workerId){
+  if(!confirm(`${selectedShiftDate} 날짜의 해당 기사님 근무를 삭제할까요?`)) return;
   const old = shiftCalendar().filter(x => !(x.work_date === selectedShiftDate && Number(x.worker_id) === Number(workerId)));
   const res = await db.from("settings").upsert({ key:"shift_calendar", value:JSON.stringify(old) });
   if(res.error){ console.error(res.error); return toast("근무 삭제 오류"); }
