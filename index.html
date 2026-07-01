@@ -73,6 +73,14 @@
     .shift-mini-day.shift-selected-day{background:#fef3c7;border-color:#f59e0b;color:#713f12}
     .shift-mini-day.shift-selected-night{background:#ede9fe;border-color:#7c3aed;color:#4c1d95}
     .shift-mini-tag{font-size:11px;font-weight:900}
+    .work-schedule-list{display:grid;gap:10px}
+    .work-schedule-item{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;text-align:left}
+    .work-event-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:middle;border:1px solid rgba(0,0,0,.15)}
+    .work-event-line{display:block;position:relative;margin:3px -10px 3px -10px;padding:4px 8px;font-size:12px;font-weight:900;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;min-height:23px;line-height:15px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+    .work-event-line.single{border-radius:8px;margin-left:0;margin-right:0}
+    .work-event-line.start{border-radius:8px 0 0 8px;margin-left:0}
+    .work-event-line.mid{border-radius:0}
+    .work-event-line.end{border-radius:0 8px 8px 0;margin-right:0}
     @page{size:A4 landscape;margin:8mm}@media print{.patrol-report-scroll{overflow:visible!important;max-height:none!important;border:0!important;padding:0!important}body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap,.patrol-empty-box{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
@@ -392,13 +400,14 @@ function workDatePickerHtml(){
   const first = new Date(y, m, 1);
   const last = new Date(y, m + 1, 0);
   const cells = [];
-  for(let i=0;i<first.getDay();i++) cells.push(`<button type="button" class="work-date-btn empty" tabindex="-1"></button>`);
+  for(let i=0;i<first.getDay();i++) cells.push(`<button type="button" class="shift-mini-day empty" tabindex="-1"></button>`);
   for(let d=1; d<=last.getDate(); d++){
     const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const selected = workScheduleDraftDates[dateText] ? " selected" : "";
-    cells.push(`<button type="button" class="work-date-btn${selected}" onclick="toggleWorkScheduleDate('${dateText}')">${d}</button>`);
+    const selected = workScheduleDraftDates[dateText] ? " shift-selected-day" : "";
+    const tag = workScheduleDraftDates[dateText] ? `<span class="shift-mini-tag">선택</span>` : `<span class="small">-</span>`;
+    cells.push(`<button type="button" class="shift-mini-day${selected}" onclick="toggleWorkScheduleDate('${dateText}')"><span>${d}</span>${tag}</button>`);
   }
-  return `<div class="calendar-toolbar"><button onclick="moveWorkScheduleMonth(-1)">이전달</button><div class="calendar-title">${y}년 ${m+1}월 날짜 선택</div><button onclick="moveWorkScheduleMonth(1)">다음달</button></div><div class="work-date-checks">${["일","월","화","수","목","금","토"].map(x=>`<div class="calendar-head">${x}</div>`).join("")}${cells.join("")}</div>`;
+  return `<div class="shift-mini-calendar-toolbar"><button onclick="moveWorkScheduleMonth(-1)">이전달</button><div class="shift-mini-calendar-title">${y}년 ${m+1}월 날짜 선택</div><button onclick="moveWorkScheduleMonth(1)">다음달</button></div><div class="shift-mini-calendar">${["일","월","화","수","목","금","토"].map(x=>`<div class="shift-mini-head">${x}</div>`).join("")}${cells.join("")}</div>`;
 }
 async function saveWorkSchedule(){
   const title = val("work-schedule-title").trim();
