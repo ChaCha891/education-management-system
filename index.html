@@ -111,6 +111,22 @@
       .worklog-day-card{min-height:auto}
       .worklog-mobile-date{display:block}
     }
+
+    .equipment-number-btn{background:#fff;border:1px solid var(--line);color:var(--primary);padding:8px 12px;border-radius:10px;font-weight:900}
+    .equipment-number-btn:hover{background:#eff6ff;outline:2px solid #bfdbfe}
+    .equipment-detail-modal{width:min(900px,100%);max-height:92vh;overflow:auto}
+    .equipment-detail-tabs{display:flex;gap:8px;margin:12px 0}
+    .equipment-detail-tabs button{flex:1}
+    .equipment-detail-tabs button.active{background:var(--primary);color:#fff}
+    .equipment-photo-dropzone{border:2px dashed #94a3b8;border-radius:16px;padding:18px;text-align:center;background:#f8fafc;cursor:pointer;transition:.15s}
+    .equipment-photo-dropzone.dragover{border-color:var(--primary);background:#eff6ff}
+    .equipment-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    .equipment-photo-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+    .equipment-photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#f8fafc}
+    .equipment-photo-info{padding:10px}
+    .equipment-photo-title{font-weight:900;margin-bottom:4px}
+    .equipment-photo-desc{font-size:13px;color:var(--muted);white-space:pre-wrap;word-break:break-word;min-height:20px}
+    @media(max-width:760px){.equipment-photo-grid{grid-template-columns:1fr}.equipment-photo-card img{height:220px}}
   </style>
 </head>
 <body>
@@ -541,6 +557,7 @@ async function loadAll() {
     }] : []);
   }
   if (!state.settings.work_journal) state.settings.work_journal = JSON.stringify({});
+  if (!state.settings.equipment_details) state.settings.equipment_details = JSON.stringify({});
   if (!state.settings.work_schedules) state.settings.work_schedules = JSON.stringify([]);
   await cleanupPatrolRecordsIfNewDay();
   makeDue();
@@ -812,7 +829,7 @@ function openPatrolEquipment(equipmentId){
   patrolSelectedFiles = [];
   const box = document.getElementById("patrol-preview");
   const consignedWorkerName = extractConsignedWorkerName(eq.note);
-  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${(record.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.${consignedWorkerName ? ` 비고의 지입 기사님 이름(${escapeHtml(consignedWorkerName)})을 자동 입력했습니다.` : ``}</p>`;
+  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${(record.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.${consignedWorkerName ? ` 저장된 지입 기사님 이름(${escapeHtml(consignedWorkerName)})을 자동 입력했습니다.` : ``}</p>`;
   scrollTo(0,0);
 }
 async function savePatrolRecord(){
@@ -1663,24 +1680,195 @@ async function ackRetention(key){
   toast("이 버전에서는 확인 후 삭제 버튼을 사용하세요.");
 }
 
+let activeEquipmentDetailId = null;
+let activeEquipmentDetailTab = "memo";
+let equipmentPhotoFiles = [];
+
+function equipmentDetails(){
+  try{
+    const parsed = JSON.parse(state.settings.equipment_details || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  }catch(e){ return {}; }
+}
+function equipmentDetailById(id){
+  const all = equipmentDetails();
+  const key = String(id);
+  const d = all[key] || {};
+  return { memo:d.memo || "", photos:Array.isArray(d.photos) ? d.photos : [] };
+}
+async function saveEquipmentDetailsMap(map){
+  const value = JSON.stringify(map);
+  const res = await db.from("settings").upsert({key:"equipment_details", value});
+  if(res.error){ console.error(res.error); toast("장비 상세정보 저장 오류"); return false; }
+  state.settings.equipment_details = value;
+  return true;
+}
+function openEquipmentDetail(id, tab="memo"){
+  activeEquipmentDetailId = Number(id);
+  activeEquipmentDetailTab = tab;
+  equipmentPhotoFiles = [];
+  renderEquipmentDetailModal();
+}
+function closeEquipmentDetail(){
+  activeEquipmentDetailId = null;
+  equipmentPhotoFiles = [];
+  document.getElementById("equipment-detail-modal-wrap")?.remove();
+}
+function setEquipmentDetailTab(tab){
+  activeEquipmentDetailTab = tab;
+  renderEquipmentDetailModal();
+}
+function renderEquipmentDetailModal(){
+  document.getElementById("equipment-detail-modal-wrap")?.remove();
+  const eq = state.equipment.find(x => Number(x.id) === Number(activeEquipmentDetailId));
+  if(!eq) return;
+  const detail = equipmentDetailById(eq.id);
+  const photos = detail.photos.length ? detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
+    <img src="${p.src}" alt="${escapeHtml(p.category || "장비사진")}">
+    <div class="equipment-photo-info">
+      <div class="equipment-photo-title">${escapeHtml(p.category || "기타사진")}</div>
+      <div class="equipment-photo-desc">${escapeHtml(p.description || "")}</div>
+      <div class="small" style="margin-top:6px">${escapeHtml(p.saved_date || "")}</div>
+      <div class="actions"><button onclick="editEquipmentPhoto(${eq.id},${idx})">수정</button><button class="red" onclick="deleteEquipmentPhoto(${eq.id},${idx})">삭제</button></div>
+    </div>
+  </div>`).join("") : `<p class="small">등록된 장비 사진이 없습니다.</p>`;
+  const memoPanel = `<div class="${activeEquipmentDetailTab === "memo" ? "" : "hidden"}">
+    <label>장비 메모</label>
+    <textarea id="equipment-detail-memo" style="min-height:280px" placeholder="정비이력, 고장내용, 보험·검사일정, 특이사항 등 장비에 관한 내용을 입력하세요.">${escapeHtml(detail.memo)}</textarea>
+    <div class="actions"><button class="primary" onclick="saveEquipmentMemo(${eq.id})">메모 저장</button></div>
+  </div>`;
+  const photoPanel = `<div class="${activeEquipmentDetailTab === "photos" ? "" : "hidden"}">
+    <div class="form-row" style="grid-template-columns:1fr 2fr">
+      <div><label>사진 종류</label><input id="equipment-photo-category" placeholder="예: 블랙박스 / 외관사진 / 수리사진"></div>
+      <div><label>사진 설명</label><input id="equipment-photo-description" placeholder="사진에 대한 설명을 입력하세요."></div>
+    </div>
+    <div id="equipment-photo-dropzone" class="equipment-photo-dropzone" tabindex="0" onclick="document.getElementById('equipment-photo-input').click()">
+      <strong>사진을 클릭해서 선택하거나 여기에 드래그하세요.</strong><br><span class="small">Ctrl+V 붙여넣기도 지원합니다.</span>
+    </div>
+    <input id="equipment-photo-input" type="file" accept="image/*" multiple class="hidden" onchange="addEquipmentPhotoFiles(this.files)">
+    <div id="equipment-photo-preview" class="patrol-preview"><p class="small">선택된 사진이 없습니다.</p></div>
+    <div class="actions"><button class="primary" onclick="saveEquipmentPhotos(${eq.id})">선택 사진 저장</button><button onclick="clearEquipmentPhotoSelection()">선택 초기화</button></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <h2>저장된 사진</h2><div class="equipment-photo-grid">${photos}</div>
+  </div>`;
+  const wrap=document.createElement("div");
+  wrap.id="equipment-detail-modal-wrap";
+  wrap.className="modal-backdrop";
+  wrap.onclick=e=>{ if(e.target===wrap) closeEquipmentDetail(); };
+  wrap.innerHTML=`<div class="modal equipment-detail-modal">
+    <div class="detail-top"><div><div class="modal-title">${escapeHtml(equipmentDisplayNo(eq) || "장비")}</div><div class="small">${escapeHtml([eq.vehicle_type,eq.work_type].filter(Boolean).join(" / "))}</div></div><button onclick="closeEquipmentDetail()">닫기</button></div>
+    <div class="equipment-detail-tabs"><button class="${activeEquipmentDetailTab === "memo" ? "active" : ""}" onclick="setEquipmentDetailTab('memo')">메모</button><button class="${activeEquipmentDetailTab === "photos" ? "active" : ""}" onclick="setEquipmentDetailTab('photos')">사진</button></div>
+    ${memoPanel}${photoPanel}
+  </div>`;
+  document.body.appendChild(wrap);
+  if(activeEquipmentDetailTab === "photos") setTimeout(bindEquipmentPhotoDropPaste,0);
+}
+async function saveEquipmentMemo(id){
+  const all=equipmentDetails();
+  const key=String(id);
+  const current=all[key] || {};
+  all[key]={...current,memo:val("equipment-detail-memo"),photos:Array.isArray(current.photos)?current.photos:[],updated_at:new Date().toISOString()};
+  if(await saveEquipmentDetailsMap(all)) toast("장비 메모 저장 완료");
+}
+function addEquipmentPhotoFiles(files){
+  const imgs=Array.from(files || []).filter(f=>f.type?.startsWith("image/"));
+  equipmentPhotoFiles=[...equipmentPhotoFiles,...imgs].slice(0,30);
+  previewEquipmentPhotoFiles();
+}
+function previewEquipmentPhotoFiles(){
+  const box=document.getElementById("equipment-photo-preview");
+  if(!box) return;
+  box.innerHTML=equipmentPhotoFiles.length ? `<p class="small">선택 사진 ${equipmentPhotoFiles.length}장</p>`+equipmentPhotoFiles.map(f=>`<span class="badge info">${escapeHtml(f.name || "붙여넣은 사진")}</span>`).join("") : `<p class="small">선택된 사진이 없습니다.</p>`;
+}
+function clearEquipmentPhotoSelection(){
+  equipmentPhotoFiles=[];
+  const input=document.getElementById("equipment-photo-input"); if(input) input.value="";
+  previewEquipmentPhotoFiles();
+}
+function bindEquipmentPhotoDropPaste(){
+  const zone=document.getElementById("equipment-photo-dropzone");
+  if(!zone || zone.dataset.bound==="1") return;
+  zone.dataset.bound="1";
+  zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover")});
+  zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
+  zone.addEventListener("drop",e=>{e.preventDefault();zone.classList.remove("dragover");addEquipmentPhotoFiles(e.dataTransfer.files)});
+  zone.addEventListener("paste",e=>{e.preventDefault();addEquipmentPhotoFiles(e.clipboardData.files)});
+  setTimeout(()=>zone.focus(),50);
+}
+async function saveEquipmentPhotos(id){
+  if(!equipmentPhotoFiles.length) return toast("저장할 사진을 먼저 선택하세요.");
+  const category=val("equipment-photo-category") || "기타사진";
+  const description=val("equipment-photo-description");
+  toast("사진 압축 중...");
+  const added=[];
+  try{
+    for(const f of equipmentPhotoFiles){ added.push({src:await readImageAsDataUrl(f),category,description,saved_date:todayStr(),created_at:new Date().toISOString()}); }
+  }catch(e){ console.error(e); return toast("사진 처리 오류"); }
+  const all=equipmentDetails(), key=String(id), current=all[key] || {};
+  all[key]={...current,memo:current.memo || "",photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};
+  if(await saveEquipmentDetailsMap(all)){ clearEquipmentPhotoSelection(); renderEquipmentDetailModal(); toast("장비 사진 저장 완료"); }
+}
+async function editEquipmentPhoto(id,index){
+  const all=equipmentDetails(),key=String(id),current=all[key];
+  if(!current?.photos?.[index]) return;
+  const p=current.photos[index];
+  const category=prompt("사진 종류를 수정하세요.",p.category || "기타사진");
+  if(category===null) return;
+  const description=prompt("사진 설명을 수정하세요.",p.description || "");
+  if(description===null) return;
+  current.photos[index]={...p,category:category.trim() || "기타사진",description};
+  current.updated_at=new Date().toISOString();
+  if(await saveEquipmentDetailsMap(all)){ renderEquipmentDetailModal(); toast("사진 정보 수정 완료"); }
+}
+async function deleteEquipmentPhoto(id,index){
+  if(!confirm("이 사진을 삭제할까요?")) return;
+  const all=equipmentDetails(),key=String(id),current=all[key];
+  if(!current?.photos) return;
+  current.photos.splice(index,1); current.updated_at=new Date().toISOString();
+  if(await saveEquipmentDetailsMap(all)){ renderEquipmentDetailModal(); toast("사진 삭제 완료"); }
+}
+
 function renderEquipment(){
-  const mobile = isMobileView();
+  const mobile=isMobileView();
   const typeOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_type"));
   const workOptions = dataListOptions(uniqueValues(state.equipment, "work_type"));
   const numberOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_number"));
-  const noteOptions = dataListOptions(uniqueValues(state.equipment, "note"));
-  const actionCell = (e) => mobile
+  const actionCell = e => mobile
     ? `<button onclick="editEquipment(${e.id})">수정</button>`
     : `<button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button>`;
-  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
-  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
-  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+  const details=equipmentDetails();
+  const rows=state.equipment.map((e, idx)=>{
+    const d=details[String(e.id)] || {};
+    const memoMark=d.memo ? `<span class="badge info">메모</span>` : "";
+    const photoMark=Array.isArray(d.photos)&&d.photos.length ? `<span class="badge ok">사진 ${d.photos.length}</span>` : "";
+    return `<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td><button class="equipment-number-btn" onclick="openEquipmentDetail(${e.id})">${escapeHtml(e.vehicle_number || "번호없음")}</button><div style="margin-top:5px">${memoMark} ${photoMark}</div></td><td>${actionCell(e)}</td></tr>`;
+  }).join("")||`<tr><td colspan="5">등록된 장비가 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row" style="grid-template-columns:repeat(3,1fr)"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div></div><p class="small">장비를 저장한 뒤 아래 목록의 차넘버를 클릭하면 장비별 메모와 사진을 관리할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
+  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="5">검색 결과가 없습니다.</td></tr></tbody></table></div><p class="small">차넘버를 클릭하면 장비 상세창이 열립니다. 메모와 사진은 장비별로 따로 저장됩니다.</p></div>`;
 }
-async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearDraftForPage("equipment"); clearEqForm(); await loadAll(); }
-function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; document.getElementById("equipment-form-card")?.classList.remove("hidden"); setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+async function saveEquipment(){
+  const id=val("eq-id");
+  const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number")};
+  if(!data.vehicle_number) return toast("차넘버를 입력하세요.");
+  const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data);
+  if(res.error)return toast("저장 오류");
+  clearDraftForPage("equipment"); clearEqForm(); await loadAll();
+}
+function editEquipment(id){
+  const e=state.equipment.find(x=>x.id===id); if(!e)return;
+  document.getElementById("equipment-form-card")?.classList.remove("hidden");
+  setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number);
+  document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"});
+}
 function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.classList.add("hidden"); clearEqForm(); }
-function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
-async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
+function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
+async function deleteEquipment(id){
+  if(!confirm("장비를 삭제할까요? 장비에 저장된 메모와 사진도 함께 삭제됩니다."))return;
+  const res=await db.from("equipment").delete().eq("id",id);
+  if(res.error) return toast("삭제 오류");
+  const all=equipmentDetails(); delete all[String(id)]; await saveEquipmentDetailsMap(all);
+  await loadAll();
+}
 
 
 
