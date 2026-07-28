@@ -122,7 +122,13 @@
     .equipment-photo-dropzone.dragover{border-color:var(--primary);background:#eff6ff}
     .equipment-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
     .equipment-photo-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
-    .equipment-photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#f8fafc}
+    .equipment-photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#f8fafc;cursor:zoom-in}
+    .equipment-image-viewer{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:18px}
+    .equipment-image-viewer.hidden{display:none!important}
+    .equipment-image-viewer-inner{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    .equipment-image-viewer img{max-width:96vw;max-height:92vh;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.45);touch-action:pinch-zoom}
+    .equipment-image-viewer-close{position:fixed;top:14px;right:14px;z-index:501;width:46px;height:46px;padding:0;border-radius:50%;background:rgba(255,255,255,.95);font-size:24px;line-height:46px;text-align:center}
+    .equipment-image-viewer-caption{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);max-width:min(92vw,900px);padding:9px 14px;border-radius:999px;background:rgba(17,24,39,.82);color:#fff;font-size:13px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .equipment-photo-info{padding:10px}
     .equipment-photo-title{font-weight:900;margin-bottom:4px}
     .equipment-photo-desc{font-size:13px;color:var(--muted);white-space:pre-wrap;word-break:break-word;min-height:20px}
@@ -1724,7 +1730,7 @@ function renderEquipmentDetailModal(){
   if(!eq) return;
   const detail = equipmentDetailById(eq.id);
   const photos = detail.photos.length ? detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
-    <img src="${p.src}" alt="${escapeHtml(p.category || "장비사진")}">
+    <img src="${p.src}" alt="${escapeHtml(p.category || "장비사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openEquipmentImageViewer(${eq.id},${idx}); event.stopPropagation();">
     <div class="equipment-photo-info">
       <div class="equipment-photo-title">${escapeHtml(p.category || "기타사진")}</div>
       <div class="equipment-photo-desc">${escapeHtml(p.description || "")}</div>
@@ -1763,6 +1769,31 @@ function renderEquipmentDetailModal(){
   document.body.appendChild(wrap);
   if(activeEquipmentDetailTab === "photos") setTimeout(bindEquipmentPhotoDropPaste,0);
 }
+function openEquipmentImageViewer(equipmentId,index){
+  const detail=equipmentDetailById(equipmentId);
+  const photo=detail.photos?.[index];
+  if(!photo?.src) return toast("사진을 불러올 수 없습니다.");
+  closeEquipmentImageViewer();
+  const viewer=document.createElement("div");
+  viewer.id="equipment-image-viewer";
+  viewer.className="equipment-image-viewer";
+  viewer.setAttribute("role","dialog");
+  viewer.setAttribute("aria-modal","true");
+  viewer.setAttribute("aria-label","장비 사진 크게 보기");
+  viewer.onclick=e=>{ if(e.target===viewer || e.target.classList.contains("equipment-image-viewer-inner")) closeEquipmentImageViewer(); };
+  const caption=[photo.category || "장비사진",photo.description || ""].filter(Boolean).join(" · ");
+  viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${photo.src}" alt="${escapeHtml(photo.category || "장비사진")}"></div>${caption ? `<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>` : ""}`;
+  document.body.appendChild(viewer);
+  document.body.style.overflow="hidden";
+}
+function closeEquipmentImageViewer(){
+  document.getElementById("equipment-image-viewer")?.remove();
+  document.body.style.overflow="";
+}
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape" && document.getElementById("equipment-image-viewer")) closeEquipmentImageViewer();
+});
+
 async function saveEquipmentMemo(id){
   const all=equipmentDetails();
   const key=String(id);
