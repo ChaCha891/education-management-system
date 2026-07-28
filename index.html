@@ -123,6 +123,9 @@
     .equipment-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
     .equipment-photo-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
     .equipment-photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#f8fafc;cursor:zoom-in}
+
+    .worker-name-btn{background:#eef2ff;color:#1e40af;border:1px solid #c7d2fe;padding:7px 10px;border-radius:10px;font-weight:900;cursor:pointer}
+    .worker-name-btn:hover{background:#dbeafe}
     .equipment-image-viewer{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:18px}
     .equipment-image-viewer.hidden{display:none!important}
     .equipment-image-viewer-inner{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -1413,11 +1416,16 @@ function renderWorkers() {
   const actionCell = (w) => mobile
     ? `<button onclick="editWorker(${w.id})">수정</button>`
     : `<button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button>`;
-  const rows = state.workers.map((w, idx) => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
+  const workerPhotoMap = workerDetails();
+  const rows = state.workers.map((w, idx) => {
+    const photos = workerPhotoMap[String(w.id)]?.photos || [];
+    const photoMark = photos.length ? `<div style="margin-top:5px"><span class="badge ok">사진 ${photos.length}</span></div>` : "";
+    return `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${idx+1}</td><td><button class="worker-name-btn" onclick="openWorkerPhotoDetail(${w.id})">${escapeHtml(w.name)}</button>${photoMark}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`;
+  }).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
   const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
-    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div><p class="small">기사님 이름을 클릭하면 해당 기사님의 사진을 추가·수정·삭제할 수 있습니다. 저장된 사진은 클릭하거나 터치하면 크게 볼 수 있습니다.</p></div>`;
 }
 async function saveWorker() {
   const id = document.getElementById("worker-id").value;
@@ -1431,7 +1439,14 @@ async function saveWorker() {
 function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
 function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
 function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
-async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
+async function deleteWorker(id){
+  if(!confirm("삭제할까요? 관련 교육이력과 저장된 기사님 사진도 같이 삭제됩니다.")) return;
+  await db.from("education_records").delete().eq("worker_id",id);
+  await db.from("training_history").delete().eq("worker_id",id);
+  await db.from("workers").delete().eq("id",id);
+  const all=workerDetails(); delete all[String(id)]; await saveWorkerDetailsMap(all);
+  await loadAll();
+}
 
 // 교육주기 메뉴는 제거했습니다. 교육 기준/주기 관리는 [보관관리]와 [설정]의 교육기준을 마스터로 사용합니다.
 
@@ -1685,6 +1700,60 @@ async function ackRetention(key){
   // 이전 버전 호환용: 이제 확인 처리는 표시 전환이 아니라 실제 삭제 방식입니다.
   toast("이 버전에서는 확인 후 삭제 버튼을 사용하세요.");
 }
+
+
+let activeWorkerPhotoId = null;
+let workerPhotoFiles = [];
+
+function workerDetails(){
+  try{
+    const parsed=JSON.parse(state.settings.worker_details || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  }catch(e){ return {}; }
+}
+function workerDetailById(id){
+  const d=workerDetails()[String(id)] || {};
+  return {photos:Array.isArray(d.photos)?d.photos:[]};
+}
+async function saveWorkerDetailsMap(map){
+  const value=JSON.stringify(map);
+  const res=await db.from("settings").upsert({key:"worker_details",value});
+  if(res.error){console.error(res.error);toast("기사님 사진정보 저장 오류");return false;}
+  state.settings.worker_details=value;
+  return true;
+}
+function openWorkerPhotoDetail(id){activeWorkerPhotoId=Number(id);workerPhotoFiles=[];renderWorkerPhotoModal();}
+function closeWorkerPhotoDetail(){activeWorkerPhotoId=null;workerPhotoFiles=[];document.getElementById("worker-photo-modal-wrap")?.remove();}
+function renderWorkerPhotoModal(){
+  document.getElementById("worker-photo-modal-wrap")?.remove();
+  const w=state.workers.find(x=>Number(x.id)===Number(activeWorkerPhotoId));
+  if(!w)return;
+  const detail=workerDetailById(w.id);
+  const photos=detail.photos.length?detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
+    <img src="${p.src}" alt="${escapeHtml(p.category||"기사님 사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openWorkerImageViewer(${w.id},${idx}); event.stopPropagation();">
+    <div class="equipment-photo-info"><div class="equipment-photo-title">${escapeHtml(p.category||"기타사진")}</div><div class="equipment-photo-desc">${escapeHtml(p.description||"")}</div><div class="small" style="margin-top:6px">저장일 ${escapeHtml(p.saved_date||"")}</div><div class="actions"><button onclick="editWorkerPhoto(${w.id},${idx})">수정</button><button class="red" onclick="deleteWorkerPhoto(${w.id},${idx})">삭제</button></div></div></div>`).join(""):`<p class="small">저장된 사진이 없습니다.</p>`;
+  const wrap=document.createElement("div");
+  wrap.id="worker-photo-modal-wrap";wrap.className="modal-backdrop";
+  wrap.onclick=e=>{if(e.target===wrap)closeWorkerPhotoDetail();};
+  wrap.innerHTML=`<div class="modal" style="width:min(900px,100%);max-height:92vh;overflow:auto" onclick="event.stopPropagation()">
+    <div class="detail-top"><div><div class="modal-title">${escapeHtml(w.name||"기사님")} 사진관리</div><div class="small">${escapeHtml([w.company,w.phone].filter(Boolean).join(" / "))}</div></div><button onclick="closeWorkerPhotoDetail()">닫기</button></div>
+    <div class="form-row" style="grid-template-columns:repeat(2,1fr);margin-top:14px"><div><label>사진 종류</label><input id="worker-photo-category" placeholder="예: 증명사진 / 교육사진 / 자격증 / 기타"></div><div><label>사진 설명</label><input id="worker-photo-description" placeholder="사진에 대한 설명을 입력하세요."></div></div>
+    <div id="worker-photo-dropzone" class="equipment-photo-dropzone" tabindex="0" onclick="document.getElementById('worker-photo-input').click()"><strong>사진을 클릭하여 선택</strong><div class="small">드래그앤드롭 또는 Ctrl+V 붙여넣기도 가능합니다.</div></div>
+    <input id="worker-photo-input" type="file" accept="image/*" multiple class="hidden" onchange="addWorkerPhotoFiles(this.files)">
+    <div id="worker-photo-preview" class="patrol-preview"><p class="small">선택된 사진이 없습니다.</p></div>
+    <div class="actions"><button class="primary" onclick="saveWorkerPhotos(${w.id})">사진 저장</button><button onclick="clearWorkerPhotoSelection()">선택 초기화</button></div>
+    <h2 style="margin-top:18px">저장된 사진</h2><div class="equipment-photo-grid">${photos}</div>
+  </div>`;
+  document.body.appendChild(wrap);setTimeout(bindWorkerPhotoDropPaste,0);
+}
+function addWorkerPhotoFiles(files){const imgs=Array.from(files||[]).filter(f=>f.type?.startsWith("image/"));workerPhotoFiles=[...workerPhotoFiles,...imgs].slice(0,30);previewWorkerPhotoFiles();}
+function previewWorkerPhotoFiles(){const box=document.getElementById("worker-photo-preview");if(!box)return;box.innerHTML=workerPhotoFiles.length?`<p class="small">선택 사진 ${workerPhotoFiles.length}장</p>`+workerPhotoFiles.map(f=>`<span class="badge info">${escapeHtml(f.name||"붙여넣은 사진")}</span>`).join(""):`<p class="small">선택된 사진이 없습니다.</p>`;}
+function clearWorkerPhotoSelection(){workerPhotoFiles=[];const input=document.getElementById("worker-photo-input");if(input)input.value="";previewWorkerPhotoFiles();}
+function bindWorkerPhotoDropPaste(){const zone=document.getElementById("worker-photo-dropzone");if(!zone||zone.dataset.bound==="1")return;zone.dataset.bound="1";zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover")});zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));zone.addEventListener("drop",e=>{e.preventDefault();zone.classList.remove("dragover");addWorkerPhotoFiles(e.dataTransfer.files)});zone.addEventListener("paste",e=>{e.preventDefault();addWorkerPhotoFiles(e.clipboardData.files)});setTimeout(()=>zone.focus(),50);}
+async function saveWorkerPhotos(id){if(!workerPhotoFiles.length)return toast("저장할 사진을 먼저 선택하세요.");const category=val("worker-photo-category")||"기타사진";const description=val("worker-photo-description");toast("사진 압축 중...");const added=[];try{for(const f of workerPhotoFiles)added.push({src:await readImageAsDataUrl(f),category,description,saved_date:todayStr(),created_at:new Date().toISOString()});}catch(e){console.error(e);return toast("사진 처리 오류");}const all=workerDetails(),key=String(id),current=all[key]||{};all[key]={photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};if(await saveWorkerDetailsMap(all)){clearWorkerPhotoSelection();renderWorkerPhotoModal();renderWorkers();toast("기사님 사진 저장 완료");}}
+async function editWorkerPhoto(id,index){const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos?.[index])return;const p=current.photos[index];const category=prompt("사진 종류를 수정하세요.",p.category||"기타사진");if(category===null)return;const description=prompt("사진 설명을 수정하세요.",p.description||"");if(description===null)return;current.photos[index]={...p,category:category.trim()||"기타사진",description};current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 정보 수정 완료");}}
+async function deleteWorkerPhoto(id,index){if(!confirm("이 사진을 삭제할까요?"))return;const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos)return;current.photos.splice(index,1);current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 삭제 완료");}}
+function openWorkerImageViewer(workerId,index){const photo=workerDetailById(workerId).photos?.[index];if(!photo?.src)return toast("사진을 불러올 수 없습니다.");closeEquipmentImageViewer();const viewer=document.createElement("div");viewer.id="equipment-image-viewer";viewer.className="equipment-image-viewer";viewer.setAttribute("role","dialog");viewer.setAttribute("aria-modal","true");viewer.setAttribute("aria-label","기사님 사진 크게 보기");viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};const caption=[photo.category||"기사님 사진",photo.description||""].filter(Boolean).join(" · ");viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${photo.src}" alt="${escapeHtml(photo.category||"기사님 사진")}"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;document.body.appendChild(viewer);document.body.style.overflow="hidden";}
 
 let activeEquipmentDetailId = null;
 let activeEquipmentDetailTab = "memo";
