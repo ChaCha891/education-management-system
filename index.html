@@ -198,6 +198,7 @@
 // 1) 여기에 Supabase 값을 넣으세요.
 // =========================
 const SUPABASE_URL = "https://widvjrtvjjuvknpjujkf.supabase.co";
+const PERMANENT_PHOTO_BUCKET = "permanent-photos";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpZHZqcnR2amp1dmtucGp1amtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODY0NzIsImV4cCI6MjA5NDA2MjQ3Mn0.ThmHVS56_yf1L3yGq8sJHBtSiLHu8javo5aboqwvKBA";
 
 const DEFAULT_TEMPLATE = `[교육 안내]\n{name} 기사님, {education} 일정 안내드립니다.\n교육 예정일: {next_date} ({dday})\n기한 내 교육 이수 부탁드립니다.`;
@@ -586,6 +587,7 @@ async function loadAll() {
   }
   if (!state.settings.work_journal) state.settings.work_journal = JSON.stringify({});
   if (!state.settings.equipment_details) state.settings.equipment_details = JSON.stringify({});
+  if (!state.settings.worker_details) state.settings.worker_details = JSON.stringify({});
   if (!state.settings.work_schedules) state.settings.work_schedules = JSON.stringify([]);
   await cleanupPatrolRecordsIfNewDay();
   await cleanupExpiredTempPhotos();
@@ -1786,6 +1788,71 @@ async function ackRetention(key){
 }
 
 
+
+// =========================
+// 영구 사진 저장소 (장비/기사님)
+// - 신규 사진: Supabase Storage에 파일로 저장
+// - 기존 Base64 사진: 최초 실행 시 Storage로 자동 이전 후 settings에서 Base64 제거
+// =========================
+function isBase64Photo(src){ return typeof src === "string" && src.startsWith("data:image/"); }
+function photoUrl(photo){
+  if(!photo) return "";
+  if(photo.storage_path){
+    return db.storage.from(PERMANENT_PHOTO_BUCKET).getPublicUrl(photo.storage_path).data?.publicUrl || "";
+  }
+  return photo.src || ""; // 마이그레이션 전 기존 사진 호환
+}
+function safeFilePart(v){ return String(v||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,80); }
+function extFromMime(type){ const m=String(type||"").match(/image\/(jpeg|jpg|png|webp|gif)/i); return m ? (m[1].toLowerCase()==="jpeg"?"jpg":m[1].toLowerCase()) : "jpg"; }
+async function dataUrlToBlob(dataUrl){ return await (await fetch(dataUrl)).blob(); }
+async function uploadPermanentPhoto(fileOrBlob, group, ownerId, originalName="photo.jpg"){
+  const type=fileOrBlob.type || "image/jpeg";
+  const ext=extFromMime(type);
+  const path=`${group}/${ownerId}/${Date.now()}_${Math.random().toString(36).slice(2,9)}_${safeFilePart(originalName).replace(/\.[^.]+$/,"")}.${ext}`;
+  const {error}=await db.storage.from(PERMANENT_PHOTO_BUCKET).upload(path,fileOrBlob,{contentType:type,upsert:false,cacheControl:"3600"});
+  if(error) throw error;
+  return path;
+}
+async function deletePermanentPhotoFile(photo){
+  if(!photo?.storage_path) return;
+  const {error}=await db.storage.from(PERMANENT_PHOTO_BUCKET).remove([photo.storage_path]);
+  if(error) console.warn("Storage 사진 삭제 실패",error);
+}
+async function migrateLegacyPermanentPhotos(){
+  if(!db || state.settings.permanent_photo_migration_v1 === "done") return;
+  let workerMap=workerDetails();
+  let equipmentMap=equipmentDetails();
+  let changedW=false, changedE=false, migrated=0;
+  try{
+    for(const [ownerId,d] of Object.entries(workerMap)){
+      for(const photo of (Array.isArray(d.photos)?d.photos:[])){
+        if(!isBase64Photo(photo.src)) continue;
+        const blob=await dataUrlToBlob(photo.src);
+        photo.storage_path=await uploadPermanentPhoto(blob,"workers",ownerId,`legacy_${migrated}.jpg`);
+        delete photo.src; changedW=true; migrated++;
+      }
+    }
+    for(const [ownerId,d] of Object.entries(equipmentMap)){
+      for(const photo of (Array.isArray(d.photos)?d.photos:[])){
+        if(!isBase64Photo(photo.src)) continue;
+        const blob=await dataUrlToBlob(photo.src);
+        photo.storage_path=await uploadPermanentPhoto(blob,"equipment",ownerId,`legacy_${migrated}.jpg`);
+        delete photo.src; changedE=true; migrated++;
+      }
+    }
+    if(changedW && !await saveWorkerDetailsMap(workerMap)) throw new Error("기사님 사진정보 저장 실패");
+    if(changedE && !await saveEquipmentDetailsMap(equipmentMap)) throw new Error("장비 사진정보 저장 실패");
+    const r=await db.from("settings").upsert({key:"permanent_photo_migration_v1",value:"done"});
+    if(r.error) throw r.error;
+    state.settings.permanent_photo_migration_v1="done";
+    if(migrated) toast(`기존 사진 ${migrated}장 저장 최적화 완료`);
+  }catch(e){
+    console.error("기존 사진 Storage 이전 실패",e);
+    // 버킷/정책이 아직 없으면 기존 Base64는 그대로 보존하므로 사진이 사라지지 않습니다.
+    toast("영구사진 저장소 설정을 확인하세요.");
+  }
+}
+
 let activeWorkerPhotoId = null;
 let workerPhotoFiles = [];
 
@@ -1814,7 +1881,7 @@ function renderWorkerPhotoModal(){
   if(!w)return;
   const detail=workerDetailById(w.id);
   const photos=detail.photos.length?detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
-    <img src="${p.src}" alt="${escapeHtml(p.category||"기사님 사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openWorkerImageViewer(${w.id},${idx}); event.stopPropagation();">
+    <img loading="lazy" src="${photoUrl(p)}" alt="${escapeHtml(p.category||"기사님 사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openWorkerImageViewer(${w.id},${idx}); event.stopPropagation();">
     <div class="equipment-photo-info"><div class="equipment-photo-title">${escapeHtml(p.category||"기타사진")}</div><div class="equipment-photo-desc">${escapeHtml(p.description||"")}</div><div class="small" style="margin-top:6px">저장일 ${escapeHtml(p.saved_date||"")}</div><div class="actions"><button onclick="editWorkerPhoto(${w.id},${idx})">수정</button><button class="red" onclick="deleteWorkerPhoto(${w.id},${idx})">삭제</button></div></div></div>`).join(""):`<p class="small">저장된 사진이 없습니다.</p>`;
   const wrap=document.createElement("div");
   wrap.id="worker-photo-modal-wrap";wrap.className="modal-backdrop";
@@ -1834,10 +1901,10 @@ function addWorkerPhotoFiles(files){const imgs=Array.from(files||[]).filter(f=>f
 function previewWorkerPhotoFiles(){const box=document.getElementById("worker-photo-preview");if(!box)return;box.innerHTML=workerPhotoFiles.length?`<p class="small">선택 사진 ${workerPhotoFiles.length}장</p>`+workerPhotoFiles.map(f=>`<span class="badge info">${escapeHtml(f.name||"붙여넣은 사진")}</span>`).join(""):`<p class="small">선택된 사진이 없습니다.</p>`;}
 function clearWorkerPhotoSelection(){workerPhotoFiles=[];const input=document.getElementById("worker-photo-input");if(input)input.value="";previewWorkerPhotoFiles();}
 function bindWorkerPhotoDropPaste(){const zone=document.getElementById("worker-photo-dropzone");if(!zone||zone.dataset.bound==="1")return;zone.dataset.bound="1";zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover")});zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));zone.addEventListener("drop",e=>{e.preventDefault();zone.classList.remove("dragover");addWorkerPhotoFiles(e.dataTransfer.files)});zone.addEventListener("paste",e=>{e.preventDefault();addWorkerPhotoFiles(e.clipboardData.files)});setTimeout(()=>zone.focus(),50);}
-async function saveWorkerPhotos(id){if(!workerPhotoFiles.length)return toast("저장할 사진을 먼저 선택하세요.");const category=val("worker-photo-category")||"기타사진";const description=val("worker-photo-description");toast("사진 압축 중...");const added=[];try{for(const f of workerPhotoFiles)added.push({src:await readImageAsDataUrl(f),category,description,saved_date:todayStr(),created_at:new Date().toISOString()});}catch(e){console.error(e);return toast("사진 처리 오류");}const all=workerDetails(),key=String(id),current=all[key]||{};all[key]={photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};if(await saveWorkerDetailsMap(all)){clearWorkerPhotoSelection();renderWorkerPhotoModal();renderWorkers();toast("기사님 사진 저장 완료");}}
+async function saveWorkerPhotos(id){if(!workerPhotoFiles.length)return toast("저장할 사진을 먼저 선택하세요.");const category=val("worker-photo-category")||"기타사진";const description=val("worker-photo-description");toast("사진 업로드 중...");const added=[];try{for(const f of workerPhotoFiles){const path=await uploadPermanentPhoto(f,"workers",id,f.name);added.push({storage_path:path,category,description,saved_date:todayStr(),created_at:new Date().toISOString()});}}catch(e){console.error(e);return toast("사진 업로드 오류 - Storage 설정을 확인하세요.");}const all=workerDetails(),key=String(id),current=all[key]||{};all[key]={photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};if(await saveWorkerDetailsMap(all)){clearWorkerPhotoSelection();renderWorkerPhotoModal();renderWorkers();toast("기사님 사진 저장 완료");}}
 async function editWorkerPhoto(id,index){const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos?.[index])return;const p=current.photos[index];const category=prompt("사진 종류를 수정하세요.",p.category||"기타사진");if(category===null)return;const description=prompt("사진 설명을 수정하세요.",p.description||"");if(description===null)return;current.photos[index]={...p,category:category.trim()||"기타사진",description};current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 정보 수정 완료");}}
-async function deleteWorkerPhoto(id,index){if(!confirm("이 사진을 삭제할까요?"))return;const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos)return;current.photos.splice(index,1);current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 삭제 완료");}}
-function openWorkerImageViewer(workerId,index){const photo=workerDetailById(workerId).photos?.[index];if(!photo?.src)return toast("사진을 불러올 수 없습니다.");closeEquipmentImageViewer();const viewer=document.createElement("div");viewer.id="equipment-image-viewer";viewer.className="equipment-image-viewer";viewer.setAttribute("role","dialog");viewer.setAttribute("aria-modal","true");viewer.setAttribute("aria-label","기사님 사진 크게 보기");viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};const caption=[photo.category||"기사님 사진",photo.description||""].filter(Boolean).join(" · ");viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${photo.src}" alt="${escapeHtml(photo.category||"기사님 사진")}"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;document.body.appendChild(viewer);document.body.style.overflow="hidden";}
+async function deleteWorkerPhoto(id,index){if(!confirm("이 사진을 삭제할까요?"))return;const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos)return;await deletePermanentPhotoFile(current.photos[index]);current.photos.splice(index,1);current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 삭제 완료");}}
+function openWorkerImageViewer(workerId,index){const photo=workerDetailById(workerId).photos?.[index];const url=photoUrl(photo);if(!url)return toast("사진을 불러올 수 없습니다.");closeEquipmentImageViewer();const viewer=document.createElement("div");viewer.id="equipment-image-viewer";viewer.className="equipment-image-viewer";viewer.setAttribute("role","dialog");viewer.setAttribute("aria-modal","true");viewer.setAttribute("aria-label","기사님 사진 크게 보기");viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};const caption=[photo.category||"기사님 사진",photo.description||""].filter(Boolean).join(" · ");viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${url}" alt="${escapeHtml(photo.category||"기사님 사진")}"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;document.body.appendChild(viewer);document.body.style.overflow="hidden";}
 
 let activeEquipmentDetailId = null;
 let activeEquipmentDetailTab = "memo";
@@ -1883,7 +1950,7 @@ function renderEquipmentDetailModal(){
   if(!eq) return;
   const detail = equipmentDetailById(eq.id);
   const photos = detail.photos.length ? detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
-    <img src="${p.src}" alt="${escapeHtml(p.category || "장비사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openEquipmentImageViewer(${eq.id},${idx}); event.stopPropagation();">
+    <img loading="lazy" src="${photoUrl(p)}" alt="${escapeHtml(p.category || "장비사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openEquipmentImageViewer(${eq.id},${idx}); event.stopPropagation();">
     <div class="equipment-photo-info">
       <div class="equipment-photo-title">${escapeHtml(p.category || "기타사진")}</div>
       <div class="equipment-photo-desc">${escapeHtml(p.description || "")}</div>
@@ -1923,21 +1990,16 @@ function renderEquipmentDetailModal(){
   if(activeEquipmentDetailTab === "photos") setTimeout(bindEquipmentPhotoDropPaste,0);
 }
 function openEquipmentImageViewer(equipmentId,index){
-  const detail=equipmentDetailById(equipmentId);
-  const photo=detail.photos?.[index];
-  if(!photo?.src) return toast("사진을 불러올 수 없습니다.");
+  // 임시사진은 URL 문자열을 직접 넘길 수 있고, 장비사진은 장비ID/인덱스로 불러옵니다.
+  let url="", caption="";
+  if(typeof equipmentId === "string" && (equipmentId.startsWith("blob:") || equipmentId.startsWith("data:") || equipmentId.startsWith("http"))){ url=equipmentId; caption=String(index||""); }
+  else { const photo=equipmentDetailById(equipmentId).photos?.[index]; url=photoUrl(photo); caption=[photo?.category||"장비사진",photo?.description||""].filter(Boolean).join(" · "); }
+  if(!url) return toast("사진을 불러올 수 없습니다.");
   closeEquipmentImageViewer();
-  const viewer=document.createElement("div");
-  viewer.id="equipment-image-viewer";
-  viewer.className="equipment-image-viewer";
-  viewer.setAttribute("role","dialog");
-  viewer.setAttribute("aria-modal","true");
-  viewer.setAttribute("aria-label","장비 사진 크게 보기");
-  viewer.onclick=e=>{ if(e.target===viewer || e.target.classList.contains("equipment-image-viewer-inner")) closeEquipmentImageViewer(); };
-  const caption=[photo.category || "장비사진",photo.description || ""].filter(Boolean).join(" · ");
-  viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${photo.src}" alt="${escapeHtml(photo.category || "장비사진")}"></div>${caption ? `<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>` : ""}`;
-  document.body.appendChild(viewer);
-  document.body.style.overflow="hidden";
+  const viewer=document.createElement("div"); viewer.id="equipment-image-viewer"; viewer.className="equipment-image-viewer";
+  viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};
+  viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${url}" alt="사진 크게 보기"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;
+  document.body.appendChild(viewer); document.body.style.overflow="hidden";
 }
 function closeEquipmentImageViewer(){
   document.getElementById("equipment-image-viewer")?.remove();
@@ -1983,11 +2045,14 @@ async function saveEquipmentPhotos(id){
   if(!equipmentPhotoFiles.length) return toast("저장할 사진을 먼저 선택하세요.");
   const category=val("equipment-photo-category") || "기타사진";
   const description=val("equipment-photo-description");
-  toast("사진 압축 중...");
+  toast("사진 업로드 중...");
   const added=[];
   try{
-    for(const f of equipmentPhotoFiles){ added.push({src:await readImageAsDataUrl(f),category,description,saved_date:todayStr(),created_at:new Date().toISOString()}); }
-  }catch(e){ console.error(e); return toast("사진 처리 오류"); }
+    for(const f of equipmentPhotoFiles){
+      const path=await uploadPermanentPhoto(f,"equipment",id,f.name);
+      added.push({storage_path:path,category,description,saved_date:todayStr(),created_at:new Date().toISOString()});
+    }
+  }catch(e){ console.error(e); return toast("사진 업로드 오류 - Storage 설정을 확인하세요."); }
   const all=equipmentDetails(), key=String(id), current=all[key] || {};
   all[key]={...current,memo:current.memo || "",photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};
   if(await saveEquipmentDetailsMap(all)){ clearEquipmentPhotoSelection(); renderEquipmentDetailModal(); toast("장비 사진 저장 완료"); }
@@ -2008,6 +2073,7 @@ async function deleteEquipmentPhoto(id,index){
   if(!confirm("이 사진을 삭제할까요?")) return;
   const all=equipmentDetails(),key=String(id),current=all[key];
   if(!current?.photos) return;
+  await deletePermanentPhotoFile(current.photos[index]);
   current.photos.splice(index,1); current.updated_at=new Date().toISOString();
   if(await saveEquipmentDetailsMap(all)){ renderEquipmentDetailModal(); toast("사진 삭제 완료"); }
 }
@@ -2447,6 +2513,7 @@ window.addEventListener("load", async () => {
   syncTodayDate(true);
   startTodayAutoUpdater();
   await loadAll();
+  await migrateLegacyPermanentPhotos();
   showPage("mobile");
 });
 
