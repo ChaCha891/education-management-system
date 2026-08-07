@@ -197,9 +197,14 @@
 // =========================
 // 1) 여기에 Supabase 값을 넣으세요.
 // =========================
+// 기존 교육관리 DB: 절대 변경하지 않음
 const SUPABASE_URL = "https://widvjrtvjjuvknpjujkf.supabase.co";
-const PERMANENT_PHOTO_BUCKET = "permanent-photos";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpZHZqcnR2amp1dmtucGp1amtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODY0NzIsImV4cCI6MjA5NDA2MjQ3Mn0.ThmHVS56_yf1L3yGq8sJHBtSiLHu8javo5aboqwvKBA";
+
+// 장비/기사님 영구사진 전용 Storage 프로젝트
+const PHOTO_SUPABASE_URL = "https://yajvtppzhajpexvpqvnv.supabase.co";
+const PHOTO_SUPABASE_KEY = "sb_publishable_bhjB9HwCqicxDY8F7wDgvg_6I2CMFPQ";
+const PERMANENT_PHOTO_BUCKET = "permanent-photos";
 
 const DEFAULT_TEMPLATE = `[교육 안내]\n{name} 기사님, {education} 일정 안내드립니다.\n교육 예정일: {next_date} ({dday})\n기한 내 교육 이수 부탁드립니다.`;
 // 기본 교육기준표: 최초 실행 또는 설정값이 없을 때만 사용합니다.
@@ -213,6 +218,7 @@ const DEFAULT_EDUCATION_RULES = [
 ];
 
 let db = null;
+let photoDb = null; // 영구사진 Storage 전용 클라이언트
 let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
 let currentPage = "mobile";
 function isMobileView(){ return window.matchMedia && window.matchMedia("(max-width:760px)").matches; }
@@ -247,7 +253,12 @@ function ready() {
     document.getElementById("setup-warning").classList.remove("hidden");
     return false;
   }
+  // 기존 데이터베이스 연결
   db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // 장비/기사님 영구사진 Storage는 별도 Supabase 프로젝트 사용
+  photoDb = supabase.createClient(PHOTO_SUPABASE_URL, PHOTO_SUPABASE_KEY);
+
   return true;
 }
 
@@ -1798,7 +1809,7 @@ function isBase64Photo(src){ return typeof src === "string" && src.startsWith("d
 function photoUrl(photo){
   if(!photo) return "";
   if(photo.storage_path){
-    return db.storage.from(PERMANENT_PHOTO_BUCKET).getPublicUrl(photo.storage_path).data?.publicUrl || "";
+    return photoDb.storage.from(PERMANENT_PHOTO_BUCKET).getPublicUrl(photo.storage_path).data?.publicUrl || "";
   }
   return photo.src || ""; // 마이그레이션 전 기존 사진 호환
 }
@@ -1809,13 +1820,13 @@ async function uploadPermanentPhoto(fileOrBlob, group, ownerId, originalName="ph
   const type=fileOrBlob.type || "image/jpeg";
   const ext=extFromMime(type);
   const path=`${group}/${ownerId}/${Date.now()}_${Math.random().toString(36).slice(2,9)}_${safeFilePart(originalName).replace(/\.[^.]+$/,"")}.${ext}`;
-  const {error}=await db.storage.from(PERMANENT_PHOTO_BUCKET).upload(path,fileOrBlob,{contentType:type,upsert:false,cacheControl:"3600"});
+  const {error}=await photoDb.storage.from(PERMANENT_PHOTO_BUCKET).upload(path,fileOrBlob,{contentType:type,upsert:false,cacheControl:"3600"});
   if(error) throw error;
   return path;
 }
 async function deletePermanentPhotoFile(photo){
   if(!photo?.storage_path) return;
-  const {error}=await db.storage.from(PERMANENT_PHOTO_BUCKET).remove([photo.storage_path]);
+  const {error}=await photoDb.storage.from(PERMANENT_PHOTO_BUCKET).remove([photo.storage_path]);
   if(error) console.warn("Storage 사진 삭제 실패",error);
 }
 async function migrateLegacyPermanentPhotos(){
