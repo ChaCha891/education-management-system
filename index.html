@@ -801,13 +801,13 @@ function toggleTempPhotoSelection(id){
   if(i>=0) patrolSelectedPhotoIds.splice(i,1); else if(patrolSelectedPhotoIds.length<18) patrolSelectedPhotoIds.push(id); else return toast("순회점검에는 최대 18장까지 선택할 수 있습니다.");
   if(currentPage==="photos") renderPhotos(); else previewPatrolFiles();
 }
-function tempPhotoCardHtml(p, selectable=false){
-  const id=String(p.id), selected=patrolSelectedPhotoIds.some(x=>String(x)===id), url=tempPhotoUrls.get(id)||"";
-  return `<div class="temp-photo-card ${selected?"selected":""}">${selectable?`<button class="temp-photo-check" onclick="event.stopPropagation();toggleTempPhotoSelection('${escapeHtml(id)}')">${selected?"✓":""}</button>`:""}<img src="${url}" alt="임시사진" onclick="openEquipmentImageViewer('${url}','${escapeHtml(p.name||'오늘 사진')}')"><div class="temp-photo-meta"><b>${escapeHtml(p.name||'현장사진')}</b><div>${new Date(p.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div><div class="actions"><button type="button" onclick="toggleTempPhotoSelection('${escapeHtml(id)}')">${selected?'선택해제':'순회점검 선택'}</button><button type="button" class="red" onclick="deleteTempPhoto('${escapeHtml(id)}')">삭제</button></div></div></div>`;
+function tempPhotoCardHtml(p){
+  const id=String(p.id), url=tempPhotoUrls.get(id)||"";
+  return `<div class="temp-photo-card"><img src="${url}" alt="임시사진" onclick="openEquipmentImageViewer('${url}','${escapeHtml(p.name||'오늘 사진')}')"><div class="temp-photo-meta"><b>${escapeHtml(p.name||'현장사진')}</b><div>${new Date(p.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div><div class="actions"><button type="button" class="red" onclick="deleteTempPhoto('${escapeHtml(id)}')">삭제</button></div></div></div>`;
 }
 function renderPhotos(){
   const page=document.getElementById("page-photos"); if(!page)return;
-  page.innerHTML=`<div class="card"><div class="temp-photo-toolbar"><div><h2>오늘의 임시 사진함</h2><p class="small">휴대폰 기본 카메라로 촬영하거나 앨범에서 추가한 사진입니다. 날짜가 바뀌면 자동 삭제되며, 앱이 닫혀 있던 경우 다음 실행 시 삭제됩니다.</p></div><div class="actions"><button class="primary" onclick="document.getElementById('temp-camera-input').click()">📷 촬영</button><button onclick="document.getElementById('temp-gallery-input').click()">앨범에서 추가</button><button onclick="showPage('patrol')">선택 사진으로 순회점검</button><button class="red" onclick="clearTodayTempPhotos()">오늘 사진 전체 삭제</button></div></div><input id="temp-camera-input" class="hidden" type="file" accept="image/*" capture="environment" onchange="addFilesToTempPhotos(this.files,'camera');this.value=''"><input id="temp-gallery-input" class="hidden" type="file" accept="image/*" multiple onchange="addFilesToTempPhotos(this.files,'gallery');this.value=''"><p><b>오늘 ${tempPhotos.length}장</b> · 순회점검 선택 ${patrolSelectedPhotoIds.length}장</p><div class="temp-photo-grid">${tempPhotos.length?tempPhotos.map(p=>tempPhotoCardHtml(p,true)).join(''):'<p class="small">아직 촬영한 사진이 없습니다.</p>'}</div></div>`;
+  page.innerHTML=`<div class="card"><div class="temp-photo-toolbar"><div><h2>오늘의 임시 사진함</h2><p class="small">휴대폰 기본 카메라로 촬영하거나 앨범에서 추가한 사진입니다. 필요한 사진은 오늘 중 PC 서류 작성에 사용하세요. 날짜가 바뀌면 자동 삭제되며, 앱이 닫혀 있던 경우 다음 실행 시 삭제됩니다.</p></div><div class="actions"><button class="primary" onclick="document.getElementById('temp-camera-input').click()">📷 촬영</button><button onclick="document.getElementById('temp-gallery-input').click()">앨범에서 추가</button><button class="red" onclick="clearTodayTempPhotos()">오늘 사진 전체 삭제</button></div></div><input id="temp-camera-input" class="hidden" type="file" accept="image/*" capture="environment" onchange="addFilesToTempPhotos(this.files,'camera');this.value=''"><input id="temp-gallery-input" class="hidden" type="file" accept="image/*" multiple onchange="addFilesToTempPhotos(this.files,'gallery');this.value=''"><p><b>오늘 ${tempPhotos.length}장</b></p><div class="temp-photo-grid">${tempPhotos.length?tempPhotos.map(p=>tempPhotoCardHtml(p)).join(''):'<p class="small">아직 촬영한 사진이 없습니다.</p>'}</div></div>`;
 }
 async function hydrateTempPhotoImages(){
   document.querySelectorAll('img[data-temp-photo-id]').forEach(img=>{const u=tempPhotoUrls.get(String(img.dataset.tempPhotoId));if(u)img.src=u;});
@@ -820,25 +820,9 @@ function patrolRecords(){
   } catch(e) { return []; }
 }
 async function cleanupPatrolRecordsIfNewDay(){
-  if(!db) return;
-  const today = todayStr();
-  const all = patrolRecords();
-  const todayOnly = all.filter(x => x.date === today);
-  const last = state.settings.patrol_cleanup_date || today;
-
-  // 이전 날짜에 저장된 사진/순회점검 데이터는 앱이 느려지는 원인이 되므로 로드할 때마다 오늘 데이터만 남깁니다.
-  if(last !== today || todayOnly.length !== all.length){
-    const updates = [
-      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(todayOnly)}),
-      db.from("settings").upsert({key:"patrol_cleanup_date", value:today})
-    ];
-    const [r1, r2] = await Promise.all(updates);
-    if(!r1.error && !r2.error){
-      state.settings.patrol_records = JSON.stringify(todayOnly);
-      state.settings.patrol_cleanup_date = today;
-      patrolPrintDate = today;
-    }
-  }
+  // 순회점검은 2일 주기로 관리하므로 과거 점검기록을 자동 삭제하지 않습니다.
+  // 상태는 마지막 점검일을 기준으로 자동 계산됩니다.
+  return;
 }
 async function clearAllPatrolRecords(){
   if(!confirm("저장된 순회점검 사진/입력 데이터를 전부 삭제할까요? 장비관리 목록은 삭제되지 않습니다.")) return;
@@ -1088,42 +1072,89 @@ function downloadPatrolCsv(dateText){
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+function patrolDateDiffDays(fromDate, toDate=todayStr()){
+  if(!isValidDateText(fromDate) || !isValidDateText(toDate)) return 999999;
+  const a=new Date(fromDate+"T00:00:00");
+  const b=new Date(toDate+"T00:00:00");
+  return Math.floor((b-a)/86400000);
+}
+function latestPatrolRecordForEquipment(eq){
+  const eqId=String(eq?.id||"");
+  const vno=equipmentDisplayNo(eq);
+  return patrolRecords()
+    .filter(r => (eqId && String(r.equipment_id||"")===eqId) || (vno && String(r.vehicle_number||"")===vno))
+    .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))[0] || null;
+}
+function isPatrolComplete(eq){
+  const rec=latestPatrolRecordForEquipment(eq);
+  if(!rec) return false;
+  // 점검한 날과 다음 날까지 '점검완료', 2일이 지나면 다시 '미점검'
+  return patrolDateDiffDays(rec.date, todayStr()) < 2;
+}
+async function completePatrolEquipment(equipmentId){
+  const eq=state.equipment.find(x=>Number(x.id)===Number(equipmentId));
+  if(!eq) return toast("장비 정보를 찾을 수 없습니다.");
+  if(isPatrolComplete(eq)) return toast("이미 점검완료 상태입니다.");
+
+  const all=patrolRecords();
+  const record={
+    id:Date.now(),
+    date:todayStr(),
+    equipment_id:Number(eq.id),
+    vehicle_number:equipmentDisplayNo(eq),
+    checked_at:new Date().toISOString()
+  };
+  const next=[...all,record];
+  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
+  if(res.error){console.error(res.error);return toast("순회점검 상태 저장 오류");}
+  state.settings.patrol_records=JSON.stringify(next);
+  renderPatrol();
+  toast(`${equipmentDisplayNo(eq)||"해당 장비"} 점검완료`);
+}
+async function cancelLatestPatrolEquipment(equipmentId){
+  const eq=state.equipment.find(x=>Number(x.id)===Number(equipmentId));
+  if(!eq) return;
+  const latest=latestPatrolRecordForEquipment(eq);
+  if(!latest) return;
+  if(!confirm(`${equipmentDisplayNo(eq)||"해당 장비"}의 최근 점검완료 처리를 취소할까요?`)) return;
+  const next=patrolRecords().filter(r=>String(r.id)!==String(latest.id));
+  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
+  if(res.error){console.error(res.error);return toast("점검완료 취소 오류");}
+  state.settings.patrol_records=JSON.stringify(next);
+  renderPatrol();
+  toast("점검완료 처리를 취소했습니다.");
+}
 function renderPatrol(){
-  const dateDefault = patrolPrintDate || todayStr();
-  const recordsForDate = patrolRecordsByDate(dateDefault);
-  const recordByEquipment = new Map();
-  for(const r of recordsForDate){
-    if(r.equipment_id) recordByEquipment.set(`id:${r.equipment_id}`, r);
-    if(r.vehicle_number) recordByEquipment.set(`no:${r.vehicle_number}`, r);
-  }
-  const equipmentRows = state.equipment.length ? state.equipment.map((eq, idx) => {
-    const rec = recordByEquipment.get(`id:${eq.id}`) || recordByEquipment.get(`no:${equipmentDisplayNo(eq)}`) || null;
-    const hasData = !!rec && ([rec.worker_name, rec.place, rec.work].some(Boolean) || (rec.images||[]).length > 0);
-    const status = hasData ? `<span class="badge ok">입력완료</span>` : `<span class="badge soon">미점검</span>`;
-    const action = hasData ? `<button onclick="editPatrolRecord(${rec.id})">수정</button> <button class="red" onclick="deletePatrolRecord(${rec.id})">삭제</button>` : `<span class="small">장비번호 클릭 후 입력</span>`;
-    return `<tr><td>${idx+1}</td><td><button class="btn" onclick="openPatrolEquipment(${eq.id})">${escapeHtml(equipmentDisplayNo(eq) || "번호없음")}</button></td><td>${escapeHtml(eq.vehicle_type || "-")}</td><td>${escapeHtml(eq.work_type || "-")}</td><td>${escapeHtml(rec?.worker_name || "-")}</td><td>${escapeHtml(rec?.place || "-")}</td><td>${escapeHtml(rec?.work || "-")}</td><td>${((rec?.images||[]).length + (rec?.temp_image_ids||[]).length)}장</td><td>${status}</td><td>${action}</td></tr>`;
-  }).join("") : `<tr><td colspan="10">장비관리 메뉴에 등록된 장비가 없습니다.</td></tr>`;
-  document.getElementById("page-patrol").innerHTML = `
-    <div class="card no-print"><h2>순회점검 입력/수정</h2>
-      <input type="hidden" id="patrol-edit-id">
-      <input type="hidden" id="patrol-equipment-id">
-      <div class="form-row">
-        <div><label>점검일자</label><input id="patrol-date" data-format="date" value="${escapeHtml(dateDefault)}" placeholder="숫자만 입력 예: 20260518" onchange="setPatrolPrintDate(this.value)"></div>
-        <div><label>차량번호</label><input id="patrol-vehicle" readonly placeholder="장비 목록에서 선택"></div>
-        <div><label>기사님 성함</label><input id="patrol-worker-name" placeholder="기사님 성함 직접 입력"></div>
-        <div><label>작업장소</label><input id="patrol-place" placeholder="예: 저광사 / 야적장"></div>
-        <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
+  const rows=state.equipment.length ? state.equipment.map((eq,idx)=>{
+    const latest=latestPatrolRecordForEquipment(eq);
+    const complete=isPatrolComplete(eq);
+    const status=complete
+      ? `<span class="badge ok">점검완료</span>`
+      : `<span class="badge soon">미점검</span>`;
+    const lastDate=latest?.date ? escapeHtml(latest.date) : "-";
+    const vehicle=escapeHtml(equipmentDisplayNo(eq)||"번호없음");
+    return `<tr>
+      <td>${idx+1}</td>
+      <td><button class="btn" onclick="completePatrolEquipment(${eq.id})" ${complete?'title="이미 점검완료 상태입니다"':'title="클릭하면 점검완료 처리됩니다"'}>${vehicle}</button></td>
+      <td>${escapeHtml(eq.vehicle_type||"-")}</td>
+      <td>${escapeHtml(eq.work_type||"-")}</td>
+      <td>${lastDate}</td>
+      <td>${status}</td>
+      <td>${latest?`<button class="red" onclick="cancelLatestPatrolEquipment(${eq.id})">완료 취소</button>`:"-"}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="7">장비관리 메뉴에 등록된 장비가 없습니다.</td></tr>`;
+
+  document.getElementById("page-patrol").innerHTML=`
+    <div class="card no-print">
+      <h2>순회점검</h2>
+      <p class="small">미점검 상태의 차량번호를 클릭하면 즉시 점검완료로 처리됩니다. 점검완료 상태는 점검일과 다음 날까지 유지되며, 점검 후 2일이 지나면 자동으로 미점검 상태로 전환됩니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>최근 점검일</th><th>상태</th><th>관리</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
       </div>
-      <div style="margin-top:10px"><label>현장 사진</label><div class="actions"><button type="button" class="primary" onclick="document.getElementById('patrol-camera').click()">📷 휴대폰으로 촬영</button><button type="button" onclick="showPage('photos')">오늘 사진함에서 선택</button></div><div id="patrol-dropzone" class="patrol-preview patrol-dropzone" tabindex="0"><p class="small">PC에서는 사진을 드래그앤드롭하거나 Ctrl+V로 붙여넣을 수도 있습니다.</p></div><input id="patrol-camera" type="file" accept="image/*" capture="environment" class="hidden" onchange="addPatrolFiles(this.files);this.value=''"><input id="patrol-files" type="file" accept="image/*" multiple class="hidden" onchange="addPatrolFiles(this.files); this.value=''"><div id="patrol-preview" class="patrol-preview"><p class="small">촬영하거나 오늘 사진함에서 사진을 선택하세요.</p></div></div>
-      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">입력칸 초기화</button><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-date'))">선택 날짜 전체 삭제</button><button class="red" onclick="clearAllPatrolRecords()">저장 데이터 전체 초기화</button></div>
-      <p class="small">장비관리의 장비가 순회점검 목록에 전부 표시됩니다. 삭제와 전체 삭제는 장비 삭제가 아니라 해당 날짜의 입력 내용만 삭제하며, 장비 행은 그대로 남습니다. 사진 원본은 오늘의 임시 사진함에만 저장되고 날짜가 바뀌면 자동 삭제됩니다. 순회점검에는 사진 ID만 연결됩니다.</p>
-    </div>
-    <div class="card no-print"><h2>순회점검 장비 목록</h2><p class="small">장비번호를 클릭하면 해당 장비의 순회점검 내용을 입력할 수 있습니다. 미점검 장비가 그대로 보이므로 오늘 확인하지 못한 장비를 파악하기 쉽습니다.</p><div class="table-wrap"><table><thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>상태</th><th>관리</th></tr></thead><tbody>${equipmentRows}</tbody></table></div></div>
-    <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div><div><label>&nbsp;</label><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-print-date'))">전체 삭제</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 사진이 있는 칸은 위에서부터 차량번호 / 사진 / 기사님 성함 / 작업장소·작업내용 순서로 표시되고, 빈칸은 불필요한 작은 칸 없이 비워집니다. 전체 삭제는 선택한 출력 날짜의 순회점검 입력내용만 지우고 장비 목록은 유지합니다.</p></div>
-    <div class="card"><div class="patrol-report-scroll">${patrolReportHtml(dateDefault)}</div></div>`;
-  bindPatrolDropPaste();
-  previewPatrolFiles();
-  hydrateTempPhotoImages();
+    </div>`;
 }
 
 function syncTodayDate(force=false) {
