@@ -48,7 +48,7 @@
     .patrol-report-scroll{width:100%;max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0}.patrol-report{background:#fff;color:#111;width:100%;min-width:980px;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:21px 1fr 21px 27px}.patrol-caption-vehicle,.patrol-caption-worker,.patrol-caption-work{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1.12;padding:2px 4px;overflow:hidden;text-align:center}.patrol-caption-vehicle{border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-worker{border-top:1px solid #111;border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-work{white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}.patrol-empty-box{height:170px;background:#fff}
 
     .worklog-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
-    .worklog-week-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+    .worklog-week-grid{display:grid;grid-template-columns:1fr;gap:10px}
     .worklog-day-card{border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-height:420px}
     .worklog-date-head{width:100%;border:0;border-radius:0;background:#eef2f7;font-size:15px;font-weight:900;text-align:center;padding:10px;border-bottom:1px solid var(--line);cursor:pointer}
     .worklog-date-head:hover{background:#dbeafe}
@@ -2190,14 +2190,7 @@ function mondayOfWeek(dateText){
   return formatDate(d);
 }
 function worklogVisibleDates(){
-  if(isMobileView()) return [worklogCursorDate || todayStr()];
-  const mon = mondayOfWeek(worklogCursorDate || todayStr());
-  return Array.from({length:5}, (_, i) => addDaysText(mon, i));
-}
-function moveWorklogWeek(offset){
-  worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset) * 7);
-  activeWorklogDate = "";
-  renderWorklog();
+  return [worklogCursorDate || todayStr()];
 }
 function moveWorklogDay(offset){
   worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset));
@@ -2262,17 +2255,10 @@ function worklogModalHtml(){
   </div>`;
 }
 function renderWorklog(){
-  const mobile = isMobileView();
   const dates = worklogVisibleDates();
-  const weekStart = mondayOfWeek(worklogCursorDate || todayStr());
-  const weekEnd = addDaysText(weekStart, 4);
-  const title = mobile ? `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지` : `${shortDateWithDay(weekStart)} ~ ${shortDateWithDay(weekEnd)} 업무일지`;
-  const leftBtn = mobile
-    ? `<button onclick="moveWorklogDay(-1)">◀</button>`
-    : `<button onclick="moveWorklogWeek(-1)">이전주</button>`;
-  const rightBtn = mobile
-    ? `<button onclick="moveWorklogDay(1)">▶</button>`
-    : `<button onclick="moveWorklogWeek(1)">다음주</button>`;
+  const title = `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지`;
+  const leftBtn = `<button onclick="moveWorklogDay(-1)" aria-label="이전 날짜">◀ 이전날</button>`;
+  const rightBtn = `<button onclick="moveWorklogDay(1)" aria-label="다음 날짜">다음날 ▶</button>`;
   document.getElementById("page-worklog").innerHTML = `
     <div class="card">
       <div class="worklog-toolbar">
@@ -2284,7 +2270,7 @@ function renderWorklog(){
         <button onclick="goWorklogToday()">오늘로 이동</button>
         <button onclick="loadAll()">새로고침</button>
       </div>
-      <p class="small">날짜 칸을 클릭하면 업무일지 수정 창이 열립니다. PC에서는 월~금 5일치가 한 번에 보이고, 모바일에서는 ◀ / ▶ 버튼으로 하루씩 이동합니다.</p>
+      <p class="small">날짜 칸을 클릭하면 업무일지 수정 창이 열립니다. ◀ 이전날 / 다음날 ▶ 버튼으로 하루씩 이동할 수 있습니다.</p>
     </div>
     <div class="worklog-week-grid">${dates.map(worklogDayCard).join("")}</div>
     ${worklogModalHtml()}`;
