@@ -37,18 +37,22 @@
 
     .calendar-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
     .calendar-title{font-size:20px;font-weight:900}
-    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-    .calendar-head{font-weight:900;text-align:center;padding:8px;color:var(--muted)}
-    .day-cell{min-height:118px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;overflow:hidden}
-    .day-cell:hover{outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border:0;cursor:default}.day-cell.today{border:2px solid var(--primary)}
-    .day-num{font-weight:900;margin-bottom:6px}.shift-name{display:block;font-size:12px;margin:3px 0;padding:4px 6px;border-radius:8px;background:#eef2f7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#dbeafe;color:#1e40af}.shift-night{background:#ede9fe;color:#5b21b6}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));column-gap:0;row-gap:8px}
+    .calendar-head{font-weight:900;text-align:center;padding:8px;color:var(--muted)}.calendar-head.sun,.day-num.sun,.day-num.holiday{color:#dc2626}.calendar-head.sat,.day-num.sat{color:#2563eb}
+    .day-cell{position:relative;min-height:124px;background:#fff;border:1px solid var(--line);border-radius:0;padding:8px;cursor:pointer;overflow:visible}
+    .day-cell:nth-child(7n+1){border-radius:12px 0 0 12px}.day-cell:nth-child(7n){border-radius:0 12px 12px 0}
+    .day-cell:hover{z-index:3;outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border-color:transparent;cursor:default}.day-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}.day-cell.selected{background:#eff6ff;box-shadow:inset 0 0 0 2px #60a5fa}
+    .day-num{font-weight:900;margin-bottom:2px}.holiday-name{height:16px;font-size:10px;color:#dc2626;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+    .shift-name{display:block;font-size:12px;margin:3px 0;padding:5px 8px;border-radius:9px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .shift-summary{border:1px solid var(--line);border-radius:14px;padding:12px;background:#f8fafc;margin:12px 0 10px}.shift-summary-title{font-weight:900;margin-bottom:7px}.shift-summary-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.shift-summary-label{font-size:12px;font-weight:900;min-width:38px}.shift-day{background:#facc15!important;color:#713f12!important}.shift-night{background:#7c3aed!important;color:#fff!important}
+    .calendar-event-lanes{display:grid;gap:3px;margin-top:2px}.work-event-lane{height:21px}.work-event-line{position:relative;z-index:2;display:block;height:21px;line-height:21px;padding:0 6px;margin-left:-9px;margin-right:-9px;border-radius:0;font-size:11px;font-weight:900;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 0 0 1px rgba(15,23,42,.06)}.work-event-line.start{margin-left:0;border-radius:7px 0 0 7px}.work-event-line.end{margin-right:0;border-radius:0 7px 7px 0}.work-event-line.single{margin:0;border-radius:7px}.work-event-line.continue{color:transparent}.work-event-placeholder{display:block;height:21px}.work-schedule-item{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:8px;background:#fff}.work-event-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px}.calendar-help{margin:8px 0 0}.holiday-update-state{font-size:12px;color:var(--muted)}
+    .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#facc15;color:#713f12}.shift-night{background:#7c3aed;color:#fff}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
 
     .patrol-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.patrol-dropzone{border:2px dashed var(--line);border-radius:14px;background:#f8fafc;padding:14px;min-height:74px;align-items:center;justify-content:center;cursor:pointer}.patrol-dropzone.dragover{border-color:var(--primary);background:#eff6ff}.patrol-thumb{width:86px;height:66px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
     .patrol-report-scroll{width:100%;max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0}.patrol-report{background:#fff;color:#111;width:100%;min-width:980px;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:21px 1fr 21px 27px}.patrol-caption-vehicle,.patrol-caption-worker,.patrol-caption-work{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1.12;padding:2px 4px;overflow:hidden;text-align:center}.patrol-caption-vehicle{border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-worker{border-top:1px solid #111;border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-work{white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}.patrol-empty-box{height:170px;background:#fff}
 
     .worklog-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
-    .worklog-week-grid{display:grid;grid-template-columns:1fr;gap:10px}
+    .worklog-week-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
     .worklog-day-card{border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-height:420px}
     .worklog-date-head{width:100%;border:0;border-radius:0;background:#eef2f7;font-size:15px;font-weight:900;text-align:center;padding:10px;border-bottom:1px solid var(--line);cursor:pointer}
     .worklog-date-head:hover{background:#dbeafe}
@@ -73,24 +77,6 @@
     .shift-mini-day.shift-selected-day{background:#fef3c7;border-color:#f59e0b;color:#713f12}
     .shift-mini-day.shift-selected-night{background:#ede9fe;border-color:#7c3aed;color:#4c1d95}
     .shift-mini-tag{font-size:11px;font-weight:900}
-    .memo-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-    .memo-file-list{display:grid;gap:10px}
-    .memo-file{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
-    .memo-file:hover{outline:2px solid #bfdbfe}
-    .memo-file-icon{width:44px;height:44px;border-radius:12px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:24px}
-    .memo-file-title{border:0;background:transparent;padding:0;text-align:left;font-size:15px;font-weight:900;width:auto;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .memo-file-title:hover{text-decoration:underline}
-    .memo-file-date{font-size:12px;color:var(--muted);margin-top:4px}
-    .memo-editor{margin-top:12px;border-top:1px solid var(--line);padding-top:14px}
-    .memo-editor textarea{min-height:320px}
-    .work-schedule-list{display:grid;gap:10px}
-    .work-schedule-item{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;text-align:left}
-    .work-event-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:middle;border:1px solid rgba(0,0,0,.15)}
-    .work-event-line{display:block;position:relative;margin:3px -10px 3px -10px;padding:4px 8px;font-size:12px;font-weight:900;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;min-height:23px;line-height:15px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
-    .work-event-line.single{border-radius:8px;margin-left:0;margin-right:0}
-    .work-event-line.start{border-radius:8px 0 0 8px;margin-left:0}
-    .work-event-line.mid{border-radius:0}
-    .work-event-line.end{border-radius:0 8px 8px 0;margin-right:0}
     @page{size:A4 landscape;margin:8mm}@media print{.patrol-report-scroll{overflow:visible!important;max-height:none!important;border:0!important;padding:0!important}body{background:#fff!important}body *{visibility:hidden!important}.no-print{display:none!important}#patrol-print-area,#patrol-print-area *{visibility:visible!important}#patrol-print-area{position:absolute;left:0;top:0;width:100%;padding:0;margin:0;page-break-inside:avoid}.patrol-report-table th,.patrol-report-table td{border:1px solid #000!important}.patrol-photo-cell,.patrol-empty-cell,.patrol-cell-wrap,.patrol-empty-box{height:170px!important}.card{box-shadow:none!important;border:0!important;padding:0!important;margin:0!important}}
     @media(max-width:760px){
       .header{align-items:center;flex-wrap:nowrap;padding:10px 12px}
@@ -106,46 +92,11 @@
       button,.btn{width:100%}
       .menu-toggle{width:46px}
       th,td{font-size:13px;padding:8px}
-      .calendar-grid{gap:4px}.day-cell{min-height:90px;padding:6px}.shift-name{font-size:11px;padding:3px 4px}
+      .calendar-grid{row-gap:5px}.day-cell{min-height:82px;padding:4px}.day-num{font-size:12px}.holiday-name{font-size:8px;height:12px}.work-event-lane,.work-event-placeholder,.work-event-line{height:16px}.work-event-line{line-height:16px;font-size:9px;padding:0 3px;margin-left:-5px;margin-right:-5px}.shift-summary{padding:9px}.shift-name{font-size:11px;padding:4px 6px}
       .worklog-week-grid{grid-template-columns:1fr}
       .worklog-day-card{min-height:auto}
       .worklog-mobile-date{display:block}
     }
-
-    .equipment-number-btn{background:#fff;border:1px solid var(--line);color:var(--primary);padding:8px 12px;border-radius:10px;font-weight:900}
-    .equipment-number-btn:hover{background:#eff6ff;outline:2px solid #bfdbfe}
-    .equipment-detail-modal{width:min(900px,100%);max-height:92vh;overflow:auto}
-    .equipment-detail-tabs{display:flex;gap:8px;margin:12px 0}
-    .equipment-detail-tabs button{flex:1}
-    .equipment-detail-tabs button.active{background:var(--primary);color:#fff}
-    .equipment-photo-dropzone{border:2px dashed #94a3b8;border-radius:16px;padding:18px;text-align:center;background:#f8fafc;cursor:pointer;transition:.15s}
-    .equipment-photo-dropzone.dragover{border-color:var(--primary);background:#eff6ff}
-    .equipment-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
-    .equipment-photo-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
-    .equipment-photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#f8fafc;cursor:zoom-in}
-
-    .temp-photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
-    .temp-photo-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;position:relative}
-    .temp-photo-card.selected{outline:3px solid var(--primary)}
-    .temp-photo-card img{width:100%;height:150px;object-fit:cover;display:block;background:#f8fafc;cursor:zoom-in}
-    .temp-photo-meta{padding:9px;font-size:12px}
-    .temp-photo-check{position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;font-weight:900;z-index:2}
-    .temp-photo-fab{position:fixed;right:18px;bottom:18px;z-index:120;width:62px;height:62px;border-radius:50%;padding:0;font-size:26px;background:var(--primary);color:#fff;box-shadow:0 10px 28px rgba(37,99,235,.35)}
-    .temp-photo-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-    @media(max-width:760px){.temp-photo-grid{grid-template-columns:repeat(2,1fr)}.temp-photo-card img{height:135px}}
-
-    .worker-name-btn{background:#eef2ff;color:#1e40af;border:1px solid #c7d2fe;padding:7px 10px;border-radius:10px;font-weight:900;cursor:pointer}
-    .worker-name-btn:hover{background:#dbeafe}
-    .equipment-image-viewer{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:18px}
-    .equipment-image-viewer.hidden{display:none!important}
-    .equipment-image-viewer-inner{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    .equipment-image-viewer img{max-width:96vw;max-height:92vh;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.45);touch-action:pinch-zoom}
-    .equipment-image-viewer-close{position:fixed;top:14px;right:14px;z-index:501;width:46px;height:46px;padding:0;border-radius:50%;background:rgba(255,255,255,.95);font-size:24px;line-height:46px;text-align:center}
-    .equipment-image-viewer-caption{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);max-width:min(92vw,900px);padding:9px 14px;border-radius:999px;background:rgba(17,24,39,.82);color:#fff;font-size:13px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .equipment-photo-info{padding:10px}
-    .equipment-photo-title{font-weight:900;margin-bottom:4px}
-    .equipment-photo-desc{font-size:13px;color:var(--muted);white-space:pre-wrap;word-break:break-word;min-height:20px}
-    @media(max-width:760px){.equipment-photo-grid{grid-template-columns:1fr}.equipment-photo-card img{height:220px}}
   </style>
 </head>
 <body>
@@ -162,7 +113,6 @@
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
       <button onclick="showPage('memo')" id="nav-memo">메모</button>
       <button onclick="showPage('worklog')" id="nav-worklog">업무일지</button>
-      <button onclick="showPage('photos')" id="nav-photos">오늘 사진함</button>
       <button onclick="showPage('patrol')" id="nav-patrol">순회점검</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
@@ -184,27 +134,18 @@
     <section id="page-equipment" class="page hidden"></section>
     <section id="page-memo" class="page hidden"></section>
     <section id="page-worklog" class="page hidden"></section>
-    <section id="page-photos" class="page hidden"></section>
     <section id="page-patrol" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
 
-  <button class="temp-photo-fab no-print" title="현장사진 촬영" onclick="document.getElementById('global-camera-input').click()">📷</button>
-  <input id="global-camera-input" class="hidden" type="file" accept="image/*" capture="environment" onchange="addFilesToTempPhotos(this.files,'camera');this.value=''">
   <div id="toast" class="toast"></div>
 
 <script>
 // =========================
 // 1) 여기에 Supabase 값을 넣으세요.
 // =========================
-// 기존 교육관리 DB: 절대 변경하지 않음
 const SUPABASE_URL = "https://widvjrtvjjuvknpjujkf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpZHZqcnR2amp1dmtucGp1amtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODY0NzIsImV4cCI6MjA5NDA2MjQ3Mn0.ThmHVS56_yf1L3yGq8sJHBtSiLHu8javo5aboqwvKBA";
-
-// 장비/기사님 영구사진 전용 Storage 프로젝트
-const PHOTO_SUPABASE_URL = "https://yajvtppzhajpexvpqvnv.supabase.co";
-const PHOTO_SUPABASE_KEY = "sb_publishable_bhjB9HwCqicxDY8F7wDgvg_6I2CMFPQ";
-const PERMANENT_PHOTO_BUCKET = "permanent-photos";
 
 const DEFAULT_TEMPLATE = `[교육 안내]\n{name} 기사님, {education} 일정 안내드립니다.\n교육 예정일: {next_date} ({dday})\n기한 내 교육 이수 부탁드립니다.`;
 // 기본 교육기준표: 최초 실행 또는 설정값이 없을 때만 사용합니다.
@@ -218,7 +159,6 @@ const DEFAULT_EDUCATION_RULES = [
 ];
 
 let db = null;
-let photoDb = null; // 영구사진 Storage 전용 클라이언트
 let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
 let currentPage = "mobile";
 function isMobileView(){ return window.matchMedia && window.matchMedia("(max-width:760px)").matches; }
@@ -231,34 +171,24 @@ let shiftModalMonth = new Date();
 let shiftDraftSelections = {};
 let workerShiftSearch = "";
 let workerShiftComposing = false;
-let calendarMode = "shift";
+let calendarMode = "unified";
 let activeWorkScheduleId = "";
 let workScheduleDraftDates = {};
 let clearShiftInputAfterSave = false;
+let workEditorOpen = false;
+let shiftEditorOpen = false;
 let patrolPrintDate = todayStr();
 let patrolSelectedFiles = [];
-let patrolSelectedPhotoIds = [];
-let tempPhotos = [];
-let tempPhotoUrls = new Map();
-const TEMP_PHOTO_DB = "education_temp_photos_v1";
-const TEMP_PHOTO_STORE = "photos";
 let worklogCursorDate = todayStr();
 let worklogEditDates = new Set();
 let lastKnownToday = todayStr();
-let activeMemoId = null;
-let memoEditorOpen = false;
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
     document.getElementById("setup-warning").classList.remove("hidden");
     return false;
   }
-  // 기존 데이터베이스 연결
   db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // 장비/기사님 영구사진 Storage는 별도 Supabase 프로젝트 사용
-  photoDb = supabase.createClient(PHOTO_SUPABASE_URL, PHOTO_SUPABASE_KEY);
-
   return true;
 }
 
@@ -417,6 +347,60 @@ function workSchedules(){
 function workSchedulesByDate(dateText){
   return workSchedules().filter(x => Array.isArray(x.dates) && x.dates.includes(dateText));
 }
+function holidayCache(){
+  try {
+    const parsed = JSON.parse(state.settings.kr_holidays || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch(e) { return {}; }
+}
+function fixedKoreanHolidays(year){
+  return [
+    [`${year}-01-01`,"신정"],[`${year}-03-01`,"삼일절"],[`${year}-05-05`,"어린이날"],
+    [`${year}-06-06`,"현충일"],[`${year}-08-15`,"광복절"],[`${year}-10-03`,"개천절"],
+    [`${year}-10-09`,"한글날"],[`${year}-12-25`,"성탄절"]
+  ].map(([date,localName]) => ({date,localName}));
+}
+function holidaysForYear(year){
+  const cache = holidayCache();
+  const saved = Array.isArray(cache[String(year)]?.items) ? cache[String(year)].items : [];
+  const merged = [...fixedKoreanHolidays(year), ...saved];
+  const byDate = {};
+  merged.forEach(x => { if(x?.date) byDate[x.date] = {date:x.date, localName:x.localName || x.name || "공휴일"}; });
+  return Object.values(byDate);
+}
+function holidayByDate(dateText){
+  const year = Number(dateText.slice(0,4));
+  return holidaysForYear(year).find(x => x.date === dateText) || null;
+}
+async function ensureHolidayYear(year, force=false, announce=false){
+  const cache = holidayCache();
+  const saved = cache[String(year)];
+  const age = saved?.updated_at ? Date.now() - new Date(saved.updated_at).getTime() : Infinity;
+  if(!force && Array.isArray(saved?.items) && age < 14*24*60*60*1000) return true;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch(`https://nagerholidays.com/api/v3/publicholidays/${year}/KR`, {cache:"no-store", signal:controller.signal});
+    clearTimeout(timer);
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const items = (Array.isArray(data) ? data : []).map(x => ({date:x.date, localName:x.localName || x.name || "공휴일"})).filter(x => isValidDateText(x.date));
+    cache[String(year)] = {updated_at:new Date().toISOString(), items};
+    const res = await db.from("settings").upsert({key:"kr_holidays", value:JSON.stringify(cache)});
+    if(res.error) throw res.error;
+    state.settings.kr_holidays = JSON.stringify(cache);
+    if(announce) toast(`${year}년 공휴일 업데이트 완료`);
+    return true;
+  } catch(error) {
+    console.warn("공휴일 업데이트 실패", error);
+    if(announce) toast("공휴일 업데이트 실패 - 기본 공휴일로 표시합니다.");
+    return false;
+  }
+}
+async function refreshCalendarHolidays(){
+  await ensureHolidayYear(calendarCursor.getFullYear(), true, true);
+  renderCalendar();
+}
 function normalizeWorkDates(dates){
   return Array.from(new Set((dates || []).filter(isValidDateText))).sort();
 }
@@ -436,26 +420,28 @@ function eventSegmentClass(ev, dateText){
 function workEventLineHtml(ev, dateText){
   const cls = eventSegmentClass(ev, dateText);
   const color = ev.color || "#93c5fd";
-  return `<span class="work-event-line ${cls}" style="background:${escapeHtml(color)}" title="${escapeHtml(ev.title || ev.content || '업무 스케줄')}">${escapeHtml(ev.title || ev.content || '업무 스케줄')}</span>`;
+  const prev = addDaysText(dateText, -1);
+  const continued = ev.dates.includes(prev) && sameWeek(prev, dateText);
+  const text = continued ? "" : (ev.title || ev.content || "업무 스케줄");
+  return `<span class="work-event-line ${cls}${continued ? ' continue' : ''}" style="background:${escapeHtml(color)}" title="${escapeHtml(ev.title || ev.content || '업무 스케줄')}">${escapeHtml(text)}</span>`;
 }
 function setCalendarMode(mode){
-  calendarMode = mode === "work" ? "work" : "shift";
-  calendarDetailDate = "";
-  activeShiftWorkerId = null;
-  activeWorkScheduleId = "";
-  workScheduleDraftDates = {};
+  calendarMode = "unified";
   renderCalendar();
 }
 function openWorkScheduleDetail(dateText, scheduleId=""){
-  calendarMode = "work";
+  calendarMode = "unified";
+  selectedShiftDate = dateText;
   calendarDetailDate = dateText;
   activeWorkScheduleId = scheduleId || "";
+  workEditorOpen = true;
+  shiftEditorOpen = false;
   const found = activeWorkScheduleId ? workSchedules().find(x => String(x.id) === String(activeWorkScheduleId)) : null;
   workScheduleDraftDates = {};
   (found?.dates || [dateText]).forEach(d => workScheduleDraftDates[d] = true);
   renderCalendar();
 }
-function closeWorkScheduleDetail(){ activeWorkScheduleId = ""; workScheduleDraftDates = {}; calendarDetailDate = ""; renderCalendar(); }
+function closeWorkScheduleDetail(){ activeWorkScheduleId = ""; workScheduleDraftDates = {}; workEditorOpen = false; renderCalendar(); }
 function toggleWorkScheduleDate(dateText){
   if(workScheduleDraftDates[dateText]) delete workScheduleDraftDates[dateText];
   else workScheduleDraftDates[dateText] = true;
@@ -468,14 +454,13 @@ function workDatePickerHtml(){
   const first = new Date(y, m, 1);
   const last = new Date(y, m + 1, 0);
   const cells = [];
-  for(let i=0;i<first.getDay();i++) cells.push(`<button type="button" class="shift-mini-day empty" tabindex="-1"></button>`);
+  for(let i=0;i<first.getDay();i++) cells.push(`<button type="button" class="work-date-btn empty" tabindex="-1"></button>`);
   for(let d=1; d<=last.getDate(); d++){
     const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const selected = workScheduleDraftDates[dateText] ? " shift-selected-day" : "";
-    const tag = workScheduleDraftDates[dateText] ? `<span class="shift-mini-tag">선택</span>` : `<span class="small">-</span>`;
-    cells.push(`<button type="button" class="shift-mini-day${selected}" onclick="toggleWorkScheduleDate('${dateText}')"><span>${d}</span>${tag}</button>`);
+    const selected = workScheduleDraftDates[dateText] ? " selected" : "";
+    cells.push(`<button type="button" class="work-date-btn${selected}" onclick="toggleWorkScheduleDate('${dateText}')">${d}</button>`);
   }
-  return `<div class="shift-mini-calendar-toolbar"><button onclick="moveWorkScheduleMonth(-1)">이전달</button><div class="shift-mini-calendar-title">${y}년 ${m+1}월 날짜 선택</div><button onclick="moveWorkScheduleMonth(1)">다음달</button></div><div class="shift-mini-calendar">${["일","월","화","수","목","금","토"].map(x=>`<div class="shift-mini-head">${x}</div>`).join("")}${cells.join("")}</div>`;
+  return `<div class="calendar-toolbar"><button onclick="moveWorkScheduleMonth(-1)">이전달</button><div class="calendar-title">${y}년 ${m+1}월 날짜 선택</div><button onclick="moveWorkScheduleMonth(1)">다음달</button></div><div class="work-date-checks">${["일","월","화","수","목","금","토"].map(x=>`<div class="calendar-head">${x}</div>`).join("")}${cells.join("")}</div>`;
 }
 async function saveWorkSchedule(){
   const title = val("work-schedule-title").trim();
@@ -493,6 +478,8 @@ async function saveWorkSchedule(){
   state.settings.work_schedules = JSON.stringify(next);
   activeWorkScheduleId = record.id;
   calendarDetailDate = dates[0];
+  selectedShiftDate = dates[0];
+  workEditorOpen = false;
   toast(old ? "업무 스케줄 수정 완료" : "업무 스케줄 저장 완료");
   renderCalendar();
 }
@@ -585,23 +572,11 @@ async function loadAll() {
   if (!state.settings.patrol_records) state.settings.patrol_records = JSON.stringify([]);
   if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
   if (state.settings.general_memo === undefined) state.settings.general_memo = "";
-  if (!state.settings.memo_files) {
-    const legacyMemo = String(state.settings.general_memo || "").trim();
-    state.settings.memo_files = JSON.stringify(legacyMemo ? [{
-      id: Date.now(),
-      title: "기존 메모",
-      content: legacyMemo,
-      created_date: todayStr(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }] : []);
-  }
   if (!state.settings.work_journal) state.settings.work_journal = JSON.stringify({});
-  if (!state.settings.equipment_details) state.settings.equipment_details = JSON.stringify({});
-  if (!state.settings.worker_details) state.settings.worker_details = JSON.stringify({});
   if (!state.settings.work_schedules) state.settings.work_schedules = JSON.stringify([]);
+  if (!state.settings.kr_holidays) state.settings.kr_holidays = JSON.stringify({});
+  await ensureHolidayYear(calendarCursor.getFullYear(), false, false);
   await cleanupPatrolRecordsIfNewDay();
-  await cleanupExpiredTempPhotos();
   makeDue();
   renderCurrent();
 }
@@ -704,115 +679,6 @@ function filterListRows(inputId, tbodyId){
 }
 
 
-
-function openTempPhotoDb(){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open(TEMP_PHOTO_DB,1);
-    req.onupgradeneeded=()=>{
-      const dbx=req.result;
-      if(!dbx.objectStoreNames.contains(TEMP_PHOTO_STORE)){
-        const st=dbx.createObjectStore(TEMP_PHOTO_STORE,{keyPath:"id"});
-        st.createIndex("date","date",{unique:false});
-      }
-    };
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error);
-  });
-}
-async function tempPhotoTx(mode, fn){
-  const dbx=await openTempPhotoDb();
-  return new Promise((resolve,reject)=>{
-    const tx=dbx.transaction(TEMP_PHOTO_STORE,mode);
-    const st=tx.objectStore(TEMP_PHOTO_STORE);
-    let result;
-    try{ result=fn(st); }catch(e){ dbx.close(); reject(e); return; }
-    tx.oncomplete=()=>{dbx.close();resolve(result)};
-    tx.onerror=()=>{dbx.close();reject(tx.error)};
-  });
-}
-function revokeTempPhotoUrls(){ for(const u of tempPhotoUrls.values()) URL.revokeObjectURL(u); tempPhotoUrls.clear(); }
-async function loadTempPhotos(){
-  revokeTempPhotoUrls();
-  const dbx=await openTempPhotoDb();
-  const rows=await new Promise((resolve,reject)=>{
-    const tx=dbx.transaction(TEMP_PHOTO_STORE,"readonly");
-    const req=tx.objectStore(TEMP_PHOTO_STORE).getAll();
-    req.onsuccess=()=>resolve(req.result||[]); req.onerror=()=>reject(req.error);
-  });
-  dbx.close();
-  tempPhotos=rows.filter(x=>x.date===todayStr()).sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
-  for(const x of tempPhotos) tempPhotoUrls.set(String(x.id),URL.createObjectURL(x.blob));
-  return tempPhotos;
-}
-async function cleanupExpiredTempPhotos(){
-  const today=todayStr();
-  const dbx=await openTempPhotoDb();
-  const rows=await new Promise((resolve,reject)=>{const tx=dbx.transaction(TEMP_PHOTO_STORE,"readonly");const req=tx.objectStore(TEMP_PHOTO_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});
-  dbx.close();
-  const expired=rows.filter(x=>x.date!==today && !x.permanent).map(x=>x.id);
-  if(expired.length){
-    await tempPhotoTx("readwrite", st=>expired.forEach(id=>st.delete(id)));
-    // 어제 임시사진을 참조하던 문서 메타데이터에서도 연결을 제거합니다.
-    const all=patrolRecords();
-    const next=all.map(r=>({...r,temp_image_ids:(r.temp_image_ids||[]).filter(id=>!expired.includes(id))}));
-    if(db) await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-    state.settings.patrol_records=JSON.stringify(next);
-  }
-  await loadTempPhotos();
-}
-async function addFilesToTempPhotos(fileList, source="upload"){
-  const files=Array.from(fileList||[]).filter(f=>f?.type?.startsWith("image/"));
-  if(!files.length) return;
-  toast("오늘 사진함에 저장 중...");
-  const records=[];
-  for(const f of files){
-    const id=(crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`);
-    records.push({id,date:todayStr(),name:f.name||`현장사진_${Date.now()}.jpg`,type:f.type||"image/jpeg",blob:f,source,created_at:new Date().toISOString(),permanent:false});
-  }
-  await tempPhotoTx("readwrite",st=>records.forEach(x=>st.put(x)));
-  await loadTempPhotos();
-  toast(`${records.length}장 임시 저장 완료`);
-  if(currentPage==="photos") renderPhotos();
-  if(currentPage==="patrol") renderPatrol();
-}
-async function deleteTempPhoto(id, skipConfirm=false){
-  if(!skipConfirm && !confirm("이 임시사진을 즉시 삭제할까요? 삭제 후 프로그램에서 복구할 수 없습니다.")) return;
-  await tempPhotoTx("readwrite",st=>st.delete(id));
-  patrolSelectedPhotoIds=patrolSelectedPhotoIds.filter(x=>String(x)!==String(id));
-  const all=patrolRecords();
-  const next=all.map(r=>({...r,temp_image_ids:(r.temp_image_ids||[]).filter(x=>String(x)!==String(id))}));
-  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-  if(!res.error) state.settings.patrol_records=JSON.stringify(next);
-  await loadTempPhotos(); renderCurrent(); toast("임시사진 삭제 완료");
-}
-async function clearTodayTempPhotos(){
-  if(!tempPhotos.length) return toast("삭제할 오늘 사진이 없습니다.");
-  if(!confirm(`오늘 임시사진 ${tempPhotos.length}장을 전부 삭제할까요? 프로그램에서는 복구할 수 없습니다.`)) return;
-  const ids=tempPhotos.map(x=>x.id);
-  await tempPhotoTx("readwrite",st=>ids.forEach(id=>st.delete(id)));
-  const all=patrolRecords();
-  const next=all.map(r=>({...r,temp_image_ids:(r.temp_image_ids||[]).filter(id=>!ids.includes(id))}));
-  await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-  state.settings.patrol_records=JSON.stringify(next);
-  patrolSelectedPhotoIds=[]; await loadTempPhotos(); renderCurrent(); toast("오늘 임시사진 전체 삭제 완료");
-}
-function toggleTempPhotoSelection(id){
-  const key=String(id); const i=patrolSelectedPhotoIds.findIndex(x=>String(x)===key);
-  if(i>=0) patrolSelectedPhotoIds.splice(i,1); else if(patrolSelectedPhotoIds.length<18) patrolSelectedPhotoIds.push(id); else return toast("순회점검에는 최대 18장까지 선택할 수 있습니다.");
-  if(currentPage==="photos") renderPhotos(); else previewPatrolFiles();
-}
-function tempPhotoCardHtml(p){
-  const id=String(p.id), url=tempPhotoUrls.get(id)||"";
-  return `<div class="temp-photo-card"><img src="${url}" alt="임시사진" onclick="openEquipmentImageViewer('${url}','${escapeHtml(p.name||'오늘 사진')}')"><div class="temp-photo-meta"><b>${escapeHtml(p.name||'현장사진')}</b><div>${new Date(p.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div><div class="actions"><button type="button" class="red" onclick="deleteTempPhoto('${escapeHtml(id)}')">삭제</button></div></div></div>`;
-}
-function renderPhotos(){
-  const page=document.getElementById("page-photos"); if(!page)return;
-  page.innerHTML=`<div class="card"><div class="temp-photo-toolbar"><div><h2>오늘의 임시 사진함</h2><p class="small">휴대폰 기본 카메라로 촬영하거나 앨범에서 추가한 사진입니다. 필요한 사진은 오늘 중 PC 서류 작성에 사용하세요. 날짜가 바뀌면 자동 삭제되며, 앱이 닫혀 있던 경우 다음 실행 시 삭제됩니다.</p></div><div class="actions"><button class="primary" onclick="document.getElementById('temp-camera-input').click()">📷 촬영</button><button onclick="document.getElementById('temp-gallery-input').click()">앨범에서 추가</button><button class="red" onclick="clearTodayTempPhotos()">오늘 사진 전체 삭제</button></div></div><input id="temp-camera-input" class="hidden" type="file" accept="image/*" capture="environment" onchange="addFilesToTempPhotos(this.files,'camera');this.value=''"><input id="temp-gallery-input" class="hidden" type="file" accept="image/*" multiple onchange="addFilesToTempPhotos(this.files,'gallery');this.value=''"><p><b>오늘 ${tempPhotos.length}장</b></p><div class="temp-photo-grid">${tempPhotos.length?tempPhotos.map(p=>tempPhotoCardHtml(p)).join(''):'<p class="small">아직 촬영한 사진이 없습니다.</p>'}</div></div>`;
-}
-async function hydrateTempPhotoImages(){
-  document.querySelectorAll('img[data-temp-photo-id]').forEach(img=>{const u=tempPhotoUrls.get(String(img.dataset.tempPhotoId));if(u)img.src=u;});
-}
-
 function patrolRecords(){
   try {
     const parsed = JSON.parse(state.settings.patrol_records || "[]");
@@ -820,9 +686,25 @@ function patrolRecords(){
   } catch(e) { return []; }
 }
 async function cleanupPatrolRecordsIfNewDay(){
-  // 순회점검은 2일 주기로 관리하므로 과거 점검기록을 자동 삭제하지 않습니다.
-  // 상태는 마지막 점검일을 기준으로 자동 계산됩니다.
-  return;
+  if(!db) return;
+  const today = todayStr();
+  const all = patrolRecords();
+  const todayOnly = all.filter(x => x.date === today);
+  const last = state.settings.patrol_cleanup_date || today;
+
+  // 이전 날짜에 저장된 사진/순회점검 데이터는 앱이 느려지는 원인이 되므로 로드할 때마다 오늘 데이터만 남깁니다.
+  if(last !== today || todayOnly.length !== all.length){
+    const updates = [
+      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(todayOnly)}),
+      db.from("settings").upsert({key:"patrol_cleanup_date", value:today})
+    ];
+    const [r1, r2] = await Promise.all(updates);
+    if(!r1.error && !r2.error){
+      state.settings.patrol_records = JSON.stringify(todayOnly);
+      state.settings.patrol_cleanup_date = today;
+      patrolPrintDate = today;
+    }
+  }
 }
 async function clearAllPatrolRecords(){
   if(!confirm("저장된 순회점검 사진/입력 데이터를 전부 삭제할까요? 장비관리 목록은 삭제되지 않습니다.")) return;
@@ -880,22 +762,32 @@ function readImageAsDataUrl(file, maxSize=1100, quality=0.75){
     reader.readAsDataURL(file);
   });
 }
-function getPatrolFiles(){ return patrolSelectedFiles.slice(0,18); }
+function getPatrolFiles(){
+  return patrolSelectedFiles.slice(0,18);
+}
 function clearPatrolSelectedFiles(){
-  patrolSelectedFiles=[]; patrolSelectedPhotoIds=[];
-  const file=document.getElementById("patrol-files"); if(file)file.value="";
+  patrolSelectedFiles = [];
+  const file = document.getElementById("patrol-files");
+  if(file) file.value = "";
   previewPatrolFiles();
 }
-async function addPatrolFiles(fileList){
-  await addFilesToTempPhotos(fileList,"patrol");
-  const added=tempPhotos.slice(0,Math.max(0,18-patrolSelectedPhotoIds.length));
-  for(const p of added){ if(!patrolSelectedPhotoIds.includes(p.id) && patrolSelectedPhotoIds.length<18) patrolSelectedPhotoIds.push(p.id); }
+function addPatrolFiles(fileList){
+  const incoming = Array.from(fileList || []).filter(f => f && f.type && f.type.startsWith("image/"));
+  if(!incoming.length) return;
+  const remain = Math.max(0, 18 - patrolSelectedFiles.length);
+  const accepted = incoming.slice(0, remain);
+  patrolSelectedFiles = [...patrolSelectedFiles, ...accepted].slice(0,18);
   previewPatrolFiles();
+  if(incoming.length > accepted.length) toast("사진은 최대 18장까지만 추가됩니다.");
 }
 function previewPatrolFiles(){
-  const box=document.getElementById("patrol-preview"); if(!box)return;
-  const selected=tempPhotos.filter(p=>patrolSelectedPhotoIds.some(id=>String(id)===String(p.id)));
-  box.innerHTML=selected.length?`<p class="small" style="width:100%">오늘 사진함에서 선택: ${selected.length}장 <button type="button" onclick="showPage('photos')" style="width:auto;padding:6px 10px;margin-left:8px">사진함 열기</button> <button type="button" onclick="clearPatrolSelectedFiles()" style="width:auto;padding:6px 10px">선택 비우기</button></p>`+selected.map((p,i)=>`<img class="patrol-thumb" src="${tempPhotoUrls.get(String(p.id))||''}" title="${escapeHtml(p.name)}" onclick="toggleTempPhotoSelection('${escapeHtml(String(p.id))}')">`).join(''):`<p class="small">촬영 버튼 또는 오늘 사진함에서 사진을 선택하세요.</p>`;
+  const files = getPatrolFiles();
+  const box = document.getElementById("patrol-preview");
+  if(!box) return;
+  box.innerHTML = files.length
+    ? `<p class="small" style="width:100%">선택 사진: ${files.length}장 <button type="button" onclick="clearPatrolSelectedFiles()" style="width:auto;padding:6px 10px;margin-left:8px">선택 사진 비우기</button></p>` +
+      files.map((f, i) => `<span class="badge info">${i+1}. ${escapeHtml(f.name || "붙여넣은 사진")}</span>`).join("")
+    : `<p class="small">사진을 드래그앤드롭, Ctrl+V 붙여넣기, 또는 파일 선택으로 추가하세요.</p>`;
 }
 function bindPatrolDropPaste(){
   const zone = document.getElementById("patrol-dropzone");
@@ -952,26 +844,62 @@ function openPatrolEquipment(equipmentId){
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   patrolSelectedFiles = [];
-  patrolSelectedPhotoIds = [];
   const box = document.getElementById("patrol-preview");
   const consignedWorkerName = extractConsignedWorkerName(eq.note);
-  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${((record.images||[]).length + (record.temp_image_ids||[]).length)}장 연결 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.${consignedWorkerName ? ` 저장된 지입 기사님 이름(${escapeHtml(consignedWorkerName)})을 자동 입력했습니다.` : ``}</p>`;
+  if(box) box.innerHTML = record ? `<p class="small">기존 사진 ${(record.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>` : `<p class="small">${escapeHtml(equipmentDisplayText(eq))} 장비의 순회점검 내용을 입력하세요.${consignedWorkerName ? ` 비고의 지입 기사님 이름(${escapeHtml(consignedWorkerName)})을 자동 입력했습니다.` : ``}</p>`;
   scrollTo(0,0);
 }
 async function savePatrolRecord(){
-  const editId=val("patrol-edit-id"), equipmentId=val("patrol-equipment-id"), date=dateVal("patrol-date")||todayStr();
-  if(!isValidDateText(date))return toast("점검일자는 YYYY-MM-DD 형식으로 입력하세요.");
-  if(!equipmentId&&!val("patrol-vehicle"))return toast("장비 목록에서 장비번호를 먼저 선택하세요.");
-  if(patrolSelectedPhotoIds.length>18)return toast("한 장비에 최대 18장까지 연결할 수 있습니다.");
-  const all=patrolRecords(), eq=state.equipment.find(x=>String(x.id)===String(equipmentId)), vehicleNo=val("patrol-vehicle")||equipmentDisplayNo(eq);
-  const oldRecord=editId?all.find(x=>String(x.id)===String(editId)):(eq?findPatrolRecordForEquipment(date,eq):all.find(x=>x.date===date&&x.vehicle_number===vehicleNo));
-  const hasText=[val("patrol-worker-name"),val("patrol-place"),val("patrol-work")].some(Boolean);
-  if(!oldRecord&&!patrolSelectedPhotoIds.length&&!hasText)return toast("기사님 성함, 작업장소, 작업내용 또는 사진 중 하나 이상 입력하세요.");
-  const record={id:oldRecord?.id||Date.now(),date,equipment_id:equipmentId?Number(equipmentId):(oldRecord?.equipment_id||0),place:val("patrol-place"),worker_name:val("patrol-worker-name"),worker_id:0,work:val("patrol-work"),vehicle_number:vehicleNo,note:"",images:oldRecord?.images||[],temp_image_ids:patrolSelectedPhotoIds.slice(),created_at:oldRecord?.created_at||new Date().toISOString(),updated_at:new Date().toISOString()};
-  const next=oldRecord?all.map(x=>String(x.id)===String(oldRecord.id)?record:x):[...all,record];
-  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-  if(res.error){console.error(res.error);return toast("순회점검 저장 오류");}
-  state.settings.patrol_records=JSON.stringify(next); patrolSelectedFiles=[]; patrolSelectedPhotoIds=[]; clearDraftForPage("patrol"); patrolPrintDate=date; renderPatrol(); toast(oldRecord?"순회점검 수정 완료":"순회점검 입력 완료");
+  const editId = val("patrol-edit-id");
+  const equipmentId = val("patrol-equipment-id");
+  const date = dateVal("patrol-date") || todayStr();
+  if(!isValidDateText(date)) return toast("점검일자는 YYYY-MM-DD 형식으로 입력하세요.");
+  if(!equipmentId && !val("patrol-vehicle")) return toast("장비 목록에서 장비번호를 먼저 선택하세요.");
+  const files = getPatrolFiles();
+  if(files.length > 18) return toast("한 장비에 최대 18장까지 저장할 수 있습니다.");
+  const all = patrolRecords();
+  const eq = state.equipment.find(x => String(x.id) === String(equipmentId));
+  const vehicleNo = val("patrol-vehicle") || equipmentDisplayNo(eq);
+  const oldRecord = editId
+    ? all.find(x => String(x.id) === String(editId))
+    : (eq ? findPatrolRecordForEquipment(date, eq) : all.find(x => x.date === date && x.vehicle_number === vehicleNo));
+  let images = oldRecord?.images || [];
+  if(files.length){
+    toast("사진 압축 중...");
+    images = [];
+    try {
+      for(const f of files){ images.push(await readImageAsDataUrl(f)); }
+    } catch(e) {
+      console.error(e);
+      return toast("사진 처리 오류");
+    }
+  }
+  const hasText = [val("patrol-worker-name"), val("patrol-place"), val("patrol-work")].some(Boolean);
+  if(!oldRecord && !files.length && !hasText) return toast("기사님 성함, 작업장소, 작업내용 또는 사진 중 하나 이상 입력하세요.");
+  const record = {
+    id: oldRecord?.id || Date.now(),
+    date,
+    equipment_id: equipmentId ? Number(equipmentId) : (oldRecord?.equipment_id || 0),
+    place: val("patrol-place"),
+    worker_name: val("patrol-worker-name"),
+    worker_id: 0,
+    work: val("patrol-work"),
+    vehicle_number: vehicleNo,
+    note: "",
+    images,
+    created_at: oldRecord?.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  const next = oldRecord ? all.map(x => String(x.id) === String(oldRecord.id) ? record : x) : [...all, record];
+  const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(next)});
+  if(res.error){ console.error(res.error); return toast("순회점검 저장 오류: 사진 용량이 너무 클 수 있습니다."); }
+  patrolSelectedFiles = [];
+  const file = document.getElementById("patrol-files");
+  if(file) file.value = "";
+  clearDraftForPage("patrol");
+  patrolPrintDate = date;
+  await loadAll();
+  toast(oldRecord ? "순회점검 수정 완료" : "순회점검 입력 완료");
 }
 function editPatrolRecord(id){
   const r = patrolRecords().find(x => String(x.id) === String(id));
@@ -984,11 +912,10 @@ function editPatrolRecord(id){
   setVal("patrol-place", r.place || "");
   setVal("patrol-work", r.work || "");
   patrolSelectedFiles = [];
-  patrolSelectedPhotoIds = (r.temp_image_ids || []).slice();
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   const box = document.getElementById("patrol-preview");
-  if(box) box.innerHTML = `<p class="small">기존 사진 ${((r.images||[]).length + (r.temp_image_ids||[]).length)}장 연결 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>`;
+  if(box) box.innerHTML = `<p class="small">기존 사진 ${(r.images||[]).length}장 유지 중입니다. 새 사진을 선택하면 기존 사진이 교체됩니다.</p>`;
   scrollTo(0,0);
 }
 function clearPatrolForm(){
@@ -1027,10 +954,14 @@ async function deleteAllPatrolRecordsForDate(dateText){
 function setPatrolPrintDate(v){ patrolPrintDate = autoHyphenDate(v || todayStr()); renderPatrol(); }
 function patrolReportHtml(dateText){
   const records = patrolRecordsByDate(dateText);
-  const photos = records.flatMap(r => [
-    ...(r.images || []).map(src => ({src,tempId:"",record:r,vehicle_number:r.vehicle_number||"",worker_name:r.worker_name||patrolWorkerText(r),place:r.place||"",work:r.work||""})),
-    ...(r.temp_image_ids || []).map(tempId => ({src:tempPhotoUrls.get(String(tempId))||"",tempId,record:r,vehicle_number:r.vehicle_number||"",worker_name:r.worker_name||patrolWorkerText(r),place:r.place||"",work:r.work||""}))
-  ]).slice(0,18);
+  const photos = records.flatMap(r => (r.images || []).map(src => ({
+    src,
+    record:r,
+    vehicle_number:r.vehicle_number || "",
+    worker_name:r.worker_name || patrolWorkerText(r),
+    place:r.place || "",
+    work:r.work || ""
+  }))).slice(0,18);
   const d = isValidDateText(dateText) ? new Date(dateText + "T00:00:00") : new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2," ");
@@ -1038,7 +969,7 @@ function patrolReportHtml(dateText){
   let cells = "";
   for(let i=0;i<18;i++){
     const p = photos[i];
-    cells += `<td class="${p ? "patrol-photo-cell" : "patrol-empty-cell"}">${p ? `<div class="patrol-cell-wrap"><div class="patrol-caption-vehicle">${escapeHtml(p.vehicle_number || "차량번호")}</div><div class="patrol-img-box"><img src="${p.src}" ${p.tempId?`data-temp-photo-id="${escapeHtml(String(p.tempId))}"`:``} alt="현장사진 ${i+1}"></div><div class="patrol-caption-worker">${escapeHtml(p.worker_name || "기사님 성함")}</div><div class="patrol-caption-work">${escapeHtml([p.place, p.work].filter(Boolean).join(" / "))}</div></div>` : `<div class="patrol-empty-box"></div>`}</td>`;
+    cells += `<td class="${p ? "patrol-photo-cell" : "patrol-empty-cell"}">${p ? `<div class="patrol-cell-wrap"><div class="patrol-caption-vehicle">${escapeHtml(p.vehicle_number || "차량번호")}</div><div class="patrol-img-box"><img src="${p.src}" alt="현장사진 ${i+1}"></div><div class="patrol-caption-worker">${escapeHtml(p.worker_name || "기사님 성함")}</div><div class="patrol-caption-work">${escapeHtml([p.place, p.work].filter(Boolean).join(" / "))}</div></div>` : `<div class="patrol-empty-box"></div>`}</td>`;
     if((i+1)%6===0 && i<17) cells += `</tr><tr>`;
   }
   return `<div id="patrol-print-area" class="patrol-report">
@@ -1061,7 +992,7 @@ function downloadPatrolCsv(dateText){
     r.worker_name || patrolWorkerText(r),
     r.place || "",
     r.work || "",
-    ((r.images || []).length + (r.temp_image_ids || []).length)
+    (r.images || []).length
   ].map(escapeCsv).join(",")));
   const blob = new Blob(["\ufeff" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a");
@@ -1072,89 +1003,40 @@ function downloadPatrolCsv(dateText){
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-function patrolDateDiffDays(fromDate, toDate=todayStr()){
-  if(!isValidDateText(fromDate) || !isValidDateText(toDate)) return 999999;
-  const a=new Date(fromDate+"T00:00:00");
-  const b=new Date(toDate+"T00:00:00");
-  return Math.floor((b-a)/86400000);
-}
-function latestPatrolRecordForEquipment(eq){
-  const eqId=String(eq?.id||"");
-  const vno=equipmentDisplayNo(eq);
-  return patrolRecords()
-    .filter(r => (eqId && String(r.equipment_id||"")===eqId) || (vno && String(r.vehicle_number||"")===vno))
-    .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))[0] || null;
-}
-function isPatrolComplete(eq){
-  const rec=latestPatrolRecordForEquipment(eq);
-  if(!rec) return false;
-  // 점검한 날과 다음 날까지 '점검완료', 2일이 지나면 다시 '미점검'
-  return patrolDateDiffDays(rec.date, todayStr()) < 2;
-}
-async function completePatrolEquipment(equipmentId){
-  const eq=state.equipment.find(x=>Number(x.id)===Number(equipmentId));
-  if(!eq) return toast("장비 정보를 찾을 수 없습니다.");
-  if(isPatrolComplete(eq)) return toast("이미 점검완료 상태입니다.");
-
-  const all=patrolRecords();
-  const record={
-    id:Date.now(),
-    date:todayStr(),
-    equipment_id:Number(eq.id),
-    vehicle_number:equipmentDisplayNo(eq),
-    checked_at:new Date().toISOString()
-  };
-  const next=[...all,record];
-  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-  if(res.error){console.error(res.error);return toast("순회점검 상태 저장 오류");}
-  state.settings.patrol_records=JSON.stringify(next);
-  renderPatrol();
-  toast(`${equipmentDisplayNo(eq)||"해당 장비"} 점검완료`);
-}
-async function cancelLatestPatrolEquipment(equipmentId){
-  const eq=state.equipment.find(x=>Number(x.id)===Number(equipmentId));
-  if(!eq) return;
-  const latest=latestPatrolRecordForEquipment(eq);
-  if(!latest) return;
-  if(!confirm(`${equipmentDisplayNo(eq)||"해당 장비"}의 최근 점검완료 처리를 취소할까요?`)) return;
-  const next=patrolRecords().filter(r=>String(r.id)!==String(latest.id));
-  const res=await db.from("settings").upsert({key:"patrol_records",value:JSON.stringify(next)});
-  if(res.error){console.error(res.error);return toast("점검완료 취소 오류");}
-  state.settings.patrol_records=JSON.stringify(next);
-  renderPatrol();
-  toast("점검완료 처리를 취소했습니다.");
-}
 function renderPatrol(){
-  const rows=state.equipment.length ? state.equipment.map((eq,idx)=>{
-    const latest=latestPatrolRecordForEquipment(eq);
-    const complete=isPatrolComplete(eq);
-    const status=complete
-      ? `<span class="badge ok">점검완료</span>`
-      : `<span class="badge soon">미점검</span>`;
-    const lastDate=latest?.date ? escapeHtml(latest.date) : "-";
-    const vehicle=escapeHtml(equipmentDisplayNo(eq)||"번호없음");
-    return `<tr>
-      <td>${idx+1}</td>
-      <td><button class="btn" onclick="completePatrolEquipment(${eq.id})" ${complete?'title="이미 점검완료 상태입니다"':'title="클릭하면 점검완료 처리됩니다"'}>${vehicle}</button></td>
-      <td>${escapeHtml(eq.vehicle_type||"-")}</td>
-      <td>${escapeHtml(eq.work_type||"-")}</td>
-      <td>${lastDate}</td>
-      <td>${status}</td>
-      <td>${latest?`<button class="red" onclick="cancelLatestPatrolEquipment(${eq.id})">완료 취소</button>`:"-"}</td>
-    </tr>`;
-  }).join("") : `<tr><td colspan="7">장비관리 메뉴에 등록된 장비가 없습니다.</td></tr>`;
-
-  document.getElementById("page-patrol").innerHTML=`
-    <div class="card no-print">
-      <h2>순회점검</h2>
-      <p class="small">미점검 상태의 차량번호를 클릭하면 즉시 점검완료로 처리됩니다. 점검완료 상태는 점검일과 다음 날까지 유지되며, 점검 후 2일이 지나면 자동으로 미점검 상태로 전환됩니다.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>최근 점검일</th><th>상태</th><th>관리</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+  const dateDefault = patrolPrintDate || todayStr();
+  const recordsForDate = patrolRecordsByDate(dateDefault);
+  const recordByEquipment = new Map();
+  for(const r of recordsForDate){
+    if(r.equipment_id) recordByEquipment.set(`id:${r.equipment_id}`, r);
+    if(r.vehicle_number) recordByEquipment.set(`no:${r.vehicle_number}`, r);
+  }
+  const equipmentRows = state.equipment.length ? state.equipment.map((eq, idx) => {
+    const rec = recordByEquipment.get(`id:${eq.id}`) || recordByEquipment.get(`no:${equipmentDisplayNo(eq)}`) || null;
+    const hasData = !!rec && ([rec.worker_name, rec.place, rec.work].some(Boolean) || (rec.images||[]).length > 0);
+    const status = hasData ? `<span class="badge ok">입력완료</span>` : `<span class="badge soon">미점검</span>`;
+    const action = hasData ? `<button onclick="editPatrolRecord(${rec.id})">수정</button> <button class="red" onclick="deletePatrolRecord(${rec.id})">삭제</button>` : `<span class="small">장비번호 클릭 후 입력</span>`;
+    return `<tr><td>${idx+1}</td><td><button class="btn" onclick="openPatrolEquipment(${eq.id})">${escapeHtml(equipmentDisplayNo(eq) || "번호없음")}</button></td><td>${escapeHtml(eq.vehicle_type || "-")}</td><td>${escapeHtml(eq.work_type || "-")}</td><td>${escapeHtml(rec?.worker_name || "-")}</td><td>${escapeHtml(rec?.place || "-")}</td><td>${escapeHtml(rec?.work || "-")}</td><td>${(rec?.images||[]).length}장</td><td>${status}</td><td>${action}</td></tr>`;
+  }).join("") : `<tr><td colspan="10">장비관리 메뉴에 등록된 장비가 없습니다.</td></tr>`;
+  document.getElementById("page-patrol").innerHTML = `
+    <div class="card no-print"><h2>순회점검 입력/수정</h2>
+      <input type="hidden" id="patrol-edit-id">
+      <input type="hidden" id="patrol-equipment-id">
+      <div class="form-row">
+        <div><label>점검일자</label><input id="patrol-date" data-format="date" value="${escapeHtml(dateDefault)}" placeholder="숫자만 입력 예: 20260518" onchange="setPatrolPrintDate(this.value)"></div>
+        <div><label>차량번호</label><input id="patrol-vehicle" readonly placeholder="장비 목록에서 선택"></div>
+        <div><label>기사님 성함</label><input id="patrol-worker-name" placeholder="기사님 성함 직접 입력"></div>
+        <div><label>작업장소</label><input id="patrol-place" placeholder="예: 저광사 / 야적장"></div>
+        <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
       </div>
-    </div>`;
+      <div style="margin-top:10px"><label>현장 사진</label><div id="patrol-dropzone" class="patrol-preview patrol-dropzone" tabindex="0"><p class="small">여기에 사진을 드래그앤드롭하거나 Ctrl+V로 붙여넣으세요. 클릭하면 파일 선택도 가능합니다.</p></div><input id="patrol-files" type="file" accept="image/*" multiple class="hidden" onchange="addPatrolFiles(this.files); this.value=''"><div id="patrol-preview" class="patrol-preview"><p class="small">장비 목록에서 장비번호를 클릭한 뒤 내용을 입력하세요. 새 사진을 추가하지 않고 저장하면 기존 사진은 유지됩니다.</p></div></div>
+      <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">입력칸 초기화</button><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-date'))">선택 날짜 전체 삭제</button><button class="red" onclick="clearAllPatrolRecords()">저장 데이터 전체 초기화</button></div>
+      <p class="small">장비관리의 장비가 순회점검 목록에 전부 표시됩니다. 삭제와 전체 삭제는 장비 삭제가 아니라 해당 날짜의 입력 내용만 삭제하며, 장비 행은 그대로 남습니다. 날짜가 바뀌면 이전 순회점검 데이터는 용량 관리를 위해 자동 삭제됩니다.</p>
+    </div>
+    <div class="card no-print"><h2>순회점검 장비 목록</h2><p class="small">장비번호를 클릭하면 해당 장비의 순회점검 내용을 입력할 수 있습니다. 미점검 장비가 그대로 보이므로 오늘 확인하지 못한 장비를 파악하기 쉽습니다.</p><div class="table-wrap"><table><thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>상태</th><th>관리</th></tr></thead><tbody>${equipmentRows}</tbody></table></div></div>
+    <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div><div><label>&nbsp;</label><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-print-date'))">전체 삭제</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 사진이 있는 칸은 위에서부터 차량번호 / 사진 / 기사님 성함 / 작업장소·작업내용 순서로 표시되고, 빈칸은 불필요한 작은 칸 없이 비워집니다. 전체 삭제는 선택한 출력 날짜의 순회점검 입력내용만 지우고 장비 목록은 유지합니다.</p></div>
+    <div class="card"><div class="patrol-report-scroll">${patrolReportHtml(dateDefault)}</div></div>`;
+  bindPatrolDropPaste();
 }
 
 function syncTodayDate(force=false) {
@@ -1175,7 +1057,6 @@ async function handleDateRollover(force=false) {
   const changed = syncTodayDate(force);
   if (!changed) return;
   if (db) {
-    await cleanupExpiredTempPhotos();
     await loadAll();
   } else {
     renderCurrent();
@@ -1200,157 +1081,85 @@ function renderCurrent() {
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "memo") renderMemo();
   if (currentPage === "worklog") renderWorklog();
-  if (currentPage === "photos") renderPhotos();
   if (currentPage === "patrol") renderPatrol();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
   bindDraftInputs();
 }
 
+function assignCalendarEventLanes(events){
+  const lanes=[];
+  [...events].sort((a,b) => String(a.created_at||a.id).localeCompare(String(b.created_at||b.id))).forEach(ev => {
+    const dates=new Set(ev.dates || []);
+    let lane=lanes.findIndex(used => ![...dates].some(d => used.has(d)));
+    if(lane<0){ lane=lanes.length; lanes.push(new Set()); }
+    dates.forEach(d => lanes[lane].add(d));
+    ev.__calendarLane=lane;
+  });
+  return lanes.length;
+}
+function shiftSummaryHtml(dateText){
+  const shifts=shiftsByDate(dateText);
+  const dayNames=shifts.filter(s => (s.shift_type||"주간")==="주간").map(s=>workerNameById(s.worker_id)).filter(Boolean);
+  const nightNames=shifts.filter(s => (s.shift_type||"주간")==="야간").map(s=>workerNameById(s.worker_id)).filter(Boolean);
+  return `<div class="shift-summary">
+    <div class="shift-summary-title">${escapeHtml(dateText)} 근무자</div>
+    <div class="shift-summary-row"><span class="shift-summary-label">주간</span>${dayNames.length ? dayNames.map(n=>`<span class="shift-name shift-day">${escapeHtml(n)}</span>`).join("") : `<span class="small">배정 없음</span>`}</div>
+    <div class="shift-summary-row" style="margin-top:5px"><span class="shift-summary-label">야간</span>${nightNames.length ? nightNames.map(n=>`<span class="shift-name shift-night">${escapeHtml(n)}</span>`).join("") : `<span class="small">배정 없음</span>`}</div>
+  </div>`;
+}
 function renderCalendar(){
-  const y = calendarCursor.getFullYear();
-  const m = calendarCursor.getMonth();
-
-  if(calendarMode === "work"){
-    if(calendarDetailDate){
-      const schedulesForDate = workSchedulesByDate(calendarDetailDate);
-      const editing = activeWorkScheduleId ? workSchedules().find(x => String(x.id) === String(activeWorkScheduleId)) : null;
-      if(editing && !Object.keys(workScheduleDraftDates).length) (editing.dates || []).forEach(d => workScheduleDraftDates[d] = true);
-      const list = schedulesForDate.length ? schedulesForDate.map(ev => `<div class="work-schedule-item"><div><span class="work-event-dot" style="background:${escapeHtml(ev.color || '#93c5fd')}"></span><b>${escapeHtml(ev.title || '업무 스케줄')}</b></div><div class="small">${escapeHtml((ev.dates || []).join(', '))}</div><p style="white-space:pre-wrap;margin:8px 0 0">${escapeHtml(ev.content || '')}</p><div class="actions"><button onclick="openWorkScheduleDetail('${calendarDetailDate}', '${ev.id}')">수정</button><button class="red" onclick="deleteWorkSchedule('${ev.id}')">삭제</button></div></div>`).join("") : `<p class="small">이 날짜에 등록된 업무 스케줄이 없습니다.</p>`;
-      const selectedDates = Object.keys(workScheduleDraftDates).sort();
-      document.getElementById("page-calendar").innerHTML = `
-        <div class="card">
-          <div class="detail-top">
-            <h2>${calendarDetailDate} 업무 스케줄</h2>
-            <button onclick="closeWorkScheduleDetail()">← 캘린더로 돌아가기</button>
-          </div>
-          <p class="small">업무 내용을 입력하고, 아래 달력에서 업무가 진행되는 날짜를 여러 개 선택하세요. 연속된 날짜는 월화수처럼 달력에서 하나의 라인으로 이어져 보이고, 떨어진 날짜는 따로 표시됩니다.</p>
-        </div>
-        <div class="card"><h2>해당 날짜 업무</h2><div class="work-schedule-list">${list}</div></div>
-        <div class="card">
-          <h2>${editing ? '업무 스케줄 수정' : '업무 스케줄 추가'}</h2>
-          <div class="form-row">
-            <div><label>달력 표시 제목</label><input id="work-schedule-title" value="${escapeHtml(editing?.title || '')}" placeholder="예: 안전교육 준비"></div>
-            <div><label>표시 색상</label><input id="work-schedule-color" type="color" value="${escapeHtml(editing?.color || '#93c5fd')}"></div>
-            <div><label>선택 날짜</label><input readonly value="${escapeHtml(selectedDates.join(', '))}" placeholder="아래 달력에서 선택"></div>
-          </div>
-          <div><label>업무내용</label><textarea id="work-schedule-content" placeholder="업무 내용을 입력하세요.">${escapeHtml(editing?.content || '')}</textarea></div>
-          <div style="margin-top:12px">${workDatePickerHtml()}</div>
-          <div class="actions"><button class="primary" onclick="saveWorkSchedule()">저장</button>${editing ? `<button class="red" onclick="deleteWorkSchedule('${editing.id}')">삭제</button>` : ``}<button onclick="closeWorkScheduleDetail()">뒤로가기</button></div>
-        </div>`;
-      return;
+  const y=calendarCursor.getFullYear(), m=calendarCursor.getMonth();
+  if(!calendarDetailDate) calendarDetailDate=selectedShiftDate || todayStr();
+  const first=new Date(y,m,1), last=new Date(y,m+1,0), days=[];
+  const monthPrefix=`${y}-${String(m+1).padStart(2,"0")}-`;
+  const monthEvents=workSchedules().filter(ev => (ev.dates||[]).some(d=>String(d).startsWith(monthPrefix)));
+  const laneCount=assignCalendarEventLanes(monthEvents);
+  for(let i=0;i<first.getDay();i++) days.push(`<div class="day-cell empty"></div>`);
+  for(let d=1;d<=last.getDate();d++){
+    const dateText=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const dow=new Date(y,m,d).getDay(), holiday=holidayByDate(dateText);
+    const relevant=monthEvents.filter(ev=>(ev.dates||[]).includes(dateText));
+    const lanes=[];
+    for(let lane=0;lane<laneCount;lane++){
+      const ev=relevant.find(x=>x.__calendarLane===lane);
+      lanes.push(`<div class="work-event-lane">${ev ? workEventLineHtml(ev,dateText) : `<span class="work-event-placeholder"></span>`}</div>`);
     }
-
-    const first = new Date(y, m, 1);
-    const last = new Date(y, m + 1, 0);
-    const startBlank = first.getDay();
-    const days = [];
-    for(let i=0;i<startBlank;i++) days.push(`<div class="day-cell empty"></div>`);
-    for(let d=1; d<=last.getDate(); d++){
-      const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-      const events = workSchedulesByDate(dateText);
-      const eventLines = events.map(ev => workEventLineHtml(ev, dateText)).join("");
-      const todayClass = dateText === todayStr() ? " today" : "";
-      days.push(`<div class="day-cell${todayClass}" onclick="openWorkScheduleDetail('${dateText}')"><div class="day-num">${d}</div>${eventLines || `<span class="small">-</span>`}</div>`);
-    }
-    document.getElementById("page-calendar").innerHTML = `
-      <div class="card">
-        <div class="calendar-toolbar">
-          <button onclick="moveCalendarMonth(-1)">이전달</button>
-          <div class="calendar-title">${y}년 ${m+1}월 캘린더</div>
-          <div><button onclick="moveCalendarMonth(1)">다음달</button><button style="margin-top:8px" class="primary" onclick="setCalendarMode('shift')">근무표</button></div>
-        </div>
-        <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button></div>
-        <p class="small">업무 스케줄만 표시됩니다. 날짜를 클릭하면 업무내용, 색상, 여러 날짜를 지정할 수 있습니다.</p>
-      </div>
-      <div class="card">
-        <div class="calendar-grid">
-          ${["일","월","화","수","목","금","토"].map(x => `<div class="calendar-head">${x}</div>`).join("")}
-          ${days.join("")}
-        </div>
-      </div>`;
-    return;
+    const numClass=holiday||dow===0?"holiday":dow===6?"sat":"";
+    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":""].filter(Boolean).join(" ");
+    days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
+      <div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      <div class="calendar-event-lanes">${lanes.join("")}</div></div>`);
   }
 
-  if(calendarDetailDate){
-    const selected = shiftsByDate(calendarDetailDate);
-    const note = shiftNoteByDate(calendarDetailDate);
-    const inputNote = clearShiftInputAfterSave ? "" : (activeShiftWorkerId ? (val("shift-note") || note) : note);
-    const workerMap = Object.fromEntries(state.workers.map(w => [String(w.id), w]));
-    const statusRows = selected.length ? selected.map(s => {
-      const w = workerMap[String(s.worker_id)];
-      const type = s.shift_type || "주간";
-      const cls = type === "야간" ? "shift-night" : "shift-day";
-      return `<div class="detail-row"><div><div class="detail-worker">${escapeHtml(w?.name || "이름없음")}</div><div class="small">${escapeHtml(w?.company || "")}</div></div><span class="badge ${cls}">${escapeHtml(type)}</span></div>`;
-    }).join("") : `<p class="small">이 날짜에 등록된 근무자가 없습니다.</p>`;
-    const selectedMap = Object.fromEntries(selected.map(x => [String(x.worker_id), x]));
-    const workerCards = state.workers.length ? state.workers.map(w => {
-      const saved = selectedMap[String(w.id)];
-      const type = saved?.shift_type || "미배정";
-      const cls = type === "야간" ? "shift-night" : type === "주간" ? "shift-day" : "";
-      const searchText = `${w.name || ""} ${w.company || ""}`.toLowerCase();
-      return `<button class="worker-shift-btn" data-worker-search="${escapeHtml(searchText)}" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved ? `<span class="badge ${cls}">${escapeHtml(type)}</span>` : `<span class="small">근무 미배정</span>`}</div></button>`;
-    }).join("") : `<p class="small">등록된 기사님이 없습니다. 기사님 메뉴에서 먼저 등록하세요.</p>`;
-    const modalHtml = activeShiftWorkerId ? workerShiftModalHtml(activeShiftWorkerId, selectedMap[String(activeShiftWorkerId)]) : "";
-    document.getElementById("page-calendar").innerHTML = `
-      <div class="card">
-        <div class="detail-top">
-          <h2>${calendarDetailDate} 근무 상세</h2>
-          <button onclick="closeShiftDetail()">← 캘린더로 돌아가기</button>
-        </div>
-        <p class="small">이 날짜에 배정된 기사님, 주간/야간 구분, 메모를 큰 화면에서 확인하고 수정할 수 있습니다.</p>
-      </div>
-      <div class="card">
-        <h2>근무 현황</h2>
-        <div class="detail-list">${statusRows}</div>
-        <div style="margin-top:12px"><label>메모</label><div class="detail-note">${escapeHtml(note || "등록된 메모 없음")}</div></div>
-      </div>
-      ${isMobileView() ? `` : `<div class="card">
-        <h2>근무 수정</h2>
-        <p class="small">기사님 성함을 클릭하면 근무형태와 근무주기를 입력할 수 있습니다. 근무주기 4일이면 선택일 포함 4일간 자동 배치됩니다. 각 날짜는 다시 클릭해서 개별 수정 가능합니다.</p>
-        <div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" autocomplete="off" autocapitalize="off" spellcheck="false" lang="ko" oncompositionstart="workerShiftComposing=true" oncompositionend="workerShiftComposing=false; filterWorkerShiftList(this.value)" oninput="if(!workerShiftComposing) filterWorkerShiftList(this.value)"></div>
-        <div class="worker-shift-list" id="worker-shift-list">${workerCards}</div>
-        <div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note" placeholder="예: 야적장 작업, 저광사 투입, 특이사항">${escapeHtml(inputNote)}</textarea></div>
-        <div class="actions"><button class="primary" onclick="saveShiftNote()">메모 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">뒤로가기</button></div>
-      </div>`}
-      ${isMobileView() ? `` : modalHtml}`;
-    setTimeout(() => filterWorkerShiftList(workerShiftSearch), 0);
-    return;
-  }
+  const schedules=workSchedulesByDate(calendarDetailDate);
+  const scheduleList=schedules.length ? schedules.map(ev=>`<div class="work-schedule-item">
+    <div><span class="work-event-dot" style="background:${escapeHtml(ev.color||'#93c5fd')}"></span><b>${escapeHtml(ev.title||'업무 스케줄')}</b></div>
+    <div class="small">${escapeHtml((ev.dates||[]).join(', '))}</div><p style="white-space:pre-wrap;margin:8px 0 0">${escapeHtml(ev.content||'')}</p>
+    <div class="actions"><button onclick="openWorkScheduleDetail('${calendarDetailDate}','${ev.id}')">수정</button><button class="red" onclick="deleteWorkSchedule('${ev.id}')">삭제</button></div></div>`).join("") : `<p class="small">등록된 업무 스케줄이 없습니다.</p>`;
 
-  const first = new Date(y, m, 1);
-  const last = new Date(y, m + 1, 0);
-  const startBlank = first.getDay();
-  const days = [];
-  for(let i=0;i<startBlank;i++) days.push(`<div class="day-cell empty"></div>`);
-  for(let d=1; d<=last.getDate(); d++){
-    const dateText = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const shifts = shiftsByDate(dateText);
-    const dayNames = shifts.filter(s => (s.shift_type || "주간") === "주간").map(s => workerNameById(s.worker_id)).filter(Boolean);
-    const nightNames = shifts.filter(s => (s.shift_type || "주간") === "야간").map(s => workerNameById(s.worker_id)).filter(Boolean);
-    const names = [
-      dayNames.length ? `<span class="shift-name shift-day">주간: ${escapeHtml(dayNames.join(", "))}</span>` : "",
-      nightNames.length ? `<span class="shift-name shift-night">야간: ${escapeHtml(nightNames.join(", "))}</span>` : ""
-    ].join("");
-    const todayClass = dateText === todayStr() ? " today" : "";
-    days.push(`<div class="day-cell${todayClass}" onclick="openShiftDetail('${dateText}')"><div class="day-num">${d}</div>${names || `<span class="small">-</span>`}</div>`);
-  }
-  document.getElementById("page-calendar").innerHTML = `
-    <div class="card">
-      <div class="calendar-toolbar">
-        <button onclick="moveCalendarMonth(-1)">이전달</button>
-        <div class="calendar-title">${y}년 ${m+1}월 캘린더</div>
-        <div><button onclick="moveCalendarMonth(1)">다음달</button><button style="margin-top:8px" class="primary" onclick="setCalendarMode('work')">업무 스케줄</button></div>
-      </div>
-      <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button></div>
-      <p class="small">날짜를 클릭하면 큰 화면에서 근무 현황과 메모를 확인하고, 주간/야간 근무를 입력할 수 있습니다.</p>
-    </div>
-    <div class="card">
-      <div class="calendar-grid">
-        ${["일","월","화","수","목","금","토"].map(x => `<div class="calendar-head">${x}</div>`).join("")}
-        ${days.join("")}
-      </div>
-    </div>`;
+  const editing=activeWorkScheduleId ? workSchedules().find(x=>String(x.id)===String(activeWorkScheduleId)) : null;
+  if(workEditorOpen && editing && !Object.keys(workScheduleDraftDates).length) (editing.dates||[]).forEach(d=>workScheduleDraftDates[d]=true);
+  const selectedDates=Object.keys(workScheduleDraftDates).sort();
+  const workEditor=workEditorOpen ? `<div class="card"><div class="detail-top"><h2>${editing?'업무 스케줄 수정':'업무 스케줄 추가'}</h2><button onclick="closeWorkScheduleDetail()">닫기</button></div>
+    <div class="form-row"><div><label>달력 표시 제목</label><input id="work-schedule-title" value="${escapeHtml(editing?.title||'')}" placeholder="예: 안전교육 준비"></div><div><label>표시 색상</label><input id="work-schedule-color" type="color" value="${escapeHtml(editing?.color||'#93c5fd')}"></div><div><label>선택 날짜</label><input readonly value="${escapeHtml(selectedDates.join(', '))}" placeholder="아래 달력에서 선택"></div></div>
+    <div><label>업무내용</label><textarea id="work-schedule-content" placeholder="업무 내용을 입력하세요.">${escapeHtml(editing?.content||'')}</textarea></div><div style="margin-top:12px">${workDatePickerHtml()}</div>
+    <div class="actions"><button class="primary" onclick="saveWorkSchedule()">저장</button>${editing?`<button class="red" onclick="deleteWorkSchedule('${editing.id}')">삭제</button>`:''}<button onclick="closeWorkScheduleDetail()">취소</button></div></div>` : "";
+
+  const selectedShifts=shiftsByDate(calendarDetailDate), note=shiftNoteByDate(calendarDetailDate);
+  const selectedMap=Object.fromEntries(selectedShifts.map(x=>[String(x.worker_id),x]));
+  const workerCards=state.workers.map(w=>{const saved=selectedMap[String(w.id)],type=saved?.shift_type||"미배정",cls=type==="야간"?"shift-night":type==="주간"?"shift-day":"",searchText=`${w.name||''} ${w.company||''}`.toLowerCase();return `<button class="worker-shift-btn" data-worker-search="${escapeHtml(searchText)}" onclick="openWorkerShiftModal(${w.id})"><div>${escapeHtml(w.name)}</div><div class="status">${saved?`<span class="badge ${cls}">${escapeHtml(type)}</span>`:`<span class="small">근무 미배정</span>`}</div></button>`;}).join("") || `<p class="small">등록된 기사님이 없습니다.</p>`;
+  const shiftEditor=shiftEditorOpen ? `<div class="card"><div class="detail-top"><h2>${calendarDetailDate} 근무 설정</h2><button onclick="closeShiftDetail()">닫기</button></div><p class="small">기사님을 누르면 주간·야간과 근무 날짜를 선택할 수 있습니다.</p><div style="margin-bottom:10px"><label>기사님 검색</label><input id="worker-shift-search" value="${escapeHtml(workerShiftSearch)}" placeholder="이름 또는 소속 입력" oninput="filterWorkerShiftList(this.value)"></div><div class="worker-shift-list" id="worker-shift-list">${workerCards}</div><div style="margin-top:10px"><label>날짜 메모</label><textarea id="shift-note">${escapeHtml(note)}</textarea></div><div class="actions"><button class="primary" onclick="saveShiftNote()">메모 저장</button><button class="red" onclick="clearShiftDate()">해당 날짜 전체 비우기</button><button onclick="closeShiftDetail()">닫기</button></div></div>` : "";
+  const modalHtml=activeShiftWorkerId ? workerShiftModalHtml(activeShiftWorkerId,selectedMap[String(activeShiftWorkerId)]) : "";
+
+  document.getElementById("page-calendar").innerHTML=`
+    <div class="card"><div class="calendar-toolbar"><button onclick="moveCalendarMonth(-1)">이전달</button><div class="calendar-title">${y}년 ${m+1}월 통합 캘린더</div><button onclick="moveCalendarMonth(1)">다음달</button></div>
+      <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button><button onclick="refreshCalendarHolidays()">공휴일 업데이트</button></div>
+      ${shiftSummaryHtml(calendarDetailDate)}<p class="calendar-help small">날짜를 선택하면 해당 날짜의 근무자와 업무를 함께 확인할 수 있습니다. 연속 업무는 하나의 색상 막대로 이어집니다.</p></div>
+    <div class="card"><div class="calendar-grid">${["일","월","화","수","목","금","토"].map((x,i)=>`<div class="calendar-head ${i===0?'sun':i===6?'sat':''}">${x}</div>`).join("")}${days.join("")}</div></div>
+    <div class="card"><div class="detail-top"><h2>${calendarDetailDate} 일정</h2><div class="actions"><button class="primary" onclick="openWorkScheduleDetail('${calendarDetailDate}')">업무 스케줄 추가</button><button onclick="openShiftDetail('${calendarDetailDate}')">근무 설정</button></div></div><div class="work-schedule-list">${scheduleList}</div></div>
+    ${workEditor}${shiftEditor}${modalHtml}`;
+  if(shiftEditorOpen) setTimeout(()=>filterWorkerShiftList(workerShiftSearch),0);
 }
 function filterWorkerShiftList(q){
   workerShiftSearch = (q || "").toLowerCase().trim();
@@ -1360,11 +1169,19 @@ function filterWorkerShiftList(q){
   });
 }
 
-function selectShiftDate(dateText){ openShiftDetail(dateText); }
-function openShiftDetail(dateText){ selectedShiftDate = dateText; calendarDetailDate = dateText; renderCalendar(); }
-function closeShiftDetail(){ calendarDetailDate = ""; activeShiftWorkerId = null; workerShiftSearch = ""; clearShiftInputAfterSave = false; renderCalendar(); }
-function moveCalendarMonth(offset){ calendarDetailDate = ""; activeShiftWorkerId = null; activeWorkScheduleId = ""; workScheduleDraftDates = {}; calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + offset, 1); renderCalendar(); }
-function goCalendarToday(){ calendarCursor = new Date(); selectedShiftDate = todayStr(); calendarDetailDate = todayStr(); if(calendarMode === "work") openWorkScheduleDetail(todayStr()); else renderCalendar(); }
+function selectShiftDate(dateText){ selectCalendarDate(dateText); }
+function selectCalendarDate(dateText){
+  selectedShiftDate=dateText; calendarDetailDate=dateText; activeShiftWorkerId=null; activeWorkScheduleId="";
+  workScheduleDraftDates={}; workEditorOpen=false; shiftEditorOpen=false; renderCalendar();
+}
+function openShiftDetail(dateText){ selectedShiftDate=dateText; calendarDetailDate=dateText; shiftEditorOpen=true; workEditorOpen=false; activeWorkScheduleId=""; workScheduleDraftDates={}; renderCalendar(); }
+function closeShiftDetail(){ shiftEditorOpen=false; activeShiftWorkerId=null; workerShiftSearch=""; clearShiftInputAfterSave=false; renderCalendar(); }
+async function moveCalendarMonth(offset){
+  calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+offset,1);
+  selectedShiftDate=formatDate(calendarCursor); calendarDetailDate=selectedShiftDate; activeShiftWorkerId=null; activeWorkScheduleId=""; workScheduleDraftDates={}; workEditorOpen=false; shiftEditorOpen=false;
+  renderCalendar(); await ensureHolidayYear(calendarCursor.getFullYear(),false,false); renderCalendar();
+}
+function goCalendarToday(){ calendarCursor=new Date(); selectedShiftDate=todayStr(); calendarDetailDate=todayStr(); activeShiftWorkerId=null; activeWorkScheduleId=""; workScheduleDraftDates={}; workEditorOpen=false; shiftEditorOpen=false; renderCalendar(); }
 function openWorkerShiftModal(workerId){
   activeShiftWorkerId = Number(workerId);
   activeShiftMode = "주간";
@@ -1544,16 +1361,11 @@ function renderWorkers() {
   const actionCell = (w) => mobile
     ? `<button onclick="editWorker(${w.id})">수정</button>`
     : `<button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button>`;
-  const workerPhotoMap = workerDetails();
-  const rows = state.workers.map((w, idx) => {
-    const photos = workerPhotoMap[String(w.id)]?.photos || [];
-    const photoMark = photos.length ? `<div style="margin-top:5px"><span class="badge ok">사진 ${photos.length}</span></div>` : "";
-    return `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${idx+1}</td><td><button class="worker-name-btn" onclick="openWorkerPhotoDetail(${w.id})">${escapeHtml(w.name)}</button>${photoMark}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`;
-  }).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
+  const rows = state.workers.map((w, idx) => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
   const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
-    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div><p class="small">기사님 이름을 클릭하면 해당 기사님의 사진을 추가·수정·삭제할 수 있습니다. 저장된 사진은 클릭하거나 터치하면 크게 볼 수 있습니다.</p></div>`;
+    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
 async function saveWorker() {
   const id = document.getElementById("worker-id").value;
@@ -1567,14 +1379,7 @@ async function saveWorker() {
 function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
 function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
 function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
-async function deleteWorker(id){
-  if(!confirm("삭제할까요? 관련 교육이력과 저장된 기사님 사진도 같이 삭제됩니다.")) return;
-  await db.from("education_records").delete().eq("worker_id",id);
-  await db.from("training_history").delete().eq("worker_id",id);
-  await db.from("workers").delete().eq("id",id);
-  const all=workerDetails(); delete all[String(id)]; await saveWorkerDetailsMap(all);
-  await loadAll();
-}
+async function deleteWorker(id){ if(!confirm("삭제할까요? 관련 교육이력도 같이 정리해야 합니다.")) return; await db.from("education_records").delete().eq("worker_id",id); await db.from("training_history").delete().eq("worker_id",id); await db.from("workers").delete().eq("id",id); await loadAll(); }
 
 // 교육주기 메뉴는 제거했습니다. 교육 기준/주기 관리는 [보관관리]와 [설정]의 교육기준을 마스터로 사용합니다.
 
@@ -1829,338 +1634,24 @@ async function ackRetention(key){
   toast("이 버전에서는 확인 후 삭제 버튼을 사용하세요.");
 }
 
-
-
-// =========================
-// 영구 사진 저장소 (장비/기사님)
-// - 신규 사진: Supabase Storage에 파일로 저장
-// - 기존 Base64 사진: 최초 실행 시 Storage로 자동 이전 후 settings에서 Base64 제거
-// =========================
-function isBase64Photo(src){ return typeof src === "string" && src.startsWith("data:image/"); }
-function photoUrl(photo){
-  if(!photo) return "";
-  if(photo.storage_path){
-    return photoDb.storage.from(PERMANENT_PHOTO_BUCKET).getPublicUrl(photo.storage_path).data?.publicUrl || "";
-  }
-  return photo.src || ""; // 마이그레이션 전 기존 사진 호환
-}
-function safeFilePart(v){ return String(v||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,80); }
-function extFromMime(type){ const m=String(type||"").match(/image\/(jpeg|jpg|png|webp|gif)/i); return m ? (m[1].toLowerCase()==="jpeg"?"jpg":m[1].toLowerCase()) : "jpg"; }
-async function dataUrlToBlob(dataUrl){ return await (await fetch(dataUrl)).blob(); }
-async function uploadPermanentPhoto(fileOrBlob, group, ownerId, originalName="photo.jpg"){
-  const type=fileOrBlob.type || "image/jpeg";
-  const ext=extFromMime(type);
-  const path=`${group}/${ownerId}/${Date.now()}_${Math.random().toString(36).slice(2,9)}_${safeFilePart(originalName).replace(/\.[^.]+$/,"")}.${ext}`;
-  const {error}=await photoDb.storage.from(PERMANENT_PHOTO_BUCKET).upload(path,fileOrBlob,{contentType:type,upsert:false,cacheControl:"3600"});
-  if(error) throw error;
-  return path;
-}
-async function deletePermanentPhotoFile(photo){
-  if(!photo?.storage_path) return;
-  const {error}=await photoDb.storage.from(PERMANENT_PHOTO_BUCKET).remove([photo.storage_path]);
-  if(error) console.warn("Storage 사진 삭제 실패",error);
-}
-async function migrateLegacyPermanentPhotos(){
-  if(!db || state.settings.permanent_photo_migration_v1 === "done") return;
-  let workerMap=workerDetails();
-  let equipmentMap=equipmentDetails();
-  let changedW=false, changedE=false, migrated=0;
-  try{
-    for(const [ownerId,d] of Object.entries(workerMap)){
-      for(const photo of (Array.isArray(d.photos)?d.photos:[])){
-        if(!isBase64Photo(photo.src)) continue;
-        const blob=await dataUrlToBlob(photo.src);
-        photo.storage_path=await uploadPermanentPhoto(blob,"workers",ownerId,`legacy_${migrated}.jpg`);
-        delete photo.src; changedW=true; migrated++;
-      }
-    }
-    for(const [ownerId,d] of Object.entries(equipmentMap)){
-      for(const photo of (Array.isArray(d.photos)?d.photos:[])){
-        if(!isBase64Photo(photo.src)) continue;
-        const blob=await dataUrlToBlob(photo.src);
-        photo.storage_path=await uploadPermanentPhoto(blob,"equipment",ownerId,`legacy_${migrated}.jpg`);
-        delete photo.src; changedE=true; migrated++;
-      }
-    }
-    if(changedW && !await saveWorkerDetailsMap(workerMap)) throw new Error("기사님 사진정보 저장 실패");
-    if(changedE && !await saveEquipmentDetailsMap(equipmentMap)) throw new Error("장비 사진정보 저장 실패");
-    const r=await db.from("settings").upsert({key:"permanent_photo_migration_v1",value:"done"});
-    if(r.error) throw r.error;
-    state.settings.permanent_photo_migration_v1="done";
-    if(migrated) toast(`기존 사진 ${migrated}장 저장 최적화 완료`);
-  }catch(e){
-    console.error("기존 사진 Storage 이전 실패",e);
-    // 버킷/정책이 아직 없으면 기존 Base64는 그대로 보존하므로 사진이 사라지지 않습니다.
-    toast("영구사진 저장소 설정을 확인하세요.");
-  }
-}
-
-let activeWorkerPhotoId = null;
-let workerPhotoFiles = [];
-
-function workerDetails(){
-  try{
-    const parsed=JSON.parse(state.settings.worker_details || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  }catch(e){ return {}; }
-}
-function workerDetailById(id){
-  const d=workerDetails()[String(id)] || {};
-  return {photos:Array.isArray(d.photos)?d.photos:[]};
-}
-async function saveWorkerDetailsMap(map){
-  const value=JSON.stringify(map);
-  const res=await db.from("settings").upsert({key:"worker_details",value});
-  if(res.error){console.error(res.error);toast("기사님 사진정보 저장 오류");return false;}
-  state.settings.worker_details=value;
-  return true;
-}
-function openWorkerPhotoDetail(id){activeWorkerPhotoId=Number(id);workerPhotoFiles=[];renderWorkerPhotoModal();}
-function closeWorkerPhotoDetail(){activeWorkerPhotoId=null;workerPhotoFiles=[];document.getElementById("worker-photo-modal-wrap")?.remove();}
-function renderWorkerPhotoModal(){
-  document.getElementById("worker-photo-modal-wrap")?.remove();
-  const w=state.workers.find(x=>Number(x.id)===Number(activeWorkerPhotoId));
-  if(!w)return;
-  const detail=workerDetailById(w.id);
-  const photos=detail.photos.length?detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
-    <img loading="lazy" src="${photoUrl(p)}" alt="${escapeHtml(p.category||"기사님 사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openWorkerImageViewer(${w.id},${idx}); event.stopPropagation();">
-    <div class="equipment-photo-info"><div class="equipment-photo-title">${escapeHtml(p.category||"기타사진")}</div><div class="equipment-photo-desc">${escapeHtml(p.description||"")}</div><div class="small" style="margin-top:6px">저장일 ${escapeHtml(p.saved_date||"")}</div><div class="actions"><button onclick="editWorkerPhoto(${w.id},${idx})">수정</button><button class="red" onclick="deleteWorkerPhoto(${w.id},${idx})">삭제</button></div></div></div>`).join(""):`<p class="small">저장된 사진이 없습니다.</p>`;
-  const wrap=document.createElement("div");
-  wrap.id="worker-photo-modal-wrap";wrap.className="modal-backdrop";
-  wrap.onclick=e=>{if(e.target===wrap)closeWorkerPhotoDetail();};
-  wrap.innerHTML=`<div class="modal" style="width:min(900px,100%);max-height:92vh;overflow:auto" onclick="event.stopPropagation()">
-    <div class="detail-top"><div><div class="modal-title">${escapeHtml(w.name||"기사님")} 사진관리</div><div class="small">${escapeHtml([w.company,w.phone].filter(Boolean).join(" / "))}</div></div><button onclick="closeWorkerPhotoDetail()">닫기</button></div>
-    <div class="form-row" style="grid-template-columns:repeat(2,1fr);margin-top:14px"><div><label>사진 종류</label><input id="worker-photo-category" placeholder="예: 증명사진 / 교육사진 / 자격증 / 기타"></div><div><label>사진 설명</label><input id="worker-photo-description" placeholder="사진에 대한 설명을 입력하세요."></div></div>
-    <div id="worker-photo-dropzone" class="equipment-photo-dropzone" tabindex="0" onclick="document.getElementById('worker-photo-input').click()"><strong>사진을 클릭하여 선택</strong><div class="small">드래그앤드롭 또는 Ctrl+V 붙여넣기도 가능합니다.</div></div>
-    <input id="worker-photo-input" type="file" accept="image/*" multiple class="hidden" onchange="addWorkerPhotoFiles(this.files)">
-    <div id="worker-photo-preview" class="patrol-preview"><p class="small">선택된 사진이 없습니다.</p></div>
-    <div class="actions"><button class="primary" onclick="saveWorkerPhotos(${w.id})">사진 저장</button><button onclick="clearWorkerPhotoSelection()">선택 초기화</button></div>
-    <h2 style="margin-top:18px">저장된 사진</h2><div class="equipment-photo-grid">${photos}</div>
-  </div>`;
-  document.body.appendChild(wrap);setTimeout(bindWorkerPhotoDropPaste,0);
-}
-function addWorkerPhotoFiles(files){const imgs=Array.from(files||[]).filter(f=>f.type?.startsWith("image/"));workerPhotoFiles=[...workerPhotoFiles,...imgs].slice(0,30);previewWorkerPhotoFiles();}
-function previewWorkerPhotoFiles(){const box=document.getElementById("worker-photo-preview");if(!box)return;box.innerHTML=workerPhotoFiles.length?`<p class="small">선택 사진 ${workerPhotoFiles.length}장</p>`+workerPhotoFiles.map(f=>`<span class="badge info">${escapeHtml(f.name||"붙여넣은 사진")}</span>`).join(""):`<p class="small">선택된 사진이 없습니다.</p>`;}
-function clearWorkerPhotoSelection(){workerPhotoFiles=[];const input=document.getElementById("worker-photo-input");if(input)input.value="";previewWorkerPhotoFiles();}
-function bindWorkerPhotoDropPaste(){const zone=document.getElementById("worker-photo-dropzone");if(!zone||zone.dataset.bound==="1")return;zone.dataset.bound="1";zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover")});zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));zone.addEventListener("drop",e=>{e.preventDefault();zone.classList.remove("dragover");addWorkerPhotoFiles(e.dataTransfer.files)});zone.addEventListener("paste",e=>{e.preventDefault();addWorkerPhotoFiles(e.clipboardData.files)});setTimeout(()=>zone.focus(),50);}
-async function saveWorkerPhotos(id){if(!workerPhotoFiles.length)return toast("저장할 사진을 먼저 선택하세요.");const category=val("worker-photo-category")||"기타사진";const description=val("worker-photo-description");toast("사진 업로드 중...");const added=[];try{for(const f of workerPhotoFiles){const path=await uploadPermanentPhoto(f,"workers",id,f.name);added.push({storage_path:path,category,description,saved_date:todayStr(),created_at:new Date().toISOString()});}}catch(e){console.error(e);return toast("사진 업로드 오류 - Storage 설정을 확인하세요.");}const all=workerDetails(),key=String(id),current=all[key]||{};all[key]={photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};if(await saveWorkerDetailsMap(all)){clearWorkerPhotoSelection();renderWorkerPhotoModal();renderWorkers();toast("기사님 사진 저장 완료");}}
-async function editWorkerPhoto(id,index){const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos?.[index])return;const p=current.photos[index];const category=prompt("사진 종류를 수정하세요.",p.category||"기타사진");if(category===null)return;const description=prompt("사진 설명을 수정하세요.",p.description||"");if(description===null)return;current.photos[index]={...p,category:category.trim()||"기타사진",description};current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 정보 수정 완료");}}
-async function deleteWorkerPhoto(id,index){if(!confirm("이 사진을 삭제할까요?"))return;const all=workerDetails(),key=String(id),current=all[key];if(!current?.photos)return;await deletePermanentPhotoFile(current.photos[index]);current.photos.splice(index,1);current.updated_at=new Date().toISOString();if(await saveWorkerDetailsMap(all)){renderWorkerPhotoModal();renderWorkers();toast("사진 삭제 완료");}}
-function openWorkerImageViewer(workerId,index){const photo=workerDetailById(workerId).photos?.[index];const url=photoUrl(photo);if(!url)return toast("사진을 불러올 수 없습니다.");closeEquipmentImageViewer();const viewer=document.createElement("div");viewer.id="equipment-image-viewer";viewer.className="equipment-image-viewer";viewer.setAttribute("role","dialog");viewer.setAttribute("aria-modal","true");viewer.setAttribute("aria-label","기사님 사진 크게 보기");viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};const caption=[photo.category||"기사님 사진",photo.description||""].filter(Boolean).join(" · ");viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" aria-label="닫기" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${url}" alt="${escapeHtml(photo.category||"기사님 사진")}"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;document.body.appendChild(viewer);document.body.style.overflow="hidden";}
-
-let activeEquipmentDetailId = null;
-let activeEquipmentDetailTab = "memo";
-let equipmentPhotoFiles = [];
-
-function equipmentDetails(){
-  try{
-    const parsed = JSON.parse(state.settings.equipment_details || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  }catch(e){ return {}; }
-}
-function equipmentDetailById(id){
-  const all = equipmentDetails();
-  const key = String(id);
-  const d = all[key] || {};
-  return { memo:d.memo || "", photos:Array.isArray(d.photos) ? d.photos : [] };
-}
-async function saveEquipmentDetailsMap(map){
-  const value = JSON.stringify(map);
-  const res = await db.from("settings").upsert({key:"equipment_details", value});
-  if(res.error){ console.error(res.error); toast("장비 상세정보 저장 오류"); return false; }
-  state.settings.equipment_details = value;
-  return true;
-}
-function openEquipmentDetail(id, tab="memo"){
-  activeEquipmentDetailId = Number(id);
-  activeEquipmentDetailTab = tab;
-  equipmentPhotoFiles = [];
-  renderEquipmentDetailModal();
-}
-function closeEquipmentDetail(){
-  activeEquipmentDetailId = null;
-  equipmentPhotoFiles = [];
-  document.getElementById("equipment-detail-modal-wrap")?.remove();
-}
-function setEquipmentDetailTab(tab){
-  activeEquipmentDetailTab = tab;
-  renderEquipmentDetailModal();
-}
-function renderEquipmentDetailModal(){
-  document.getElementById("equipment-detail-modal-wrap")?.remove();
-  const eq = state.equipment.find(x => Number(x.id) === Number(activeEquipmentDetailId));
-  if(!eq) return;
-  const detail = equipmentDetailById(eq.id);
-  const photos = detail.photos.length ? detail.photos.map((p,idx)=>`<div class="equipment-photo-card">
-    <img loading="lazy" src="${photoUrl(p)}" alt="${escapeHtml(p.category || "장비사진")}" title="클릭하면 크게 볼 수 있습니다" onclick="openEquipmentImageViewer(${eq.id},${idx}); event.stopPropagation();">
-    <div class="equipment-photo-info">
-      <div class="equipment-photo-title">${escapeHtml(p.category || "기타사진")}</div>
-      <div class="equipment-photo-desc">${escapeHtml(p.description || "")}</div>
-      <div class="small" style="margin-top:6px">${escapeHtml(p.saved_date || "")}</div>
-      <div class="actions"><button onclick="editEquipmentPhoto(${eq.id},${idx})">수정</button><button class="red" onclick="deleteEquipmentPhoto(${eq.id},${idx})">삭제</button></div>
-    </div>
-  </div>`).join("") : `<p class="small">등록된 장비 사진이 없습니다.</p>`;
-  const memoPanel = `<div class="${activeEquipmentDetailTab === "memo" ? "" : "hidden"}">
-    <label>장비 메모</label>
-    <textarea id="equipment-detail-memo" style="min-height:280px" placeholder="정비이력, 고장내용, 보험·검사일정, 특이사항 등 장비에 관한 내용을 입력하세요.">${escapeHtml(detail.memo)}</textarea>
-    <div class="actions"><button class="primary" onclick="saveEquipmentMemo(${eq.id})">메모 저장</button></div>
-  </div>`;
-  const photoPanel = `<div class="${activeEquipmentDetailTab === "photos" ? "" : "hidden"}">
-    <div class="form-row" style="grid-template-columns:1fr 2fr">
-      <div><label>사진 종류</label><input id="equipment-photo-category" placeholder="예: 블랙박스 / 외관사진 / 수리사진"></div>
-      <div><label>사진 설명</label><input id="equipment-photo-description" placeholder="사진에 대한 설명을 입력하세요."></div>
-    </div>
-    <div id="equipment-photo-dropzone" class="equipment-photo-dropzone" tabindex="0" onclick="document.getElementById('equipment-photo-input').click()">
-      <strong>사진을 클릭해서 선택하거나 여기에 드래그하세요.</strong><br><span class="small">Ctrl+V 붙여넣기도 지원합니다.</span>
-    </div>
-    <input id="equipment-photo-input" type="file" accept="image/*" multiple class="hidden" onchange="addEquipmentPhotoFiles(this.files)">
-    <div id="equipment-photo-preview" class="patrol-preview"><p class="small">선택된 사진이 없습니다.</p></div>
-    <div class="actions"><button class="primary" onclick="saveEquipmentPhotos(${eq.id})">선택 사진 저장</button><button onclick="clearEquipmentPhotoSelection()">선택 초기화</button></div>
-    <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-    <h2>저장된 사진</h2><div class="equipment-photo-grid">${photos}</div>
-  </div>`;
-  const wrap=document.createElement("div");
-  wrap.id="equipment-detail-modal-wrap";
-  wrap.className="modal-backdrop";
-  wrap.onclick=e=>{ if(e.target===wrap) closeEquipmentDetail(); };
-  wrap.innerHTML=`<div class="modal equipment-detail-modal">
-    <div class="detail-top"><div><div class="modal-title">${escapeHtml(equipmentDisplayNo(eq) || "장비")}</div><div class="small">${escapeHtml([eq.vehicle_type,eq.work_type].filter(Boolean).join(" / "))}</div></div><button onclick="closeEquipmentDetail()">닫기</button></div>
-    <div class="equipment-detail-tabs"><button class="${activeEquipmentDetailTab === "memo" ? "active" : ""}" onclick="setEquipmentDetailTab('memo')">메모</button><button class="${activeEquipmentDetailTab === "photos" ? "active" : ""}" onclick="setEquipmentDetailTab('photos')">사진</button></div>
-    ${memoPanel}${photoPanel}
-  </div>`;
-  document.body.appendChild(wrap);
-  if(activeEquipmentDetailTab === "photos") setTimeout(bindEquipmentPhotoDropPaste,0);
-}
-function openEquipmentImageViewer(equipmentId,index){
-  // 임시사진은 URL 문자열을 직접 넘길 수 있고, 장비사진은 장비ID/인덱스로 불러옵니다.
-  let url="", caption="";
-  if(typeof equipmentId === "string" && (equipmentId.startsWith("blob:") || equipmentId.startsWith("data:") || equipmentId.startsWith("http"))){ url=equipmentId; caption=String(index||""); }
-  else { const photo=equipmentDetailById(equipmentId).photos?.[index]; url=photoUrl(photo); caption=[photo?.category||"장비사진",photo?.description||""].filter(Boolean).join(" · "); }
-  if(!url) return toast("사진을 불러올 수 없습니다.");
-  closeEquipmentImageViewer();
-  const viewer=document.createElement("div"); viewer.id="equipment-image-viewer"; viewer.className="equipment-image-viewer";
-  viewer.onclick=e=>{if(e.target===viewer||e.target.classList.contains("equipment-image-viewer-inner"))closeEquipmentImageViewer();};
-  viewer.innerHTML=`<button class="equipment-image-viewer-close" type="button" onclick="closeEquipmentImageViewer()">×</button><div class="equipment-image-viewer-inner"><img src="${url}" alt="사진 크게 보기"></div>${caption?`<div class="equipment-image-viewer-caption">${escapeHtml(caption)}</div>`:""}`;
-  document.body.appendChild(viewer); document.body.style.overflow="hidden";
-}
-function closeEquipmentImageViewer(){
-  document.getElementById("equipment-image-viewer")?.remove();
-  document.body.style.overflow="";
-}
-document.addEventListener("keydown",e=>{
-  if(e.key==="Escape" && document.getElementById("equipment-image-viewer")) closeEquipmentImageViewer();
-});
-
-async function saveEquipmentMemo(id){
-  const all=equipmentDetails();
-  const key=String(id);
-  const current=all[key] || {};
-  all[key]={...current,memo:val("equipment-detail-memo"),photos:Array.isArray(current.photos)?current.photos:[],updated_at:new Date().toISOString()};
-  if(await saveEquipmentDetailsMap(all)) toast("장비 메모 저장 완료");
-}
-function addEquipmentPhotoFiles(files){
-  const imgs=Array.from(files || []).filter(f=>f.type?.startsWith("image/"));
-  equipmentPhotoFiles=[...equipmentPhotoFiles,...imgs].slice(0,30);
-  previewEquipmentPhotoFiles();
-}
-function previewEquipmentPhotoFiles(){
-  const box=document.getElementById("equipment-photo-preview");
-  if(!box) return;
-  box.innerHTML=equipmentPhotoFiles.length ? `<p class="small">선택 사진 ${equipmentPhotoFiles.length}장</p>`+equipmentPhotoFiles.map(f=>`<span class="badge info">${escapeHtml(f.name || "붙여넣은 사진")}</span>`).join("") : `<p class="small">선택된 사진이 없습니다.</p>`;
-}
-function clearEquipmentPhotoSelection(){
-  equipmentPhotoFiles=[];
-  const input=document.getElementById("equipment-photo-input"); if(input) input.value="";
-  previewEquipmentPhotoFiles();
-}
-function bindEquipmentPhotoDropPaste(){
-  const zone=document.getElementById("equipment-photo-dropzone");
-  if(!zone || zone.dataset.bound==="1") return;
-  zone.dataset.bound="1";
-  zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("dragover")});
-  zone.addEventListener("dragleave",()=>zone.classList.remove("dragover"));
-  zone.addEventListener("drop",e=>{e.preventDefault();zone.classList.remove("dragover");addEquipmentPhotoFiles(e.dataTransfer.files)});
-  zone.addEventListener("paste",e=>{e.preventDefault();addEquipmentPhotoFiles(e.clipboardData.files)});
-  setTimeout(()=>zone.focus(),50);
-}
-async function saveEquipmentPhotos(id){
-  if(!equipmentPhotoFiles.length) return toast("저장할 사진을 먼저 선택하세요.");
-  const category=val("equipment-photo-category") || "기타사진";
-  const description=val("equipment-photo-description");
-  toast("사진 업로드 중...");
-  const added=[];
-  try{
-    for(const f of equipmentPhotoFiles){
-      const path=await uploadPermanentPhoto(f,"equipment",id,f.name);
-      added.push({storage_path:path,category,description,saved_date:todayStr(),created_at:new Date().toISOString()});
-    }
-  }catch(e){ console.error(e); return toast("사진 업로드 오류 - Storage 설정을 확인하세요."); }
-  const all=equipmentDetails(), key=String(id), current=all[key] || {};
-  all[key]={...current,memo:current.memo || "",photos:[...(Array.isArray(current.photos)?current.photos:[]),...added],updated_at:new Date().toISOString()};
-  if(await saveEquipmentDetailsMap(all)){ clearEquipmentPhotoSelection(); renderEquipmentDetailModal(); toast("장비 사진 저장 완료"); }
-}
-async function editEquipmentPhoto(id,index){
-  const all=equipmentDetails(),key=String(id),current=all[key];
-  if(!current?.photos?.[index]) return;
-  const p=current.photos[index];
-  const category=prompt("사진 종류를 수정하세요.",p.category || "기타사진");
-  if(category===null) return;
-  const description=prompt("사진 설명을 수정하세요.",p.description || "");
-  if(description===null) return;
-  current.photos[index]={...p,category:category.trim() || "기타사진",description};
-  current.updated_at=new Date().toISOString();
-  if(await saveEquipmentDetailsMap(all)){ renderEquipmentDetailModal(); toast("사진 정보 수정 완료"); }
-}
-async function deleteEquipmentPhoto(id,index){
-  if(!confirm("이 사진을 삭제할까요?")) return;
-  const all=equipmentDetails(),key=String(id),current=all[key];
-  if(!current?.photos) return;
-  await deletePermanentPhotoFile(current.photos[index]);
-  current.photos.splice(index,1); current.updated_at=new Date().toISOString();
-  if(await saveEquipmentDetailsMap(all)){ renderEquipmentDetailModal(); toast("사진 삭제 완료"); }
-}
-
 function renderEquipment(){
-  const mobile=isMobileView();
+  const mobile = isMobileView();
   const typeOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_type"));
   const workOptions = dataListOptions(uniqueValues(state.equipment, "work_type"));
   const numberOptions = dataListOptions(uniqueValues(state.equipment, "vehicle_number"));
-  const actionCell = e => mobile
+  const noteOptions = dataListOptions(uniqueValues(state.equipment, "note"));
+  const actionCell = (e) => mobile
     ? `<button onclick="editEquipment(${e.id})">수정</button>`
     : `<button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button>`;
-  const details=equipmentDetails();
-  const rows=state.equipment.map((e, idx)=>{
-    const d=details[String(e.id)] || {};
-    const memoMark=d.memo ? `<span class="badge info">메모</span>` : "";
-    const photoMark=Array.isArray(d.photos)&&d.photos.length ? `<span class="badge ok">사진 ${d.photos.length}</span>` : "";
-    return `<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td><button class="equipment-number-btn" onclick="openEquipmentDetail(${e.id})">${escapeHtml(e.vehicle_number || "번호없음")}</button><div style="margin-top:5px">${memoMark} ${photoMark}</div></td><td>${actionCell(e)}</td></tr>`;
-  }).join("")||`<tr><td colspan="5">등록된 장비가 없습니다.</td></tr>`;
-  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row" style="grid-template-columns:repeat(3,1fr)"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div></div><p class="small">장비를 저장한 뒤 아래 목록의 차넘버를 클릭하면 장비별 메모와 사진을 관리할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
-  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="5">검색 결과가 없습니다.</td></tr></tbody></table></div><p class="small">차넘버를 클릭하면 장비 상세창이 열립니다. 메모와 사진은 장비별로 따로 저장됩니다.</p></div>`;
+  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
+  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
+  document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
-async function saveEquipment(){
-  const id=val("eq-id");
-  const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number")};
-  if(!data.vehicle_number) return toast("차넘버를 입력하세요.");
-  const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data);
-  if(res.error)return toast("저장 오류");
-  clearDraftForPage("equipment"); clearEqForm(); await loadAll();
-}
-function editEquipment(id){
-  const e=state.equipment.find(x=>x.id===id); if(!e)return;
-  document.getElementById("equipment-form-card")?.classList.remove("hidden");
-  setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number);
-  document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"});
-}
+async function saveEquipment(){ const id=val("eq-id"); const data={no:id ? (state.equipment.find(x=>String(x.id)===String(id))?.no || null) : (state.equipment.length+1),vehicle_type:val("eq-type"),work_type:val("eq-work"),vehicle_number:val("eq-number"),note:val("eq-note")}; const res=id?await db.from("equipment").update(data).eq("id",id):await db.from("equipment").insert(data); if(res.error)return toast("저장 오류"); clearDraftForPage("equipment"); clearEqForm(); await loadAll(); }
+function editEquipment(id){ const e=state.equipment.find(x=>x.id===id); if(!e)return; document.getElementById("equipment-form-card")?.classList.remove("hidden"); setVal("eq-id",e.id); setVal("eq-type",e.vehicle_type); setVal("eq-work",e.work_type); setVal("eq-number",e.vehicle_number); setVal("eq-note",e.note); document.getElementById("equipment-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
 function hideEquipmentForm(){ document.getElementById("equipment-form-card")?.classList.add("hidden"); clearEqForm(); }
-function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
-async function deleteEquipment(id){
-  if(!confirm("장비를 삭제할까요? 장비에 저장된 메모와 사진도 함께 삭제됩니다."))return;
-  const res=await db.from("equipment").delete().eq("id",id);
-  if(res.error) return toast("삭제 오류");
-  const all=equipmentDetails(); delete all[String(id)]; await saveEquipmentDetailsMap(all);
-  await loadAll();
-}
+function clearEqForm(){ ["eq-id","eq-type","eq-work","eq-number","eq-note"].forEach(x=>setVal(x,"")); clearDraftForPage("equipment"); }
+async function deleteEquipment(id){ if(!confirm("삭제할까요?"))return; await db.from("equipment").delete().eq("id",id); await loadAll(); }
 
 
 
@@ -2190,7 +1681,14 @@ function mondayOfWeek(dateText){
   return formatDate(d);
 }
 function worklogVisibleDates(){
-  return [worklogCursorDate || todayStr()];
+  if(isMobileView()) return [worklogCursorDate || todayStr()];
+  const mon = mondayOfWeek(worklogCursorDate || todayStr());
+  return Array.from({length:5}, (_, i) => addDaysText(mon, i));
+}
+function moveWorklogWeek(offset){
+  worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset) * 7);
+  activeWorklogDate = "";
+  renderWorklog();
 }
 function moveWorklogDay(offset){
   worklogCursorDate = addDaysText(worklogCursorDate || todayStr(), Number(offset));
@@ -2255,10 +1753,17 @@ function worklogModalHtml(){
   </div>`;
 }
 function renderWorklog(){
+  const mobile = isMobileView();
   const dates = worklogVisibleDates();
-  const title = `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지`;
-  const leftBtn = `<button onclick="moveWorklogDay(-1)" aria-label="이전 날짜">◀ 이전날</button>`;
-  const rightBtn = `<button onclick="moveWorklogDay(1)" aria-label="다음 날짜">다음날 ▶</button>`;
+  const weekStart = mondayOfWeek(worklogCursorDate || todayStr());
+  const weekEnd = addDaysText(weekStart, 4);
+  const title = mobile ? `${shortDateWithDay(worklogCursorDate || todayStr())} 업무일지` : `${shortDateWithDay(weekStart)} ~ ${shortDateWithDay(weekEnd)} 업무일지`;
+  const leftBtn = mobile
+    ? `<button onclick="moveWorklogDay(-1)">◀</button>`
+    : `<button onclick="moveWorklogWeek(-1)">이전주</button>`;
+  const rightBtn = mobile
+    ? `<button onclick="moveWorklogDay(1)">▶</button>`
+    : `<button onclick="moveWorklogWeek(1)">다음주</button>`;
   document.getElementById("page-worklog").innerHTML = `
     <div class="card">
       <div class="worklog-toolbar">
@@ -2270,7 +1775,7 @@ function renderWorklog(){
         <button onclick="goWorklogToday()">오늘로 이동</button>
         <button onclick="loadAll()">새로고침</button>
       </div>
-      <p class="small">날짜 칸을 클릭하면 업무일지 수정 창이 열립니다. ◀ 이전날 / 다음날 ▶ 버튼으로 하루씩 이동할 수 있습니다.</p>
+      <p class="small">날짜 칸을 클릭하면 업무일지 수정 창이 열립니다. PC에서는 월~금 5일치가 한 번에 보이고, 모바일에서는 ◀ / ▶ 버튼으로 하루씩 이동합니다.</p>
     </div>
     <div class="worklog-week-grid">${dates.map(worklogDayCard).join("")}</div>
     ${worklogModalHtml()}`;
@@ -2291,103 +1796,22 @@ async function saveWorklogModal(){
   renderWorklog();
 }
 
-function memoFiles(){
-  try {
-    const parsed = JSON.parse(state.settings.memo_files || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch(e) { return []; }
-}
-function memoById(id){ return memoFiles().find(x => String(x.id) === String(id)) || null; }
-function openNewMemo(){
-  activeMemoId = null;
-  memoEditorOpen = true;
-  renderMemo();
-  setTimeout(() => document.getElementById("memo-title")?.focus(), 0);
-}
-function openMemoFile(id){
-  activeMemoId = id;
-  memoEditorOpen = true;
-  renderMemo();
-}
-function closeMemoEditor(){
-  activeMemoId = null;
-  memoEditorOpen = false;
-  renderMemo();
-}
 function renderMemo(){
-  const files = memoFiles().slice().sort((a,b) => String(b.created_at || b.updated_at || "").localeCompare(String(a.created_at || a.updated_at || "")));
-  const listHtml = files.length ? files.map(m => `
-    <div class="memo-file">
-      <div class="memo-file-icon">📝</div>
-      <div style="min-width:0">
-        <button class="memo-file-title" onclick="openMemoFile('${String(m.id).replaceAll("'","\\'")}')">${escapeHtml(m.title || "제목 없는 메모")}</button>
-        <div class="memo-file-date">메모 날짜: ${escapeHtml(m.created_date || "-")}${m.updated_at ? ` · 마지막 수정: ${escapeHtml(String(m.updated_at).slice(0,10))}` : ""}</div>
-      </div>
-      <button class="red" onclick="deleteMemoFile('${String(m.id).replaceAll("'","\\'")}')">삭제</button>
-    </div>`).join("") : `<div class="mobile-card"><p class="small">저장된 메모가 없습니다. 위의 추가 버튼을 눌러 새 메모를 작성하세요.</p></div>`;
-
-  const current = activeMemoId !== null ? memoById(activeMemoId) : null;
-  const editorHtml = memoEditorOpen ? `
-    <div class="memo-editor">
-      <h2>${current ? "메모 열기/수정" : "새 메모 작성"}</h2>
-      <div class="form-row" style="grid-template-columns:2fr 1fr">
-        <div><label>메모 제목</label><input id="memo-title" value="${escapeHtml(current?.title || "")}" placeholder="메모 제목을 입력하세요"></div>
-        <div><label>메모 날짜</label><input id="memo-created-date" value="${escapeHtml(current?.created_date || todayStr())}" readonly></div>
-      </div>
-      <div><label>메모 내용</label><textarea id="memo-content" placeholder="내용을 입력하세요.">${escapeHtml(current?.content || "")}</textarea></div>
-      <div class="actions">
-        <button class="primary" onclick="saveMemoFile()">저장</button>
-        ${current ? `<button class="red" onclick="deleteMemoFile('${String(current.id).replaceAll("'","\\'")}')">삭제</button>` : ""}
-        <button onclick="closeMemoEditor()">닫기</button>
-      </div>
-    </div>` : "";
-
   document.getElementById("page-memo").innerHTML = `
     <div class="card">
-      <div class="memo-toolbar">
-        <div><h2 style="margin-bottom:4px">메모</h2><p class="small" style="margin:0">메모를 파일처럼 각각 저장하고 제목을 눌러 열람·수정할 수 있습니다.</p></div>
-        <button class="primary" onclick="openNewMemo()">+ 추가</button>
-      </div>
-      <div class="memo-file-list">${listHtml}</div>
-      ${editorHtml}
+      <h2>메모</h2>
+      <p class="small">PC와 휴대폰에서 같이 확인하고 수정할 수 있는 공용 메모입니다.</p>
+      <textarea id="general-memo" style="min-height:360px" placeholder="필요한 내용을 자유롭게 적어두세요.">${escapeHtml(state.settings.general_memo || "")}</textarea>
+      <div class="actions"><button class="primary" onclick="saveGeneralMemo()">메모 저장</button><button onclick="loadAll()">새로고침</button></div>
     </div>`;
 }
-async function saveMemoFile(){
-  const title = val("memo-title").trim() || "제목 없는 메모";
-  const content = val("memo-content");
-  const createdDate = val("memo-created-date") || todayStr();
-  if(!content.trim()) return toast("메모 내용을 입력하세요.");
-  const all = memoFiles();
-  const old = activeMemoId !== null ? all.find(x => String(x.id) === String(activeMemoId)) : null;
-  const now = new Date().toISOString();
-  const record = {
-    id: old?.id || Date.now(),
-    title,
-    content,
-    created_date: old?.created_date || createdDate,
-    created_at: old?.created_at || now,
-    updated_at: now
-  };
-  const next = old ? all.map(x => String(x.id) === String(old.id) ? record : x) : [record, ...all];
-  const res = await db.from("settings").upsert({key:"memo_files", value:JSON.stringify(next)});
+
+async function saveGeneralMemo(){
+  const value = val("general-memo");
+  const res = await db.from("settings").upsert({key:"general_memo", value});
   if(res.error){ console.error(res.error); return toast("메모 저장 오류"); }
-  state.settings.memo_files = JSON.stringify(next);
-  activeMemoId = record.id;
-  memoEditorOpen = true;
-  renderMemo();
-  toast(old ? "메모 수정 완료" : "메모 저장 완료");
-}
-async function deleteMemoFile(id){
-  const memo = memoById(id);
-  if(!memo) return toast("삭제할 메모를 찾을 수 없습니다.");
-  if(!confirm(`'${memo.title || "제목 없는 메모"}' 메모를 삭제할까요?`)) return;
-  const next = memoFiles().filter(x => String(x.id) !== String(id));
-  const res = await db.from("settings").upsert({key:"memo_files", value:JSON.stringify(next)});
-  if(res.error){ console.error(res.error); return toast("메모 삭제 오류"); }
-  state.settings.memo_files = JSON.stringify(next);
-  if(String(activeMemoId) === String(id)){ activeMemoId = null; memoEditorOpen = false; }
-  renderMemo();
-  toast("메모 삭제 완료");
+  state.settings.general_memo = value;
+  toast("메모 저장 완료");
 }
 
 function renderSettings(){
@@ -2541,7 +1965,6 @@ window.addEventListener("load", async () => {
   syncTodayDate(true);
   startTodayAutoUpdater();
   await loadAll();
-  await migrateLegacyPermanentPhotos();
   showPage("mobile");
 });
 
