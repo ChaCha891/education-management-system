@@ -767,8 +767,7 @@ async function uploadPhotosToServer(files, selectAfter=true){
   const added=[];
   try {
     for(const file of accepted){
-      const dataUrl=await readImageAsDataUrl(file,1600,0.82);
-      const blob=await (await fetch(dataUrl)).blob();
+      const blob=await readImageAsBlob(file,1600,0.82);
       const uid=(crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
       const path=`${todayStr()}/${uid}.jpg`;
       const uploaded=await db.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:"image/jpeg",upsert:false});
@@ -778,7 +777,8 @@ async function uploadPhotosToServer(files, selectAfter=true){
     }
   } catch(e){
     console.error(e);
-    return toast("사진 저장공간 연결 오류: Supabase 사진 설정을 먼저 적용하세요.");
+    const detail=String(e?.message || e?.error || e || "알 수 없는 오류").slice(0,120);
+    return toast(`사진 업로드 오류: ${detail}`);
   }
   const next=[...stagedPhotos(),...added];
   if(!(await saveStagedPhotos(next))) return;
@@ -892,6 +892,25 @@ function readImageAsDataUrl(file, maxSize=1100, quality=0.75){
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
+  });
+}
+function readImageAsBlob(file,maxSize=1600,quality=0.82){
+  return new Promise((resolve,reject)=>{
+    const objectUrl=URL.createObjectURL(file);
+    const img=new Image();
+    img.onerror=()=>{ URL.revokeObjectURL(objectUrl); reject(new Error("촬영 이미지 읽기 실패")); };
+    img.onload=()=>{
+      try{
+        const scale=Math.min(1,maxSize/Math.max(img.width,img.height));
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.max(1,Math.round(img.width*scale));
+        canvas.height=Math.max(1,Math.round(img.height*scale));
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("JPEG 변환 실패")),"image/jpeg",quality);
+      }catch(e){ URL.revokeObjectURL(objectUrl); reject(e); }
+    };
+    img.src=objectUrl;
   });
 }
 function getPatrolFiles(){
