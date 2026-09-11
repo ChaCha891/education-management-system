@@ -51,6 +51,7 @@
     .selected-date-box{border:2px solid #bfdbfe}.worker-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check-item{display:grid;grid-template-columns:auto 1fr 110px;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff}.check-item input{width:auto}.check-item select{padding:8px}.worker-shift-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.worker-shift-btn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;font-weight:900}.worker-shift-btn:hover{outline:2px solid #bfdbfe}.worker-shift-btn .status{margin-top:6px}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.modal{background:#fff;border-radius:18px;border:1px solid var(--line);width:min(520px,100%);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.modal-title{font-size:18px;font-weight:900;margin-bottom:4px}.shift-day{background:#facc15;color:#713f12}.shift-night{background:#7c3aed;color:#fff}.detail-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.detail-list{display:grid;gap:8px}.detail-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.detail-worker{font-weight:900}.detail-note{white-space:pre-wrap;text-align:left;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
 
     .patrol-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.patrol-dropzone{border:2px dashed var(--line);border-radius:14px;background:#f8fafc;padding:14px;min-height:74px;align-items:center;justify-content:center;cursor:pointer}.patrol-dropzone.dragover{border-color:var(--primary);background:#eff6ff}.patrol-thumb{width:86px;height:66px;object-fit:cover;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+    .camera-shortcut{width:46px!important;min-width:46px;padding:9px;font-size:22px;line-height:1}.server-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}.server-photo-card{border:1px solid var(--line);border-radius:14px;padding:8px;background:#fff}.server-photo-card img{width:100%;height:110px;object-fit:cover;border-radius:10px;background:#eef2f7}.server-photo-card.selected{outline:3px solid var(--primary);background:#eff6ff}.server-photo-actions{display:flex;gap:5px;margin-top:6px}.server-photo-actions button{width:auto;padding:6px 8px;font-size:11px}.photo-status{font-size:12px;font-weight:800;margin-top:5px}.photo-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.photo-toolbar button{width:auto}
     .patrol-report-scroll{width:100%;max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0}.patrol-report{background:#fff;color:#111;width:100%;min-width:980px;overflow:visible}.patrol-report-table{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff}.patrol-report-table th,.patrol-report-table td{border:1px solid #111;padding:0;text-align:center;vertical-align:middle}.patrol-report-title{height:30px;font-weight:900;letter-spacing:8px}.patrol-report-date{font-weight:500;letter-spacing:2px}.patrol-photo-cell,.patrol-empty-cell{height:170px;background:#fff;overflow:hidden}.patrol-cell-wrap{height:170px;display:grid;grid-template-rows:21px 1fr 21px 27px}.patrol-caption-vehicle,.patrol-caption-worker,.patrol-caption-work{font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1.12;padding:2px 4px;overflow:hidden;text-align:center}.patrol-caption-vehicle{border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-worker{border-top:1px solid #111;border-bottom:1px solid #111;white-space:nowrap;text-overflow:ellipsis}.patrol-caption-work{white-space:normal}.patrol-img-box{height:100%;overflow:hidden}.patrol-img-box img{width:100%;height:100%;object-fit:cover;display:block}.patrol-empty-box{height:170px;background:#fff}
 
     .worklog-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
@@ -105,6 +106,7 @@
 <body>
   <div class="header">
     <h1>교육관리 시스템</h1>
+    <button class="camera-shortcut" type="button" onclick="openSystemCamera()" aria-label="현장 사진 촬영" title="현장 사진 촬영">📷</button>
     <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu()" aria-label="메뉴 열기">☰</button>
     <div class="nav" id="main-nav" onclick="event.stopPropagation()">
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
@@ -142,6 +144,7 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <input id="system-camera-input" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleSystemCamera(this.files);this.value=''">
 
 <script>
 // =========================
@@ -182,6 +185,8 @@ let workEditorOpen = false;
 let shiftEditorOpen = false;
 let patrolPrintDate = todayStr();
 let patrolSelectedFiles = [];
+let patrolSelectedServerPhotos = [];
+let photoGalleryExpanded = false;
 let worklogCursorDate = todayStr();
 let worklogEditDates = new Set();
 let lastKnownToday = todayStr();
@@ -613,6 +618,7 @@ async function loadAll() {
   if (!state.settings.retention_ack_keys) state.settings.retention_ack_keys = JSON.stringify([]);
   if (!state.settings.shift_calendar) state.settings.shift_calendar = JSON.stringify([]);
   if (!state.settings.patrol_records) state.settings.patrol_records = JSON.stringify([]);
+  if (!state.settings.photo_staging) state.settings.photo_staging = JSON.stringify([]);
   if (!state.settings.shift_notes) state.settings.shift_notes = JSON.stringify({});
   if (state.settings.general_memo === undefined) state.settings.general_memo = "";
   if (!state.settings.work_journal) state.settings.work_journal = JSON.stringify({});
@@ -621,6 +627,7 @@ async function loadAll() {
   if (!state.settings.kr_holidays) state.settings.kr_holidays = JSON.stringify({});
   await ensureHolidayYear(calendarCursor.getFullYear(), false, false);
   await cleanupPatrolRecordsIfNewDay();
+  await cleanupUnusedServerPhotos();
   makeDue();
   renderCurrent();
 }
@@ -729,25 +736,106 @@ function patrolRecords(){
     return Array.isArray(parsed) ? parsed : [];
   } catch(e) { return []; }
 }
+const PHOTO_BUCKET = "field-photos";
+function stagedPhotos(){
+  try {
+    const parsed = JSON.parse(state.settings.photo_staging || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+async function saveStagedPhotos(items){
+  const res = await db.from("settings").upsert({key:"photo_staging",value:JSON.stringify(items)});
+  if(res.error){ console.error(res.error); toast("사진 목록 저장 오류"); return false; }
+  state.settings.photo_staging = JSON.stringify(items);
+  return true;
+}
+function openSystemCamera(){
+  document.getElementById("system-camera-input")?.click();
+}
+async function handleSystemCamera(files){
+  const incoming = Array.from(files || []).filter(f=>f?.type?.startsWith("image/"));
+  if(!incoming.length) return;
+  if(currentPage !== "patrol") showPage("patrol");
+  photoGalleryExpanded = true;
+  await uploadPhotosToServer(incoming, true);
+}
+async function uploadPhotosToServer(files, selectAfter=true){
+  if(!db) return;
+  const accepted = Array.from(files || []).filter(f=>f?.type?.startsWith("image/")).slice(0,18);
+  if(!accepted.length) return;
+  toast("사진을 서버에 올리는 중...");
+  const added=[];
+  try {
+    for(const file of accepted){
+      const dataUrl=await readImageAsDataUrl(file,1600,0.82);
+      const blob=await (await fetch(dataUrl)).blob();
+      const uid=(crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      const path=`${todayStr()}/${uid}.jpg`;
+      const uploaded=await db.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:"image/jpeg",upsert:false});
+      if(uploaded.error) throw uploaded.error;
+      const publicData=db.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+      added.push({id:uid,path,url:publicData.data.publicUrl,name:file.name||`현장사진_${uid}.jpg`,created_at:new Date().toISOString(),linked:false});
+    }
+  } catch(e){
+    console.error(e);
+    return toast("사진 저장공간 연결 오류: Supabase 사진 설정을 먼저 적용하세요.");
+  }
+  const next=[...stagedPhotos(),...added];
+  if(!(await saveStagedPhotos(next))) return;
+  if(selectAfter) patrolSelectedServerPhotos=[...new Set([...patrolSelectedServerPhotos,...added.map(x=>x.id)])].slice(0,18);
+  renderPatrol();
+  toast(`${added.length}장 서버 저장 완료`);
+}
+function toggleServerPhotoSelection(id){
+  patrolSelectedServerPhotos=patrolSelectedServerPhotos.includes(id)
+    ? patrolSelectedServerPhotos.filter(x=>x!==id)
+    : [...patrolSelectedServerPhotos,id].slice(0,18);
+  renderPatrol();
+}
+async function downloadServerPhoto(id){
+  const photo=stagedPhotos().find(x=>String(x.id)===String(id));
+  if(!photo) return toast("사진을 찾을 수 없습니다.");
+  try{
+    const response=await fetch(photo.url);
+    const blob=await response.blob();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=photo.name||`현장사진_${id}.jpg`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }catch(e){ window.open(photo.url,"_blank"); }
+}
+async function deleteServerPhoto(id){
+  const photo=stagedPhotos().find(x=>String(x.id)===String(id));
+  if(!photo || photo.linked) return toast("순회점검에 사용된 사진은 해당 기록에서 관리하세요.");
+  if(!confirm("이 임시 사진을 삭제할까요?")) return;
+  const removed=await db.storage.from(PHOTO_BUCKET).remove([photo.path]);
+  if(removed.error) return toast("사진 삭제 오류");
+  patrolSelectedServerPhotos=patrolSelectedServerPhotos.filter(x=>String(x)!==String(id));
+  await saveStagedPhotos(stagedPhotos().filter(x=>String(x.id)!==String(id)));
+  renderPatrol();
+}
+function serverPhotoGalleryHtml(){
+  const photos=stagedPhotos().filter(x=>(x.created_at||"").slice(0,10)===todayStr() || x.linked);
+  if(!photoGalleryExpanded) return `<div class="photo-toolbar"><button type="button" class="primary" onclick="openSystemCamera()">📷 사진 촬영</button><button type="button" onclick="photoGalleryExpanded=true;renderPatrol()">오늘 사진함 (${photos.length})</button><span class="small">원본은 사진함을 열 때만 불러옵니다.</span></div>`;
+  const cards=photos.length?photos.map(p=>{const selected=patrolSelectedServerPhotos.includes(p.id);return `<div class="server-photo-card ${selected?'selected':''}"><img src="${escapeHtml(p.url)}" loading="lazy" alt="${escapeHtml(p.name||'현장사진')}"><div class="photo-status">${p.linked?'순회점검 저장됨':selected?'순회점검 선택됨':'임시 보관'}</div><div class="server-photo-actions"><button type="button" class="${selected?'primary':''}" onclick="toggleServerPhotoSelection('${p.id}')">${selected?'선택 해제':'순회점검에 사용'}</button><button type="button" onclick="downloadServerPhoto('${p.id}')">기기에 저장</button>${p.linked?'':`<button type="button" class="red" onclick="deleteServerPhoto('${p.id}')">삭제</button>`}</div></div>`;}).join(""):`<p class="small">오늘 촬영한 사진이 없습니다.</p>`;
+  return `<div class="photo-toolbar"><button type="button" class="primary" onclick="openSystemCamera()">📷 사진 촬영</button><button type="button" onclick="document.getElementById('patrol-files').click()">사진 올리기</button><button type="button" onclick="photoGalleryExpanded=false;renderPatrol()">사진함 닫기</button></div><div class="server-photo-grid">${cards}</div>`;
+}
+async function cleanupUnusedServerPhotos(){
+  const all=stagedPhotos();
+  const stale=all.filter(x=>(x.created_at||"").slice(0,10)<todayStr());
+  if(!stale.length) return;
+  const unused=stale.filter(x=>!x.linked);
+  if(unused.length) await db.storage.from(PHOTO_BUCKET).remove(unused.map(x=>x.path));
+  await saveStagedPhotos(all.filter(x=>!stale.some(s=>s.id===x.id)));
+}
 async function cleanupPatrolRecordsIfNewDay(){
   if(!db) return;
   const today = todayStr();
-  const all = patrolRecords();
-  const todayOnly = all.filter(x => x.date === today);
   const last = state.settings.patrol_cleanup_date || today;
-
-  // 이전 날짜에 저장된 사진/순회점검 데이터는 앱이 느려지는 원인이 되므로 로드할 때마다 오늘 데이터만 남깁니다.
-  if(last !== today || todayOnly.length !== all.length){
-    const updates = [
-      db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(todayOnly)}),
-      db.from("settings").upsert({key:"patrol_cleanup_date", value:today})
-    ];
-    const [r1, r2] = await Promise.all(updates);
-    if(!r1.error && !r2.error){
-      state.settings.patrol_records = JSON.stringify(todayOnly);
-      state.settings.patrol_cleanup_date = today;
-      patrolPrintDate = today;
-    }
+  // 순회점검에 연결된 사진은 기록으로 유지하고, 연결되지 않은 임시 사진만 별도 정리합니다.
+  if(last !== today){
+    const res=await db.from("settings").upsert({key:"patrol_cleanup_date",value:today});
+    if(!res.error){ state.settings.patrol_cleanup_date=today; patrolPrintDate=today; }
   }
 }
 async function clearAllPatrolRecords(){
@@ -811,27 +899,26 @@ function getPatrolFiles(){
 }
 function clearPatrolSelectedFiles(){
   patrolSelectedFiles = [];
+  patrolSelectedServerPhotos = [];
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   previewPatrolFiles();
 }
-function addPatrolFiles(fileList){
+async function addPatrolFiles(fileList){
   const incoming = Array.from(fileList || []).filter(f => f && f.type && f.type.startsWith("image/"));
   if(!incoming.length) return;
-  const remain = Math.max(0, 18 - patrolSelectedFiles.length);
+  const remain = Math.max(0, 18 - patrolSelectedServerPhotos.length);
   const accepted = incoming.slice(0, remain);
-  patrolSelectedFiles = [...patrolSelectedFiles, ...accepted].slice(0,18);
-  previewPatrolFiles();
+  await uploadPhotosToServer(accepted,true);
   if(incoming.length > accepted.length) toast("사진은 최대 18장까지만 추가됩니다.");
 }
 function previewPatrolFiles(){
-  const files = getPatrolFiles();
+  const photos = stagedPhotos().filter(x=>patrolSelectedServerPhotos.includes(x.id));
   const box = document.getElementById("patrol-preview");
   if(!box) return;
-  box.innerHTML = files.length
-    ? `<p class="small" style="width:100%">선택 사진: ${files.length}장 <button type="button" onclick="clearPatrolSelectedFiles()" style="width:auto;padding:6px 10px;margin-left:8px">선택 사진 비우기</button></p>` +
-      files.map((f, i) => `<span class="badge info">${i+1}. ${escapeHtml(f.name || "붙여넣은 사진")}</span>`).join("")
-    : `<p class="small">사진을 드래그앤드롭, Ctrl+V 붙여넣기, 또는 파일 선택으로 추가하세요.</p>`;
+  box.innerHTML = photos.length
+    ? `<p class="small" style="width:100%">순회점검 선택 사진: ${photos.length}장 <button type="button" onclick="clearPatrolSelectedFiles()" style="width:auto;padding:6px 10px;margin-left:8px">선택 비우기</button></p>` + photos.map((p,i)=>`<span class="badge info">${i+1}. ${escapeHtml(p.name||"현장사진")}</span>`).join("")
+    : `<p class="small">위 사진함에서 순회점검에 사용할 사진을 선택하세요.</p>`;
 }
 function bindPatrolDropPaste(){
   const zone = document.getElementById("patrol-dropzone");
@@ -899,8 +986,8 @@ async function savePatrolRecord(){
   const date = dateVal("patrol-date") || todayStr();
   if(!isValidDateText(date)) return toast("점검일자는 YYYY-MM-DD 형식으로 입력하세요.");
   if(!equipmentId && !val("patrol-vehicle")) return toast("장비 목록에서 장비번호를 먼저 선택하세요.");
-  const files = getPatrolFiles();
-  if(files.length > 18) return toast("한 장비에 최대 18장까지 저장할 수 있습니다.");
+  const serverPhotos=stagedPhotos().filter(x=>patrolSelectedServerPhotos.includes(x.id));
+  if(serverPhotos.length > 18) return toast("한 장비에 최대 18장까지 저장할 수 있습니다.");
   const all = patrolRecords();
   const eq = state.equipment.find(x => String(x.id) === String(equipmentId));
   const vehicleNo = val("patrol-vehicle") || equipmentDisplayNo(eq);
@@ -908,18 +995,9 @@ async function savePatrolRecord(){
     ? all.find(x => String(x.id) === String(editId))
     : (eq ? findPatrolRecordForEquipment(date, eq) : all.find(x => x.date === date && x.vehicle_number === vehicleNo));
   let images = oldRecord?.images || [];
-  if(files.length){
-    toast("사진 압축 중...");
-    images = [];
-    try {
-      for(const f of files){ images.push(await readImageAsDataUrl(f)); }
-    } catch(e) {
-      console.error(e);
-      return toast("사진 처리 오류");
-    }
-  }
+  if(serverPhotos.length) images=serverPhotos.map(x=>x.url);
   const hasText = [val("patrol-worker-name"), val("patrol-place"), val("patrol-work")].some(Boolean);
-  if(!oldRecord && !files.length && !hasText) return toast("기사님 성함, 작업장소, 작업내용 또는 사진 중 하나 이상 입력하세요.");
+  if(!oldRecord && !serverPhotos.length && !hasText) return toast("기사님 성함, 작업장소, 작업내용 또는 사진 중 하나 이상 입력하세요.");
   const record = {
     id: oldRecord?.id || Date.now(),
     date,
@@ -937,7 +1015,12 @@ async function savePatrolRecord(){
   const next = oldRecord ? all.map(x => String(x.id) === String(oldRecord.id) ? record : x) : [...all, record];
   const res = await db.from("settings").upsert({key:"patrol_records", value:JSON.stringify(next)});
   if(res.error){ console.error(res.error); return toast("순회점검 저장 오류: 사진 용량이 너무 클 수 있습니다."); }
+  if(serverPhotos.length){
+    const usedIds=new Set(serverPhotos.map(x=>x.id));
+    await saveStagedPhotos(stagedPhotos().map(x=>usedIds.has(x.id)?{...x,linked:true}:x));
+  }
   patrolSelectedFiles = [];
+  patrolSelectedServerPhotos = [];
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   clearDraftForPage("patrol");
@@ -968,6 +1051,7 @@ function clearPatrolForm(){
   const file = document.getElementById("patrol-files");
   if(file) file.value = "";
   patrolSelectedFiles = [];
+  patrolSelectedServerPhotos = [];
   const box = document.getElementById("patrol-preview");
   if(box) box.innerHTML = `<p class="small">장비 목록에서 장비번호를 클릭한 뒤 내용을 입력하세요.</p>`;
   clearDraftForPage("patrol");
@@ -1063,6 +1147,7 @@ function renderPatrol(){
     return `<tr><td>${idx+1}</td><td><button class="btn" onclick="openPatrolEquipment(${eq.id})">${escapeHtml(equipmentDisplayNo(eq) || "번호없음")}</button></td><td>${escapeHtml(eq.vehicle_type || "-")}</td><td>${escapeHtml(eq.work_type || "-")}</td><td>${escapeHtml(rec?.worker_name || "-")}</td><td>${escapeHtml(rec?.place || "-")}</td><td>${escapeHtml(rec?.work || "-")}</td><td>${(rec?.images||[]).length}장</td><td>${status}</td><td>${action}</td></tr>`;
   }).join("") : `<tr><td colspan="10">장비관리 메뉴에 등록된 장비가 없습니다.</td></tr>`;
   document.getElementById("page-patrol").innerHTML = `
+    <div class="card no-print" id="server-photo-section"><div class="detail-top"><h2>현장 사진</h2><span class="small">미사용 임시 사진은 매일 00시에 삭제</span></div>${serverPhotoGalleryHtml()}</div>
     <div class="card no-print"><h2>순회점검 입력/수정</h2>
       <input type="hidden" id="patrol-edit-id">
       <input type="hidden" id="patrol-equipment-id">
@@ -1073,14 +1158,15 @@ function renderPatrol(){
         <div><label>작업장소</label><input id="patrol-place" placeholder="예: 저광사 / 야적장"></div>
         <div><label>작업내용</label><input id="patrol-work" placeholder="예: 상차 / 호퍼 투입"></div>
       </div>
-      <div style="margin-top:10px"><label>현장 사진</label><div id="patrol-dropzone" class="patrol-preview patrol-dropzone" tabindex="0"><p class="small">여기에 사진을 드래그앤드롭하거나 Ctrl+V로 붙여넣으세요. 클릭하면 파일 선택도 가능합니다.</p></div><input id="patrol-files" type="file" accept="image/*" multiple class="hidden" onchange="addPatrolFiles(this.files); this.value=''"><div id="patrol-preview" class="patrol-preview"><p class="small">장비 목록에서 장비번호를 클릭한 뒤 내용을 입력하세요. 새 사진을 추가하지 않고 저장하면 기존 사진은 유지됩니다.</p></div></div>
+      <div style="margin-top:10px"><label>순회점검에 사용할 사진</label><div id="patrol-dropzone" class="patrol-preview patrol-dropzone" tabindex="0"><p class="small">사진함에서 선택하거나 여기에 사진을 드래그앤드롭·붙여넣기·업로드하세요.</p></div><input id="patrol-files" type="file" accept="image/*" multiple class="hidden" onchange="addPatrolFiles(this.files); this.value=''"><div id="patrol-preview" class="patrol-preview"></div></div>
       <div class="actions"><button class="primary" onclick="savePatrolRecord()">순회점검 저장</button><button onclick="clearPatrolForm()">입력칸 초기화</button><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-date'))">선택 날짜 전체 삭제</button><button class="red" onclick="clearAllPatrolRecords()">저장 데이터 전체 초기화</button></div>
-      <p class="small">장비관리의 장비가 순회점검 목록에 전부 표시됩니다. 삭제와 전체 삭제는 장비 삭제가 아니라 해당 날짜의 입력 내용만 삭제하며, 장비 행은 그대로 남습니다. 날짜가 바뀌면 이전 순회점검 데이터는 용량 관리를 위해 자동 삭제됩니다.</p>
+      <p class="small">장비관리의 장비가 순회점검 목록에 전부 표시됩니다. 순회점검에 저장된 사진은 해당 기록에 유지되며, 연결하지 않은 임시 사진만 자정에 자동 삭제됩니다.</p>
     </div>
     <div class="card no-print"><h2>순회점검 장비 목록</h2><p class="small">장비번호를 클릭하면 해당 장비의 순회점검 내용을 입력할 수 있습니다. 미점검 장비가 그대로 보이므로 오늘 확인하지 못한 장비를 파악하기 쉽습니다.</p><div class="table-wrap"><table><thead><tr><th>No.</th><th>장비번호</th><th>차종</th><th>작업종류</th><th>기사님</th><th>작업장소</th><th>작업내용</th><th>사진</th><th>상태</th><th>관리</th></tr></thead><tbody>${equipmentRows}</tbody></table></div></div>
     <div class="card no-print"><h2>현장사진 출력 양식</h2><div class="form-row" style="grid-template-columns:1fr auto auto auto auto"><div><label>출력 날짜</label><input id="patrol-print-date" data-format="date" value="${escapeHtml(dateDefault)}" onchange="setPatrolPrintDate(this.value)"></div><div><label>&nbsp;</label><button onclick="setPatrolPrintDate(val('patrol-print-date'))">불러오기</button></div><div><label>&nbsp;</label><button class="primary" onclick="printPatrolReport()">인쇄/PDF 저장</button></div><div><label>&nbsp;</label><button onclick="downloadPatrolCsv(val('patrol-print-date'))">CSV 저장</button></div><div><label>&nbsp;</label><button class="red" onclick="deleteAllPatrolRecordsForDate(val('patrol-print-date'))">전체 삭제</button></div></div><p class="small">선택한 날짜의 사진을 6칸 × 3줄, 최대 18장 양식 한 장에 자동 배치합니다. 사진이 있는 칸은 위에서부터 차량번호 / 사진 / 기사님 성함 / 작업장소·작업내용 순서로 표시되고, 빈칸은 불필요한 작은 칸 없이 비워집니다. 전체 삭제는 선택한 출력 날짜의 순회점검 입력내용만 지우고 장비 목록은 유지합니다.</p></div>
     <div class="card"><div class="patrol-report-scroll">${patrolReportHtml(dateDefault)}</div></div>`;
   bindPatrolDropPaste();
+  previewPatrolFiles();
 }
 
 function syncTodayDate(force=false) {
@@ -2020,8 +2106,9 @@ window.addEventListener("load", async () => {
   showPage(shortcutPage === "patrol" ? "patrol" : "mobile");
   if(shortcutPage === "patrol" && params.get("focus") === "photo") {
     setTimeout(() => {
-      const target = document.getElementById("patrol-dropzone");
+      const target = document.getElementById("server-photo-section");
       if(target){ target.scrollIntoView({behavior:"smooth",block:"center"}); target.style.outline="3px solid #2563eb"; }
+      if(params.get("camera") === "1") openSystemCamera();
     }, 250);
   }
 });
