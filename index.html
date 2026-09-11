@@ -152,6 +152,8 @@
 // =========================
 const SUPABASE_URL = "https://widvjrtvjjuvknpjujkf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpZHZqcnR2amp1dmtucGp1amtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0ODY0NzIsImV4cCI6MjA5NDA2MjQ3Mn0.ThmHVS56_yf1L3yGq8sJHBtSiLHu8javo5aboqwvKBA";
+const PHOTO_SUPABASE_URL = "https://yajvtppzhajpexvpqvnv.supabase.co";
+const PHOTO_SUPABASE_KEY = "sb_publishable_bhjB9HwCqicxDY8F7wDgvg_6I2CMFPQ";
 
 const DEFAULT_TEMPLATE = `[교육 안내]\n{name} 기사님, {education} 일정 안내드립니다.\n교육 예정일: {next_date} ({dday})\n기한 내 교육 이수 부탁드립니다.`;
 // 기본 교육기준표: 최초 실행 또는 설정값이 없을 때만 사용합니다.
@@ -165,6 +167,7 @@ const DEFAULT_EDUCATION_RULES = [
 ];
 
 let db = null;
+let photoDb = null;
 let state = { workers: [], education: [], history: [], equipment: [], settings: {}, due: [] };
 let currentPage = "mobile";
 function isMobileView(){ return window.matchMedia && window.matchMedia("(max-width:760px)").matches; }
@@ -197,6 +200,7 @@ function ready() {
     return false;
   }
   db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  photoDb = supabase.createClient(PHOTO_SUPABASE_URL, PHOTO_SUPABASE_KEY);
   return true;
 }
 
@@ -770,9 +774,9 @@ async function uploadPhotosToServer(files, selectAfter=true){
       const blob=await readImageAsBlob(file,1600,0.82);
       const uid=(crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
       const path=`${todayStr()}/${uid}.jpg`;
-      const uploaded=await db.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:"image/jpeg",upsert:false});
+      const uploaded=await photoDb.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:"image/jpeg",upsert:false});
       if(uploaded.error) throw uploaded.error;
-      const publicData=db.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+      const publicData=photoDb.storage.from(PHOTO_BUCKET).getPublicUrl(path);
       added.push({id:uid,path,url:publicData.data.publicUrl,name:file.name||`현장사진_${uid}.jpg`,created_at:new Date().toISOString(),linked:false});
     }
   } catch(e){
@@ -785,6 +789,19 @@ async function uploadPhotosToServer(files, selectAfter=true){
   if(selectAfter) patrolSelectedServerPhotos=[...new Set([...patrolSelectedServerPhotos,...added.map(x=>x.id)])].slice(0,18);
   renderPatrol();
   toast(`${added.length}장 서버 저장 완료`);
+}
+async function promotePhotosToPatrol(photos,date,recordId){
+  const urls=[];
+  for(const photo of photos){
+    const response=await fetch(photo.url);
+    if(!response.ok) throw new Error(`임시 사진 읽기 실패 (${response.status})`);
+    const blob=await response.blob();
+    const name=`${date}/${recordId}/${photo.id}.jpg`;
+    const uploaded=await photoDb.storage.from("permanent-photos").upload(name,blob,{contentType:"image/jpeg",upsert:true});
+    if(uploaded.error) throw uploaded.error;
+    urls.push(photoDb.storage.from("permanent-photos").getPublicUrl(name).data.publicUrl);
+  }
+  return urls;
 }
 function toggleServerPhotoSelection(id){
   patrolSelectedServerPhotos=patrolSelectedServerPhotos.includes(id)
@@ -808,7 +825,7 @@ async function deleteServerPhoto(id){
   const photo=stagedPhotos().find(x=>String(x.id)===String(id));
   if(!photo || photo.linked) return toast("순회점검에 사용된 사진은 해당 기록에서 관리하세요.");
   if(!confirm("이 임시 사진을 삭제할까요?")) return;
-  const removed=await db.storage.from(PHOTO_BUCKET).remove([photo.path]);
+  const removed=await photoDb.storage.from(PHOTO_BUCKET).remove([photo.path]);
   if(removed.error) return toast("사진 삭제 오류");
   patrolSelectedServerPhotos=patrolSelectedServerPhotos.filter(x=>String(x)!==String(id));
   await saveStagedPhotos(stagedPhotos().filter(x=>String(x.id)!==String(id)));
@@ -825,7 +842,7 @@ async function cleanupUnusedServerPhotos(){
   const stale=all.filter(x=>(x.created_at||"").slice(0,10)<todayStr());
   if(!stale.length) return;
   const unused=stale.filter(x=>!x.linked);
-  if(unused.length) await db.storage.from(PHOTO_BUCKET).remove(unused.map(x=>x.path));
+  if(unused.length) await photoDb.storage.from(PHOTO_BUCKET).remove(unused.map(x=>x.path));
   await saveStagedPhotos(all.filter(x=>!stale.some(s=>s.id===x.id)));
 }
 async function cleanupPatrolRecordsIfNewDay(){
@@ -1013,12 +1030,17 @@ async function savePatrolRecord(){
   const oldRecord = editId
     ? all.find(x => String(x.id) === String(editId))
     : (eq ? findPatrolRecordForEquipment(date, eq) : all.find(x => x.date === date && x.vehicle_number === vehicleNo));
+  const targetRecordId=oldRecord?.id || Date.now();
   let images = oldRecord?.images || [];
-  if(serverPhotos.length) images=serverPhotos.map(x=>x.url);
+  if(serverPhotos.length){
+    toast("순회점검 사진을 저장 중...");
+    try{ images=await promotePhotosToPatrol(serverPhotos,date,targetRecordId); }
+    catch(e){ console.error(e); return toast(`순회점검 사진 저장 오류: ${String(e?.message||e).slice(0,100)}`); }
+  }
   const hasText = [val("patrol-worker-name"), val("patrol-place"), val("patrol-work")].some(Boolean);
   if(!oldRecord && !serverPhotos.length && !hasText) return toast("기사님 성함, 작업장소, 작업내용 또는 사진 중 하나 이상 입력하세요.");
   const record = {
-    id: oldRecord?.id || Date.now(),
+    id: targetRecordId,
     date,
     equipment_id: equipmentId ? Number(equipmentId) : (oldRecord?.equipment_id || 0),
     place: val("patrol-place"),
@@ -1036,7 +1058,8 @@ async function savePatrolRecord(){
   if(res.error){ console.error(res.error); return toast("순회점검 저장 오류: 사진 용량이 너무 클 수 있습니다."); }
   if(serverPhotos.length){
     const usedIds=new Set(serverPhotos.map(x=>x.id));
-    await saveStagedPhotos(stagedPhotos().map(x=>usedIds.has(x.id)?{...x,linked:true}:x));
+    await photoDb.storage.from(PHOTO_BUCKET).remove(serverPhotos.map(x=>x.path));
+    await saveStagedPhotos(stagedPhotos().filter(x=>!usedIds.has(x.id)));
   }
   patrolSelectedFiles = [];
   patrolSelectedServerPhotos = [];
