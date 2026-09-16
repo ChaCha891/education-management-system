@@ -27,7 +27,7 @@
     h2{font-size:18px;margin:0 0 12px}.small{font-size:13px;color:var(--muted)}.left{text-align:left}.mini{display:block;font-size:12px;color:var(--muted);margin-top:4px}.info{background:#e0f2fe;color:#075985}.danger-text{color:#dc2626}.warn-text{color:#b45309}.ok-text{color:#166534}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.form-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
     label{font-size:13px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}input:not([data-format]),textarea{ime-mode:active}textarea{min-height:95px;resize:vertical}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.business-filter-grid{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:12px;align-items:end;margin:10px 0 14px}.business-listbox{min-height:142px;font-weight:800}.business-manage{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
@@ -91,7 +91,7 @@
       .nav button{width:100%;text-align:left}
       #nav-dashboard,#nav-retention{display:none!important}
       .container{padding:12px}
-      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list{grid-template-columns:1fr}
+      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list,.business-filter-grid,.business-manage{grid-template-columns:1fr}
       button,.btn{width:100%}
       .menu-toggle{width:46px}
       th,td{font-size:13px;padding:8px}
@@ -193,6 +193,7 @@ let photoGalleryExpanded = false;
 let worklogCursorDate = todayStr();
 let worklogEditDates = new Set();
 let lastKnownToday = todayStr();
+let workerBusinessFilter = "";
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -722,12 +723,19 @@ function filterListRows(inputId, tbodyId){
   const tbody = document.getElementById(tbodyId);
   if(!input || !tbody) return;
   const q = normalizeSearchText(input.value);
+  const filterSelect = tbody.dataset.filterSelectId ? document.getElementById(tbody.dataset.filterSelectId) : null;
+  const filterValue = normalizeSearchText(filterSelect?.value || "");
   let visible = 0;
   tbody.querySelectorAll("tr[data-search]").forEach(row => {
     const text = normalizeSearchText(row.getAttribute("data-search"));
-    const show = !q || text.includes(q);
+    const rowFilterValue = normalizeSearchText(row.dataset.filterValue || "");
+    const show = (!q || text.includes(q)) && (!filterValue || rowFilterValue === filterValue);
     row.style.display = show ? "" : "none";
-    if(show) visible++;
+    if(show){
+      visible++;
+      const numberCell = row.querySelector("[data-row-no]");
+      if(numberCell) numberCell.textContent = visible;
+    }
   });
   const empty = tbody.querySelector("tr[data-empty-row]");
   if(empty) empty.style.display = visible === 0 ? "" : "none";
@@ -1532,18 +1540,65 @@ function dataListOptions(values) {
   return (values || []).map(x => `<option value="${escapeHtml(x)}"></option>`).join("");
 }
 
+function businessCategories(){
+  if(state.settings.business_categories !== undefined){
+    try {
+      const parsed = JSON.parse(state.settings.business_categories || "[]");
+      if(Array.isArray(parsed)) return [...new Set(parsed.map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
+    } catch(e) {}
+  }
+  return uniqueValues(state.workers, "company");
+}
+async function saveBusinessCategories(categories){
+  const cleaned = [...new Set((categories || []).map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
+  const res = await db.from("settings").upsert({key:"business_categories", value:JSON.stringify(cleaned)});
+  if(res.error){ console.error(res.error); toast("사업자 목록 저장 오류"); return false; }
+  state.settings.business_categories = JSON.stringify(cleaned);
+  return true;
+}
+async function addBusinessCategory(){
+  const name = val("business-name-new");
+  if(!name) return toast("추가할 사업자 이름을 입력하세요.");
+  const categories = businessCategories();
+  if(categories.some(x=>normalizeSearchText(x)===normalizeSearchText(name))) return toast("이미 등록된 사업자입니다.");
+  const ok = await saveBusinessCategories([...categories, name]);
+  if(!ok) return;
+  workerBusinessFilter = name;
+  await loadAll();
+  toast("사업자 추가 완료");
+}
+async function deleteSelectedBusinessCategory(){
+  const name = val("worker-business-filter");
+  if(!name) return toast("삭제할 사업자를 목록에서 선택하세요.");
+  if(!confirm(`${name} 사업자를 목록에서 삭제할까요?\n기사님 정보에 적힌 소속은 삭제되지 않습니다.`)) return;
+  const ok = await saveBusinessCategories(businessCategories().filter(x=>x!==name));
+  if(!ok) return;
+  workerBusinessFilter = "";
+  await loadAll();
+  toast("사업자 목록에서 삭제 완료");
+}
+function setWorkerBusinessFilter(value){
+  workerBusinessFilter = value || "";
+  filterListRows("worker-list-search", "worker-list-body");
+}
+
 function renderWorkers() {
   const mobile = isMobileView();
-  const companyOptions = dataListOptions(uniqueValues(state.workers, "company"));
+  const categories = businessCategories();
+  if(workerBusinessFilter && !categories.includes(workerBusinessFilter)) workerBusinessFilter = "";
+  const companyOptions = dataListOptions([...new Set([...categories, ...uniqueValues(state.workers, "company")])].sort((a,b)=>a.localeCompare(b,"ko")));
+  const businessOptions = categories.map(x=>`<option value="${escapeHtml(x)}" ${x===workerBusinessFilter?"selected":""}>${escapeHtml(x)}</option>`).join("");
   const noteOptions = dataListOptions(uniqueValues(state.workers, "note"));
   const actionCell = (w) => mobile
     ? `<button onclick="editWorker(${w.id})">수정</button>`
     : `<button onclick="editWorker(${w.id})">수정</button> <button class="red" onclick="deleteWorker(${w.id})">삭제</button>`;
-  const rows = state.workers.map((w, idx) => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
+  const rows = state.workers.map((w, idx) => `<tr data-search="${escapeHtml(`${w.name || ""} ${w.company || ""} ${w.phone || ""} ${w.note || ""}`)}" data-filter-value="${escapeHtml(w.company || "")}"><td data-row-no>${idx+1}</td><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.birth)}</td><td>${escapeHtml(w.phone)}</td><td>${escapeHtml(w.company)}</td><td>${escapeHtml(w.note)}</td><td>${actionCell(w)}</td></tr>`).join("") || `<tr><td colspan="7">등록된 기사님이 없습니다.</td></tr>`;
   const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
-    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+    <div class="card"><h2>사업자별 기사님 조회</h2><p class="small">사업자를 선택하면 기사님 정보의 소속이 정확히 일치하는 명단만 표시됩니다.</p><div class="business-filter-grid"><div><label>사업자 목록</label><select id="worker-business-filter" class="business-listbox" size="${Math.max(3,Math.min(6,categories.length+1))}" onchange="setWorkerBusinessFilter(this.value)"><option value="" ${workerBusinessFilter?"":"selected"}>전체 사업자</option>${businessOptions}</select></div><div class="business-manage"><div><label>사업자 이름 추가</label><input id="business-name-new" placeholder="사업자 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();addBusinessCategory();}"></div><button class="primary" onclick="addBusinessCategory()">추가</button><button class="red" onclick="deleteSelectedBusinessCategory()">선택 삭제</button></div></div></div>
+    <div class="card"><h2>기사님 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('worker-list-search','worker-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>이름</th><th>생년월일</th><th>연락처</th><th>소속</th><th>비고</th><th>관리</th></tr></thead><tbody id="worker-list-body" data-filter-select-id="worker-business-filter">${rows}<tr data-empty-row style="display:none"><td colspan="7">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
+  setTimeout(()=>filterListRows("worker-list-search", "worker-list-body"), 0);
 }
 async function saveWorker() {
   const id = document.getElementById("worker-id").value;
@@ -1614,7 +1669,7 @@ function groupedHistoryRows(showManage=true){
     }).join("");
     const hasHistory = (g.ids || []).length > 0;
     const manageButton = hasHistory ? `<button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button>` : `<span class="small">이력 없음</span>`;
-    return `<tr data-search="${escapeHtml(`${g.worker?.name || ""} ${g.worker?.company || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}${showManage ? `<td>${manageButton}</td>` : ``}</tr>`;
+    return `<tr data-search="${escapeHtml(`${g.worker?.name || ""} ${g.worker?.company || ""}`)}"><td data-row-no>${idx+1}</td><td>${escapeHtml(g.worker?.name||"")}</td><td>${escapeHtml(g.worker?.company||"")}</td>${eduCells}${showManage ? `<td>${manageButton}</td>` : ``}</tr>`;
   }).join("");
 }
 
@@ -1821,7 +1876,7 @@ function renderEquipment(){
   const actionCell = (e) => mobile
     ? `<button onclick="editEquipment(${e.id})">수정</button>`
     : `<button onclick="editEquipment(${e.id})">수정</button> <button class="red" onclick="deleteEquipment(${e.id})">삭제</button>`;
-  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
+  const rows=state.equipment.map((e, idx)=>`<tr data-search="${escapeHtml(`${e.vehicle_type || ""} ${e.work_type || ""} ${e.vehicle_number || ""} ${e.note || ""}`)}"><td data-row-no>${idx+1}</td><td>${escapeHtml(e.vehicle_type)}</td><td>${escapeHtml(e.work_type)}</td><td>${escapeHtml(e.vehicle_number)}</td><td>${escapeHtml(e.note)}</td><td>${actionCell(e)}</td></tr>`).join("")||`<tr><td colspan="6">등록된 장비가 없습니다.</td></tr>`;
   const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="equipment-form-card"><h2>장비 등록/수정</h2><input type="hidden" id="eq-id"><div class="form-row"><div><label>차종</label><input id="eq-type" list="eq-type-list"><datalist id="eq-type-list">${typeOptions}</datalist></div><div><label>작업종류</label><input id="eq-work" list="eq-work-list"><datalist id="eq-work-list">${workOptions}</datalist></div><div><label>차넘버</label><input id="eq-number" list="eq-number-list"><datalist id="eq-number-list">${numberOptions}</datalist></div><div><label>비고</label><input id="eq-note" list="eq-note-list"><datalist id="eq-note-list">${noteOptions}</datalist></div></div><p class="small">No.는 입력하지 않아도 장비 목록에서 자동으로 순번이 표시됩니다. 한 번 입력한 차종/작업종류/차넘버/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveEquipment()">저장</button><button onclick="clearEqForm()">초기화</button>${mobile ? `<button onclick="hideEquipmentForm()">닫기</button>` : ``}</div></div>`;
   document.getElementById("page-equipment").innerHTML=`${formCard}<div class="card"><h2>장비 목록</h2><div class="list-search"><label>장비 검색</label><input id="equipment-list-search" placeholder="차종, 작업종류, 차넘버 입력" autocomplete="off" oninput="filterListRows('equipment-list-search','equipment-list-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>차종</th><th>작업종류</th><th>차넘버</th><th>비고</th><th>관리</th></tr></thead><tbody id="equipment-list-body">${rows}<tr data-empty-row style="display:none"><td colspan="6">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
