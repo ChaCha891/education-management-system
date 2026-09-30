@@ -27,7 +27,7 @@
     h2{font-size:18px;margin:0 0 12px}.small{font-size:13px;color:var(--muted)}.left{text-align:left}.mini{display:block;font-size:12px;color:var(--muted);margin-top:4px}.info{background:#e0f2fe;color:#075985}.danger-text{color:#dc2626}.warn-text{color:#b45309}.ok-text{color:#166534}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.form-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
     label{font-size:13px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}input:not([data-format]),textarea{ime-mode:active}textarea{min-height:95px;resize:vertical}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.business-filter-grid{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:12px;align-items:end;margin:10px 0 14px}.business-listbox{min-height:142px;font-weight:800}.business-manage{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}.worker-master-detail{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.worker-name-list{display:grid;gap:7px;max-height:620px;overflow:auto}.worker-name-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff}.worker-name-btn.active{background:#dbeafe;color:#1e3a8a}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.identity-preview{height:100px;border:1px dashed var(--line);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}.identity-preview img{max-width:100%;max-height:100%;object-fit:contain}.assignment-list{display:grid;gap:8px}.assignment-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.assignment-worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:260px;overflow:auto}.assignment-worker-check{display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}.assignment-worker-check input{width:auto}.memo-layout{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.memo-list{display:grid;gap:7px;max-height:520px;overflow:auto}.memo-list button{text-align:left;border:1px solid var(--line);background:#fff}.memo-list button.active{background:#dbeafe;color:#1e3a8a}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.business-filter-grid{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:12px;align-items:end;margin:10px 0 14px}.business-listbox{min-height:142px;font-weight:800}.business-manage{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}.worker-master-detail{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.worker-name-list{display:grid;gap:7px;max-height:620px;overflow:auto}.worker-name-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff}.worker-name-btn.active{background:#dbeafe;color:#1e3a8a}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.assignment-list{display:grid;gap:8px}.assignment-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.assignment-worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:260px;overflow:auto}.assignment-worker-check{display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}.assignment-worker-check input{width:auto}.memo-layout{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.memo-list{display:grid;gap:7px;max-height:520px;overflow:auto}.memo-list button{text-align:left;border:1px solid var(--line);background:#fff}.memo-list button.active{background:#dbeafe;color:#1e3a8a}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
@@ -1569,34 +1569,39 @@ function workerAssignments(workerId){
   return educationAssignments().filter(a=>(a.worker_ids||[]).map(Number).includes(Number(workerId)));
 }
 function assignmentCompletion(a, workerId){ return a?.completions?.[String(workerId)] || null; }
-function workerSignatureReady(workerId, assignment){
-  const p=workerProfile(workerId);
-  return !!(p.name_image_url && p.signature_image_url && p.signature_consent && assignmentCompletion(assignment,workerId)?.completed);
+let workerDetailSaving = false;
+function toggleWorkerWorkplace(){
+  const monthly=val("worker-employment-type")==="월대";
+  document.getElementById("worker-workplace-field")?.classList.toggle("hidden",!monthly);
+  const input=document.getElementById("worker-workplace");
+  if(input) input.disabled=!monthly;
 }
 async function saveWorkerProfile(workerId){
+  if(workerDetailSaving) return;
+  const worker=state.workers.find(w=>Number(w.id)===Number(workerId));
+  if(!worker) return toast("기사님 정보를 찾을 수 없습니다.");
+  const birth=dateVal("worker-detail-birth"), phone=phoneVal("worker-detail-phone");
+  const hireDate=dateVal("worker-hire-date");
+  if(birth && !isValidDateText(birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
+  if(hireDate && !isValidDateText(hireDate)) return toast("입사일자는 YYYY-MM-DD 형식으로 입력하세요.");
+  const employmentType=val("worker-employment-type");
   const profiles=workerProfiles();
-  const old=profiles[String(workerId)] || {};
-  const consent=document.getElementById("worker-signature-consent")?.checked || false;
-  profiles[String(workerId)]={...old,equipment_type:val("worker-equipment-type"),signature_consent:consent,consent_date:consent?(dateVal("worker-consent-date")||todayStr()):"",updated_at:new Date().toISOString()};
-  if(!(await saveJsonSetting("worker_profiles",profiles,"기사님 서명정보"))) return;
-  renderWorkers(); toast("기사님 분류·동의정보 저장 완료");
-}
-async function uploadWorkerIdentityImage(workerId, kind, fileList){
-  const file=Array.from(fileList||[]).find(f=>f?.type?.startsWith("image/"));
-  if(!file) return toast("이미지 파일을 선택하세요.");
-  toast(kind==="name"?"자필 성명 이미지를 저장하는 중...":"서명 이미지를 저장하는 중...");
+  profiles[String(workerId)]={...(profiles[String(workerId)]||{}),hire_date:hireDate,equipment_type:val("worker-equipment-type"),employment_type:employmentType,workplace:employmentType==="월대"?val("worker-workplace"):"",updated_at:new Date().toISOString()};
+  workerDetailSaving=true;
+  const button=document.getElementById("worker-detail-save");
+  if(button){ button.disabled=true; button.textContent="저장 중..."; }
   try{
-    const blob=await readImageAsBlob(file,1400,0.9);
-    const path=`worker-signatures/${workerId}/${kind}.jpg`;
-    const uploaded=await photoDb.storage.from("permanent-photos").upload(path,blob,{contentType:"image/jpeg",upsert:true});
-    if(uploaded.error) throw uploaded.error;
-    const url=photoDb.storage.from("permanent-photos").getPublicUrl(path).data.publicUrl+`?v=${Date.now()}`;
-    const profiles=workerProfiles();
-    const old=profiles[String(workerId)]||{};
-    profiles[String(workerId)]={...old,[kind==="name"?"name_image_url":"signature_image_url"]:url,updated_at:new Date().toISOString()};
-    if(!(await saveJsonSetting("worker_profiles",profiles,"기사님 서명정보"))) return;
-    renderWorkers(); toast("이미지 저장 완료");
-  }catch(e){ console.error(e); toast(`이미지 저장 오류: ${String(e?.message||e).slice(0,100)}`); }
+    const res=await db.from("workers").update({birth,phone}).eq("id",workerId);
+    if(res.error) return toast("생년월일·휴대전화번호 저장 오류. 다시 저장하세요.");
+    worker.birth=birth; worker.phone=phone;
+    if(!(await saveJsonSetting("worker_profiles",profiles,"입사일·장비·근무정보"))){
+      toast("생년월일·전화번호만 저장되었습니다. 나머지 정보는 다시 저장하세요.");
+      return;
+    }
+    clearDraftForPage("workers");
+    makeDue(); renderWorkers(); toast("기사님 상세정보 저장 완료");
+  }catch(e){ console.error(e); toast("저장 중 오류가 발생했습니다. 입력 내용을 확인하고 다시 저장하세요."); }
+  finally{ workerDetailSaving=false; if(button){button.disabled=false;button.textContent="상세정보 저장";} }
 }
 function openWorkerDetail(workerId){ activeWorkerDetailId=Number(workerId); renderWorkers(); }
 function filterWorkerNameList(){
@@ -1650,24 +1655,44 @@ async function deleteSelectedBusinessCategory(){
 }
 function setWorkerBusinessFilter(value){
   workerBusinessFilter = value || "";
-  filterWorkerNameList();
+  activeWorkerDetailId=null;
+  renderWorkers();
 }
 
 function renderWorkerDetail(worker){
-  if(!worker) return `<div class="card"><h2>기사님 상세정보</h2><p class="small">왼쪽 목록에서 기사님 이름을 선택하세요.</p></div>`;
+  if(!worker) return `<div class="card"><h2>기사님 상세정보</h2><p class="small">목록에서 기사님 이름을 선택하세요.</p></div>`;
   const p=workerProfile(worker.id);
-  const assignments=workerAssignments(worker.id).sort((a,b)=>String(b.education_date||"").localeCompare(String(a.education_date||"")));
-  const assignmentRows=assignments.map(a=>{
-    const done=assignmentCompletion(a,worker.id);
-    const ready=workerSignatureReady(worker.id,a);
-    return `<div class="assignment-item"><b>${escapeHtml(a.education_name||"")}</b><span class="mini">교육일자 ${escapeHtml(a.education_date||"-")} · 배정방식 ${escapeHtml(a.target_mode||"개별")}</span><div class="actions">${done?.completed?`<span class="badge ok">이수 확인 ${escapeHtml(done.completed_at||"")}</span><span class="badge ${ready?"ok":"soon"}">${ready?"성명·서명 사용 가능":"서명 사용 조건 미완료"}</span>`:`<button class="primary" onclick="completeAssignedEducation('${jsString(a.id)}',${worker.id})">실제 이수 확인</button>`}</div></div>`;
-  }).join("")||`<p class="small">배정된 교육이 없습니다. 교육현황에서 대상자를 선택해 배정하세요.</p>`;
-  return `<div class="card"><div class="detail-top"><div><h2>${escapeHtml(worker.name)} 기사님</h2><p class="small">${escapeHtml(worker.company||"소속 없음")} · ${escapeHtml(worker.phone||"연락처 없음")}</p></div><div class="actions"><button onclick="editWorker(${worker.id})">기본정보 수정</button><button class="red" onclick="deleteWorker(${worker.id})">삭제</button></div></div>
-    <div class="identity-grid"><div><label>장비 구분</label><select id="worker-equipment-type"><option value="">미지정</option><option value="굴착기" ${p.equipment_type==="굴착기"?"selected":""}>굴착기</option><option value="로더" ${p.equipment_type==="로더"?"selected":""}>로더</option><option value="기타" ${p.equipment_type==="기타"?"selected":""}>기타</option></select></div><div><label>서명 사용 동의일</label><input id="worker-consent-date" data-format="date" value="${escapeHtml(p.consent_date||todayStr())}"></div></div>
-    <label style="margin-top:10px"><input id="worker-signature-consent" type="checkbox" style="width:auto" ${p.signature_consent?"checked":""}> 교육 이수 확인 후 등록된 성명·서명을 교육 양식에 사용하는 것에 동의함</label>
-    <div class="actions"><button class="primary" onclick="saveWorkerProfile(${worker.id})">분류·동의정보 저장</button></div>
-    <div class="identity-grid" style="margin-top:12px"><div><label>자필 성명 이미지</label><div class="identity-preview">${p.name_image_url?`<img src="${escapeHtml(p.name_image_url)}" alt="자필 성명">`:`<span class="small">미등록</span>`}</div><input type="file" accept="image/*" onchange="uploadWorkerIdentityImage(${worker.id},'name',this.files);this.value=''" style="margin-top:7px"></div><div><label>서명 이미지</label><div class="identity-preview">${p.signature_image_url?`<img src="${escapeHtml(p.signature_image_url)}" alt="서명">`:`<span class="small">미등록</span>`}</div><input type="file" accept="image/*" onchange="uploadWorkerIdentityImage(${worker.id},'signature',this.files);this.value=''" style="margin-top:7px"></div></div>
-    <h2 style="margin-top:18px">배정 교육·이수현황</h2><div class="assignment-list">${assignmentRows}</div></div>`;
+  const history=state.history.filter(h=>Number(h.worker_id)===Number(worker.id)).sort((a,b)=>String(b.education_date||"").localeCompare(String(a.education_date||"")));
+  const names=[...new Set([...educationTypeNames(),...history.map(h=>h.education_name).filter(Boolean)])];
+  const statusRows=names.map(name=>{
+    const last=latestHistoryDate(worker.id,name), rule=getEducationRule(name);
+    let status=last?"이수":"미이수", cls=last?"ok":"soon", next="";
+    if(isMonthlyRegularEducation(name)){
+      const done=monthlyRegularDoneRecord(worker.id);
+      status=done?"당월 이수":"당월 미이수"; cls=done?"ok":"soon"; next=`${currentMonthKey()} 기준`;
+    }else if(last && rule){
+      const sch=calcSchedule(last,Number(rule.cycle_days));
+      status=sch.remain===null?"이수":`${sch.status} · ${sch.dday}`; cls=sch.cls;
+      next=sch.remain===null?"":`다음 교육 ${sch.nextText}`;
+    }
+    return `<div class="assignment-item"><b>${escapeHtml(name)}</b><span class="mini">최근 이수일 ${escapeHtml(last||"-")}${next?` · ${escapeHtml(next)}`:""}</span><span class="badge ${cls}">${escapeHtml(status)}</span></div>`;
+  }).join("")||`<p class="small">등록된 교육이 없습니다.</p>`;
+  const pendingRows=workerAssignments(worker.id).filter(a=>!assignmentCompletion(a,worker.id)?.completed).sort((a,b)=>String(b.education_date||"").localeCompare(String(a.education_date||""))).map(a=>`<div class="assignment-item"><b>${escapeHtml(a.education_name||"")}</b><span class="mini">예정 교육일 ${escapeHtml(a.education_date||"-")}</span><div class="actions"><button class="primary" onclick="completeAssignedEducation('${jsString(a.id)}',${worker.id})">실제 이수 확인</button></div></div>`).join("");
+  const historyRows=history.map(h=>`<div class="assignment-item"><b>${escapeHtml(h.education_name||"")}</b><span class="mini">이수일 ${escapeHtml(h.education_date||"-")}</span></div>`).join("")||`<p class="small">저장된 이수 이력이 없습니다.</p>`;
+  const equipmentOptions=[...new Set(["굴착기","로더","기타",p.equipment_type].filter(Boolean))].map(type=>`<option value="${escapeHtml(type)}" ${p.equipment_type===type?"selected":""}>${escapeHtml(type)}</option>`).join("");
+  return `<div class="card"><h2>${escapeHtml(worker.name)} 기사님</h2>
+    <div class="identity-grid">
+      <div><label for="worker-detail-birth">생년월일</label><input id="worker-detail-birth" data-no-draft="1" data-format="date" inputmode="numeric" placeholder="예: 19900101" value="${escapeHtml(worker.birth||"")}"></div>
+      <div><label for="worker-detail-phone">휴대전화번호</label><input id="worker-detail-phone" data-no-draft="1" data-format="phone" inputmode="tel" placeholder="예: 01012345678" value="${escapeHtml(worker.phone||"")}"></div>
+      <div><label for="worker-hire-date">입사일자</label><input id="worker-hire-date" data-no-draft="1" data-format="date" inputmode="numeric" placeholder="예: 20260901" value="${escapeHtml(p.hire_date||worker.hire_date||"")}"></div>
+      <div><label for="worker-equipment-type">장비 구분</label><select id="worker-equipment-type" data-no-draft="1"><option value="">미지정</option>${equipmentOptions}</select></div>
+      <div><label for="worker-employment-type">근무 구분</label><select id="worker-employment-type" data-no-draft="1" onchange="toggleWorkerWorkplace()"><option value="">미지정</option><option value="일대" ${p.employment_type==="일대"?"selected":""}>일대</option><option value="월대" ${p.employment_type==="월대"?"selected":""}>월대</option></select></div>
+      <div id="worker-workplace-field" class="${p.employment_type==="월대"?"":"hidden"}"><label for="worker-workplace">현재 작업장 (월대)</label><input id="worker-workplace" data-no-draft="1" placeholder="예: 1공장 저광사 / 2공장 SLAG 야적장" value="${escapeHtml(p.workplace||"")}" ${p.employment_type==="월대"?"":"disabled"}></div>
+    </div>
+    <div class="actions"><button id="worker-detail-save" class="primary" onclick="saveWorkerProfile(${worker.id})">상세정보 저장</button></div>
+    <h2 style="margin-top:18px">교육 이수 현황</h2><div class="assignment-list">${statusRows}</div>
+    ${pendingRows?`<h2 style="margin-top:18px">이수 확인 대기</h2><div class="assignment-list">${pendingRows}</div>`:""}
+    <details style="margin-top:18px"><summary style="cursor:pointer;font-weight:800">전체 이수 이력 (${history.length}건)</summary><div class="assignment-list" style="margin-top:10px">${historyRows}</div></details></div>`;
 }
 
 function renderWorkers() {
@@ -1677,16 +1702,19 @@ function renderWorkers() {
   const companyOptions = dataListOptions([...new Set([...categories, ...uniqueValues(state.workers, "company")])].sort((a,b)=>a.localeCompare(b,"ko")));
   const businessOptions = categories.map(x=>`<option value="${escapeHtml(x)}" ${x===workerBusinessFilter?"selected":""}>${escapeHtml(x)}</option>`).join("");
   const noteOptions = dataListOptions(uniqueValues(state.workers, "note"));
-  if(activeWorkerDetailId && !state.workers.some(w=>Number(w.id)===Number(activeWorkerDetailId))) activeWorkerDetailId=null;
-  if(!activeWorkerDetailId && state.workers.length) activeWorkerDetailId=Number(state.workers[0].id);
+  const searchValue=val("worker-list-search");
+  const visibleWorkers=state.workers.filter(w=>!workerBusinessFilter||normalizeSearchText(w.company)===normalizeSearchText(workerBusinessFilter));
+  if(activeWorkerDetailId && !visibleWorkers.some(w=>Number(w.id)===Number(activeWorkerDetailId))) activeWorkerDetailId=null;
+  if(!activeWorkerDetailId && visibleWorkers.length) activeWorkerDetailId=Number(visibleWorkers[0].id);
   const activeWorker=state.workers.find(w=>Number(w.id)===Number(activeWorkerDetailId));
   const nameButtons=state.workers.map((w,idx)=>`<button class="worker-name-btn ${Number(w.id)===Number(activeWorkerDetailId)?"active":""}" data-search="${escapeHtml(`${w.name||""} ${w.company||""} ${w.phone||""} ${w.note||""}`)}" data-company="${escapeHtml(w.company||"")}" onclick="openWorkerDetail(${w.id})"><b><span data-worker-no>${idx+1}.</span> ${escapeHtml(w.name)}</b><span class="mini">${escapeHtml(w.company||"소속 없음")}</span></button>`).join("");
-  const formCard = `<div class="card ${mobile ? 'hidden' : ''}" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button>${mobile ? `<button onclick="hideWorkerForm()">닫기</button>` : ``}</div></div>`;
+  const formCard = `<div class="card hidden" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button><button onclick="hideWorkerForm()">닫기</button></div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
     <div class="card"><h2>사업자별 기사님 조회</h2><p class="small">사업자를 선택하면 기사님 정보의 소속이 정확히 일치하는 명단만 표시됩니다.</p><div class="business-filter-grid"><div><label>사업자 목록</label><select id="worker-business-filter" class="business-listbox" size="${Math.max(3,Math.min(6,categories.length+1))}" onchange="setWorkerBusinessFilter(this.value)"><option value="" ${workerBusinessFilter?"":"selected"}>전체 사업자</option>${businessOptions}</select></div><div class="business-manage"><div><label>사업자 이름 추가</label><input id="business-name-new" placeholder="사업자 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();addBusinessCategory();}"></div><button class="primary" onclick="addBusinessCategory()">추가</button><button class="red" onclick="deleteSelectedBusinessCategory()">선택 삭제</button></div></div></div>
-    <div class="worker-master-detail"><div class="card"><h2>기사님 이름 목록</h2><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" placeholder="성함 또는 소속 입력" autocomplete="off" oninput="filterWorkerNameList()"></div><div class="worker-name-list" id="worker-name-list">${nameButtons}</div><p class="small" id="worker-list-empty" style="display:none">검색 결과가 없습니다.</p></div>${renderWorkerDetail(activeWorker)}</div>`;
-  setTimeout(filterWorkerNameList,0);
+    <div class="worker-master-detail"><div class="card"><h2>기사님 이름 목록</h2><div class="actions"><button class="primary" onclick="showWorkerRegistration()">기사님 등록</button><button onclick="chooseWorkerToEdit()">기본정보 수정</button><button class="red" onclick="deleteSelectedWorker()">삭제</button></div><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" value="${escapeHtml(searchValue)}" data-no-draft="1" placeholder="성함 또는 소속 입력" autocomplete="off" oninput="filterWorkerNameList()"></div><div class="worker-name-list" id="worker-name-list">${nameButtons}</div><p class="small" id="worker-list-empty" style="display:none">검색 결과가 없습니다.</p></div>${renderWorkerDetail(activeWorker)}</div>`;
+  filterWorkerNameList();
+  bindAutoFormatInputs();
 }
 async function saveWorker() {
   const id = document.getElementById("worker-id").value;
@@ -1697,6 +1725,9 @@ async function saveWorker() {
   if (res.error) return toast("저장 오류");
   clearDraftForPage("workers"); clearWorkerForm(); await loadAll(); toast("저장 완료");
 }
+function showWorkerRegistration(){ clearWorkerForm(); document.getElementById("worker-form-card")?.classList.remove("hidden"); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth",block:"start"}); }
+function chooseWorkerToEdit(){ if(activeWorkerDetailId) editWorker(activeWorkerDetailId); else toast("기사님을 선택하세요."); }
+function deleteSelectedWorker(){ if(activeWorkerDetailId) deleteWorker(activeWorkerDetailId); else toast("기사님을 선택하세요."); }
 function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
 function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
 function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
@@ -1848,7 +1879,7 @@ function renderHistory(){
   const inputCard = mobile ? `` : `<div class="card"><h2>교육현황 입력</h2><div class="form-row"><div><label>기사님</label><select id="hist-worker">${workerOptions("", true)}</select></div><div><label>교육내용</label><input id="hist-name" list="hist-list"><datalist id="hist-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="hist-date" data-format="date" value="${todayStr()}" placeholder="숫자만 입력 예: 20260512"></div><div><label>비고</label><input id="hist-note"></div></div><div class="actions"><button class="primary" onclick="saveHistory()">교육 이력 저장</button></div></div>`;
   document.getElementById("page-history").innerHTML=`<div class="card"><h2>교육 대상자 배정</h2><div class="form-row"><div><label>교육명</label><input id="assignment-education" list="assignment-edu-list"><datalist id="assignment-edu-list">${eduOptions()}</datalist></div><div><label>교육일자</label><input id="assignment-date" data-format="date" value="${todayStr()}"></div><div style="grid-column:span 2"><label>비고</label><input id="assignment-note"></div></div><div class="actions"><button data-target-mode="전체" onclick="selectAssignmentTargets('전체')">전체 선택</button><button data-target-mode="굴착기" onclick="selectAssignmentTargets('굴착기')">굴착기</button><button data-target-mode="로더" onclick="selectAssignmentTargets('로더')">로더</button><button data-target-mode="개별" onclick="selectAssignmentTargets('개별')">선택 해제 후 개별 선택</button></div><div class="assignment-worker-checks" id="assignment-worker-checks" style="margin-top:10px">${workerChecks}</div><div class="actions"><button class="primary" onclick="saveEducationAssignment()">선택 대상에게 교육 배정</button></div></div>
   <div class="card"><h2>교육 배정 목록</h2><div class="assignment-list">${assignmentRows}</div></div>
-  <div class="card"><h2>교육 양식 템플릿</h2><p class="small">엑셀·PDF·문서 양식을 먼저 등록합니다. 실제 성명·서명 삽입 위치는 해당 양식의 셀/영역을 확인한 뒤 연결합니다.</p><div class="form-row"><div><label>양식 이름</label><input id="template-title" placeholder="예: 정기안전보건교육 일지"></div><div style="grid-column:span 2"><label>양식 파일</label><input id="template-file" type="file" accept=".xlsx,.xls,.pdf,.docx,.hwp,.hwpx"></div><div><label>&nbsp;</label><button class="primary" onclick="uploadEducationTemplate(document.getElementById('template-file').files)">양식 등록</button></div></div><div class="assignment-list">${templateRows}</div></div>
+  <div class="card"><h2>교육 양식 템플릿</h2><p class="small">엑셀·PDF·문서 양식을 먼저 등록합니다. 등록된 양식 파일을 열어 교육 서류 작성에 사용할 수 있습니다.</p><div class="form-row"><div><label>양식 이름</label><input id="template-title" placeholder="예: 정기안전보건교육 일지"></div><div style="grid-column:span 2"><label>양식 파일</label><input id="template-file" type="file" accept=".xlsx,.xls,.pdf,.docx,.hwp,.hwpx"></div><div><label>&nbsp;</label><button class="primary" onclick="uploadEducationTemplate(document.getElementById('template-file').files)">양식 등록</button></div></div><div class="assignment-list">${templateRows}</div></div>
   ${inputCard}<div class="card"><h2>기사님별 교육카드</h2><p class="small">설정의 교육기준 목록에 등록된 교육을 기준으로 열이 자동 생성됩니다. 기사님별 이수 이력이 없으면 빈칸(-)으로 표시되고, 이력이 있으면 최신 이수일과 현재 D-Day 상태를 함께 표시합니다.</p><div class="list-search"><label>기사님 검색</label><input id="history-card-search" placeholder="기사님 성함 또는 소속 입력" autocomplete="off" oninput="filterListRows('history-card-search','history-card-body')"></div><div class="table-wrap"><table><thead><tr><th>No.</th><th>기사님</th><th>소속</th>${eduHeads}${mobile ? `` : `<th>관리</th>`}</tr></thead><tbody id="history-card-body">${rows}<tr data-empty-row style="display:none"><td colspan="${educationTypeNames().length + (mobile ? 3 : 4)}">검색 결과가 없습니다.</td></tr></tbody></table></div></div>`;
 }
 
@@ -2354,14 +2385,14 @@ function draftEnabledPage(page=currentPage){ return !["mobile","dashboard"].incl
 function saveDraftForPage(page=currentPage){
   if(!draftEnabledPage(page)) return;
   document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
-    if(!el.id) return;
+    if(!el.id || el.dataset.noDraft==="1") return;
     localStorage.setItem(draftPrefix(page)+el.id, el.value ?? "");
   });
 }
 function restoreDraftForPage(page=currentPage){
   if(!draftEnabledPage(page)) return;
   document.querySelectorAll(`#page-${page} input, #page-${page} select, #page-${page} textarea`).forEach(el=>{
-    if(!el.id) return;
+    if(!el.id || el.dataset.noDraft==="1") return;
     const key=draftPrefix(page)+el.id;
     const saved=localStorage.getItem(key);
     if(saved!==null && saved!=="") el.value=saved;
@@ -2375,7 +2406,7 @@ function bindDraftInputs(){
   if(!draftEnabledPage(currentPage)) return;
   restoreDraftForPage(currentPage);
   document.querySelectorAll(`#page-${currentPage} input, #page-${currentPage} select, #page-${currentPage} textarea`).forEach(el=>{
-    if(!el.id || el.dataset.draftBound==="1") return;
+    if(!el.id || el.dataset.noDraft==="1" || el.dataset.draftBound==="1") return;
     el.dataset.draftBound="1";
     el.addEventListener("input",()=>saveDraftForPage(currentPage));
     el.addEventListener("change",()=>saveDraftForPage(currentPage));
