@@ -1604,6 +1604,16 @@ async function saveWorkerProfile(workerId){
   finally{ workerDetailSaving=false; if(button){button.disabled=false;button.textContent="상세정보 저장";} }
 }
 function openWorkerDetail(workerId){ activeWorkerDetailId=Number(workerId); renderWorkers(); }
+function workerSearchText(worker){
+  const p=workerProfile(worker.id);
+  const history=state.history.filter(h=>Number(h.worker_id)===Number(worker.id));
+  const assignments=workerAssignments(worker.id);
+  return [worker.name,worker.company,worker.phone,worker.birth,worker.note,
+    p.hire_date ?? worker.hire_date,p.equipment_type,p.employment_type,p.workplace,
+    ...history.flatMap(h=>[h.education_name,h.education_date]),
+    ...assignments.flatMap(a=>[a.education_name,a.education_date])
+  ].filter(Boolean).join(" ");
+}
 function filterWorkerNameList(){
   const q=normalizeSearchText(val("worker-list-search"));
   const business=normalizeSearchText(val("worker-business-filter"));
@@ -1707,12 +1717,12 @@ function renderWorkers() {
   if(activeWorkerDetailId && !visibleWorkers.some(w=>Number(w.id)===Number(activeWorkerDetailId))) activeWorkerDetailId=null;
   if(!activeWorkerDetailId && visibleWorkers.length) activeWorkerDetailId=Number(visibleWorkers[0].id);
   const activeWorker=state.workers.find(w=>Number(w.id)===Number(activeWorkerDetailId));
-  const nameButtons=state.workers.map((w,idx)=>`<button class="worker-name-btn ${Number(w.id)===Number(activeWorkerDetailId)?"active":""}" data-search="${escapeHtml(`${w.name||""} ${w.company||""} ${w.phone||""} ${w.note||""} ${workerProfile(w.id).equipment_type||""}`)}" data-company="${escapeHtml(w.company||"")}" onclick="openWorkerDetail(${w.id})"><b><span data-worker-no>${idx+1}.</span> ${escapeHtml(w.name)}</b><span class="mini">${escapeHtml(w.company||"소속 없음")}</span></button>`).join("");
+  const nameButtons=state.workers.map((w,idx)=>`<button class="worker-name-btn ${Number(w.id)===Number(activeWorkerDetailId)?"active":""}" data-search="${escapeHtml(workerSearchText(w))}" data-company="${escapeHtml(w.company||"")}" onclick="openWorkerDetail(${w.id})"><b><span data-worker-no>${idx+1}.</span> ${escapeHtml(w.name)}</b><span class="mini">${escapeHtml(w.company||"소속 없음")}</span></button>`).join("");
   const formCard = `<div class="card hidden" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button><button onclick="hideWorkerForm()">닫기</button></div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
     <div class="card"><h2>사업자별 기사님 조회</h2><p class="small">사업자를 선택하면 기사님 정보의 소속이 정확히 일치하는 명단만 표시됩니다.</p><div class="business-filter-grid"><div><label>사업자 목록</label><select id="worker-business-filter" class="business-listbox" size="${Math.max(3,Math.min(6,categories.length+1))}" onchange="setWorkerBusinessFilter(this.value)"><option value="" ${workerBusinessFilter?"":"selected"}>전체 사업자</option>${businessOptions}</select></div><div class="business-manage"><div><label>사업자 이름 추가</label><input id="business-name-new" placeholder="사업자 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();addBusinessCategory();}"></div><button class="primary" onclick="addBusinessCategory()">추가</button><button class="red" onclick="deleteSelectedBusinessCategory()">선택 삭제</button></div></div></div>
-    <div class="worker-master-detail"><div class="card"><h2>기사님 이름 목록</h2><div class="actions"><button class="primary" onclick="showWorkerRegistration()">기사님 등록</button><button onclick="chooseWorkerToEdit()">기본정보 수정</button><button class="red" onclick="deleteSelectedWorker()">삭제</button></div><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" value="${escapeHtml(searchValue)}" data-no-draft="1" placeholder="성함, 소속 또는 장비 입력 (굴착기·로더)" autocomplete="off" oninput="filterWorkerNameList()"></div><div class="worker-name-list" id="worker-name-list">${nameButtons}</div><p class="small" id="worker-list-empty" style="display:none">검색 결과가 없습니다.</p></div>${renderWorkerDetail(activeWorker)}</div>`;
+    <div class="worker-master-detail"><div class="card"><h2>기사님 이름 목록</h2><div class="actions"><button class="primary" onclick="showWorkerRegistration()">기사님 등록</button><button onclick="chooseWorkerToEdit()">기본정보 수정</button><button class="red" onclick="deleteSelectedWorker()">삭제</button></div><div class="list-search"><label>기사님 검색</label><input id="worker-list-search" value="${escapeHtml(searchValue)}" data-no-draft="1" placeholder="이름, 일대·월대, 장비, 작업장 등 검색" autocomplete="off" oninput="filterWorkerNameList()"></div><div class="worker-name-list" id="worker-name-list">${nameButtons}</div><p class="small" id="worker-list-empty" style="display:none">검색 결과가 없습니다.</p></div>${renderWorkerDetail(activeWorker)}</div>`;
   filterWorkerNameList();
   bindAutoFormatInputs();
 }
