@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>교육관리 시스템</title>
+  <title>ISHM 현장관리 시스템</title>
   <link rel="icon" href="favicon.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#facc15">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="교육관리">
+  <meta name="apple-mobile-web-app-title" content="ISHM">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -101,11 +101,17 @@
       .worklog-day-card{min-height:auto}
       .worklog-mobile-date{display:block}
     }
+    .calendar-day-shifts{display:grid;gap:4px;margin-top:8px;padding-top:6px;border-top:1px solid var(--line)}
+    .calendar-day-shift{display:flex;align-items:flex-start;gap:4px;font-size:11px;line-height:1.4}
+    .calendar-day-shift-label{flex:0 0 auto;font-weight:900;padding-top:3px}
+    .calendar-day-shift-names{display:flex;flex-wrap:wrap;gap:3px;min-width:0}
+    .calendar-day-shift-name{padding:3px 5px;border-radius:6px;font-weight:800;overflow-wrap:anywhere}
+    @media(max-width:760px){.calendar-day-shifts{display:none}}
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>교육관리 시스템</h1>
+    <h1>ISHM 현장관리 시스템</h1>
     <button class="camera-shortcut" type="button" onclick="openSystemCamera()" aria-label="현장 사진 촬영" title="현장 사진 촬영">📷</button>
     <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu()" aria-label="메뉴 열기">☰</button>
     <div class="nav" id="main-nav" onclick="event.stopPropagation()">
@@ -1295,6 +1301,16 @@ function shiftSummaryHtml(dateText){
     <div class="shift-summary-row" style="margin-top:5px"><span class="shift-summary-label">야간</span>${nightNames.length ? nightNames.map(n=>`<span class="shift-name shift-night">${escapeHtml(n)}</span>`).join("") : `<span class="small">배정 없음</span>`}</div>
   </div>`;
 }
+function calendarDayShiftsHtml(dateText){
+  const shifts=shiftsByDate(dateText);
+  const rows=["주간","야간"].map(type=>{
+    const names=[...new Set(shifts.filter(s=>(s.shift_type||"주간")===type).map(s=>workerNameById(s.worker_id)).filter(Boolean))];
+    if(!names.length) return "";
+    const cls=type==="야간"?"shift-night":"shift-day";
+    return `<div class="calendar-day-shift"><span class="calendar-day-shift-label">${type}</span><div class="calendar-day-shift-names">${names.map(name=>`<span class="calendar-day-shift-name ${cls}">${escapeHtml(name)}</span>`).join("")}</div></div>`;
+  }).join("");
+  return rows?`<div class="calendar-day-shifts">${rows}</div>`:"";
+}
 function renderCalendar(){
   const y=calendarCursor.getFullYear(), m=calendarCursor.getMonth();
   if(!calendarDetailDate) calendarDetailDate=selectedShiftDate || todayStr();
@@ -1316,7 +1332,7 @@ function renderCalendar(){
     const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":""].filter(Boolean).join(" ");
     days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
       <div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
-      <div class="calendar-event-lanes">${lanes.join("")}</div></div>`);
+      <div class="calendar-event-lanes">${lanes.join("")}</div>${calendarDayShiftsHtml(dateText)}</div>`);
   }
 
   const schedules=workSchedulesByDate(calendarDetailDate);
