@@ -65,7 +65,7 @@
     .worklog-display{min-height:120px;flex:1;line-height:1.45;font-size:13px;text-align:left;white-space:normal;word-break:break-word;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;color:#374151}
     .worklog-card-actions{padding:8px 10px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
     .worklog-mobile-date{display:none}
-    .shift-select-modal{width:min(820px,100%)}
+    .shift-select-modal{width:min(820px,100%);max-height:90vh;overflow-y:auto}
     .shift-type-picker{display:flex;gap:8px;margin:10px 0 12px}
     .shift-type-picker button{flex:1;border:2px solid transparent}
     .shift-type-picker button.shift-mode-active-day{background:#facc15;color:#713f12;border-color:#f59e0b}
@@ -182,6 +182,8 @@ let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
 let activeShiftWorkerId = null;
 let activeShiftMode = "주간";
+let shiftCycleOpen = false;
+let shiftCycleSaving = false;
 let shiftModalMonth = new Date();
 let shiftDraftSelections = {};
 let workerShiftSearch = "";
@@ -1392,6 +1394,7 @@ async function moveCalendarMonth(offset){
 }
 function goCalendarToday(){ calendarCursor=new Date(); selectedShiftDate=todayStr(); calendarDetailDate=todayStr(); activeShiftWorkerId=null; activeWorkScheduleId=""; workScheduleDraftDates={}; workEditorOpen=false; shiftEditorOpen=false; renderCalendar(); }
 function openWorkerShiftModal(workerId){
+  shiftCycleOpen = false;
   activeShiftWorkerId = Number(workerId);
   activeShiftMode = "주간";
   shiftModalMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
@@ -1405,6 +1408,7 @@ function closeWorkerShiftModal(){ activeShiftWorkerId = null; shiftDraftSelectio
 function workerShiftModalHtml(workerId, saved){
   const w = state.workers.find(x => Number(x.id) === Number(workerId));
   if(!w) return "";
+  if(shiftCycleOpen) return shiftCycleModalHtml(w);
   const y = shiftModalMonth.getFullYear();
   const m = shiftModalMonth.getMonth();
   const first = new Date(y, m, 1);
@@ -1422,6 +1426,7 @@ function workerShiftModalHtml(workerId, saved){
     <div class="modal shift-select-modal">
       <div class="modal-title">${escapeHtml(w.name)} 기사님 근무 날짜 선택</div>
       <p class="small">주간/야간 버튼을 먼저 누른 뒤 날짜를 여러 개 선택하세요. 이미 선택된 날짜를 다시 누르면 해제됩니다.</p>
+      <div class="actions"><button type="button" class="primary" onclick="openShiftCycle()">교대 사이클</button></div>
       <div class="shift-type-picker">
         <button type="button" class="${activeShiftMode === "주간" ? "shift-mode-active-day" : ""}" onclick="setShiftMode('주간')">주간</button>
         <button type="button" class="${activeShiftMode === "야간" ? "shift-mode-active-night" : ""}" onclick="setShiftMode('야간')">야간</button>
@@ -1440,6 +1445,97 @@ function workerShiftModalHtml(workerId, saved){
     </div>
   </div>`;
 }
+
+function openShiftCycle(){ shiftCycleOpen = true; renderCalendar(); updateShiftCyclePreview(); }
+function closeShiftCycle(){ if(shiftCycleSaving) return; shiftCycleOpen = false; renderCalendar(); }
+function shiftCycleModalHtml(w){
+  const start = calendarDetailDate || todayStr();
+  const year = start.slice(0,4);
+  return `<div class="modal-backdrop"><div class="modal shift-select-modal" role="dialog" aria-modal="true" aria-label="교대 사이클 설정">
+    <div class="modal-title">${escapeHtml(w.name)} 기사님 교대 사이클</div>
+    <p class="small">주간 → 주간 후 휴무 → 야간 → 야간 후 휴무 순서로 반복합니다. 시작일은 주간근무 첫날입니다. 없는 단계는 0일로 입력하세요.</p>
+    <div class="grid">
+      ${[["day","주간근무",4],["day-off","주간 후 휴무",2],["night","야간근무",4],["night-off","야간 후 휴무",3]].map(([id,label,n])=>`<div><label for="cycle-${id}">${label} (일)</label><input id="cycle-${id}" type="number" min="0" max="366" step="1" value="${n}" oninput="updateShiftCyclePreview()"></div>`).join("")}
+      <div><label for="cycle-start">시작일 · 주간 첫날</label><input id="cycle-start" type="date" value="${start}" oninput="updateShiftCyclePreview()"></div>
+      <div><label for="cycle-end">종료일 · 포함</label><input id="cycle-end" type="date" value="${year}-12-31" oninput="updateShiftCyclePreview()"></div>
+    </div>
+    <p id="cycle-preview" class="small" role="status">4일 주간 → 2일 휴무 → 4일 야간 → 3일 휴무 · 13일 사이클</p>
+    <p class="small">저장하면 이 기사님의 지정 기간 근무가 교체됩니다. 휴무일의 기존 근무는 해제되며, 다른 기사님·기간 밖 근무·날짜 메모·업무 스케줄은 유지됩니다. 저장 후 개별 날짜도 기존 방식으로 수정할 수 있습니다.</p>
+    <div class="actions"><button id="cycle-save" class="primary" onclick="saveShiftCycle()">저장</button><button id="cycle-cancel" onclick="closeShiftCycle()">돌아가기</button></div>
+  </div></div>`;
+}
+function buildShiftCycle(start, end, counts){
+  const parse = value => {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("시작일과 종료일을 입력하세요.");
+    const time = Date.parse(value + "T00:00:00Z");
+    if(!Number.isFinite(time) || new Date(time).toISOString().slice(0,10)!==value) throw new Error("올바른 날짜를 입력하세요.");
+    return time;
+  };
+  const a=parse(start), b=parse(end);
+  if(b<a) throw new Error("종료일은 시작일 이후로 지정하세요.");
+  if(counts.length!==4 || counts.some(n=>!Number.isInteger(n)||n<0||n>366)) throw new Error("각 단계는 0~366 사이의 정수로 입력하세요.");
+  const length=counts.reduce((a,b)=>a+b,0);
+  if(!length) throw new Error("사이클은 최소 1일 이상이어야 합니다.");
+  const total=(b-a)/86400000+1;
+  if(total>3660) throw new Error("적용 기간은 최대 3,660일까지 지정하세요.");
+  const phases=["주간",null,"야간",null];
+  const result=[];
+  for(let i=0;i<total;i++){
+    let offset=i%length, phase=0;
+    while(phase<4 && offset>=counts[phase]){ offset-=counts[phase]; phase++; }
+    result.push({work_date:new Date(a+i*86400000).toISOString().slice(0,10),shift_type:phases[phase]});
+  }
+  return result;
+}
+function readShiftCycle(){
+  const raw=["day","day-off","night","night-off"].map(id=>val("cycle-"+id));
+  if(raw.some(x=>x.trim()==="")) throw new Error("각 단계의 일수를 입력하세요. 없는 단계는 0일입니다.");
+  const counts=raw.map(Number), start=val("cycle-start"), end=val("cycle-end");
+  return {counts,start,end,days:buildShiftCycle(start,end,counts)};
+}
+function updateShiftCyclePreview(){
+  const el=document.getElementById("cycle-preview");
+  if(!el) return;
+  try{
+    const {counts,days}=readShiftCycle();
+    const day=days.filter(x=>x.shift_type==="주간").length;
+    const night=days.filter(x=>x.shift_type==="야간").length;
+    el.textContent=`${counts[0]}일 주간 → ${counts[1]}일 휴무 → ${counts[2]}일 야간 → ${counts[3]}일 휴무 · ${counts.reduce((a,b)=>a+b,0)}일 사이클 / 적용 ${days.length}일 (주간 ${day}일, 야간 ${night}일, 휴무 ${days.length-day-night}일)`;
+  }catch(e){el.textContent=e.message;}
+}
+function mergeShiftCycle(existing, workerId, start, end, days){
+  const previous=new Map(existing.filter(x=>Number(x.worker_id)===Number(workerId)).map(x=>[x.work_date,x]));
+  const kept=existing.filter(x=>Number(x.worker_id)!==Number(workerId)||x.work_date<start||x.work_date>end);
+  const added=days.filter(x=>x.shift_type).map(x=>({...previous.get(x.work_date),work_date:x.work_date,worker_id:Number(workerId),shift_type:x.shift_type,note:previous.get(x.work_date)?.note||""}));
+  return [...kept,...added];
+}
+async function saveShiftCycle(){
+  if(shiftCycleSaving) return;
+  let draft;
+  try{draft=readShiftCycle();}catch(e){return toast(e.message);}
+  const workerId=activeShiftWorkerId;
+  if(!state.workers.some(w=>Number(w.id)===Number(workerId))) return toast("기사님을 다시 선택하세요.");
+  shiftCycleSaving=true;
+  document.getElementById("cycle-save").disabled=true;
+  document.getElementById("cycle-cancel").disabled=true;
+  try{
+    const merged=mergeShiftCycle(shiftCalendar(),workerId,draft.start,draft.end,draft.days);
+    const value=JSON.stringify(merged);
+    const res=await db.from("settings").upsert({key:"shift_calendar",value});
+    if(res.error) throw res.error;
+    state.settings.shift_calendar=value;
+    shiftCycleOpen=false; activeShiftWorkerId=null; shiftDraftSelections={};
+    renderCalendar();
+    toast(`교대 사이클 ${draft.days.length}일 적용 완료`);
+  }catch(e){console.error(e);toast("교대 사이클 저장 오류. 입력값을 확인하고 다시 시도하세요.");}
+  finally{
+    shiftCycleSaving=false;
+    const button=document.getElementById("cycle-save"), cancel=document.getElementById("cycle-cancel");
+    if(button) button.disabled=false;
+    if(cancel) cancel.disabled=false;
+  }
+}
+
 function setShiftMode(mode){ activeShiftMode = mode === "야간" ? "야간" : "주간"; renderCalendar(); }
 function moveShiftModalMonth(offset){ shiftModalMonth = new Date(shiftModalMonth.getFullYear(), shiftModalMonth.getMonth() + offset, 1); renderCalendar(); }
 function toggleShiftDraftDate(dateText){
