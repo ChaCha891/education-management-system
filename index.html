@@ -1453,10 +1453,11 @@ function shiftCycleModalHtml(w){
   const year = start.slice(0,4);
   return `<div class="modal-backdrop"><div class="modal shift-select-modal" role="dialog" aria-modal="true" aria-label="교대 사이클 설정">
     <div class="modal-title">${escapeHtml(w.name)} 기사님 교대 사이클</div>
-    <p class="small">주간 → 주간 후 휴무 → 야간 → 야간 후 휴무 순서로 반복합니다. 시작일은 주간근무 첫날입니다. 없는 단계는 0일로 입력하세요.</p>
+    <p class="small">선택한 시작 근무부터 반복합니다. 시작일은 선택한 근무의 첫날입니다. 없는 단계는 0일로 입력하세요.</p>
+    <div style="margin-bottom:12px"><label for="cycle-first">시작 근무</label><select id="cycle-first" onchange="updateShiftCyclePreview()"><option value="주간">주간부터</option><option value="야간">야간부터</option></select></div>
     <div class="grid">
       ${[["day","주간근무",4],["day-off","주간 후 휴무",2],["night","야간근무",4],["night-off","야간 후 휴무",3]].map(([id,label,n])=>`<div><label for="cycle-${id}">${label} (일)</label><input id="cycle-${id}" type="number" min="0" max="366" step="1" value="${n}" oninput="updateShiftCyclePreview()"></div>`).join("")}
-      <div><label for="cycle-start">시작일 · 주간 첫날</label><input id="cycle-start" type="date" value="${start}" oninput="updateShiftCyclePreview()"></div>
+      <div><label for="cycle-start">시작일 · 선택한 근무의 첫날</label><input id="cycle-start" type="date" value="${start}" oninput="updateShiftCyclePreview()"></div>
       <div><label for="cycle-end">종료일 · 포함</label><input id="cycle-end" type="date" value="${year}-12-31" oninput="updateShiftCyclePreview()"></div>
     </div>
     <p id="cycle-preview" class="small" role="status">4일 주간 → 2일 휴무 → 4일 야간 → 3일 휴무 · 13일 사이클</p>
@@ -1464,7 +1465,7 @@ function shiftCycleModalHtml(w){
     <div class="actions"><button id="cycle-save" class="primary" onclick="saveShiftCycle()">저장</button><button id="cycle-cancel" onclick="closeShiftCycle()">돌아가기</button></div>
   </div></div>`;
 }
-function buildShiftCycle(start, end, counts){
+function buildShiftCycle(start, end, counts, firstShift="주간"){
   const parse = value => {
     if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("시작일과 종료일을 입력하세요.");
     const time = Date.parse(value + "T00:00:00Z");
@@ -1479,9 +1480,11 @@ function buildShiftCycle(start, end, counts){
   const total=(b-a)/86400000+1;
   if(total>3660) throw new Error("적용 기간은 최대 3,660일까지 지정하세요.");
   const phases=["주간",null,"야간",null];
+  if(firstShift!=="주간" && firstShift!=="야간") throw new Error("시작 근무를 선택하세요.");
+  const startOffset=firstShift==="야간" ? counts[0]+counts[1] : 0;
   const result=[];
   for(let i=0;i<total;i++){
-    let offset=i%length, phase=0;
+    let offset=(i+startOffset)%length, phase=0;
     while(phase<4 && offset>=counts[phase]){ offset-=counts[phase]; phase++; }
     result.push({work_date:new Date(a+i*86400000).toISOString().slice(0,10),shift_type:phases[phase]});
   }
@@ -1491,16 +1494,18 @@ function readShiftCycle(){
   const raw=["day","day-off","night","night-off"].map(id=>val("cycle-"+id));
   if(raw.some(x=>x.trim()==="")) throw new Error("각 단계의 일수를 입력하세요. 없는 단계는 0일입니다.");
   const counts=raw.map(Number), start=val("cycle-start"), end=val("cycle-end");
-  return {counts,start,end,days:buildShiftCycle(start,end,counts)};
+  const firstShift=val("cycle-first");
+  return {counts,start,end,firstShift,days:buildShiftCycle(start,end,counts,firstShift)};
 }
 function updateShiftCyclePreview(){
   const el=document.getElementById("cycle-preview");
   if(!el) return;
   try{
-    const {counts,days}=readShiftCycle();
+    const {counts,days,firstShift}=readShiftCycle();
     const day=days.filter(x=>x.shift_type==="주간").length;
     const night=days.filter(x=>x.shift_type==="야간").length;
-    el.textContent=`${counts[0]}일 주간 → ${counts[1]}일 휴무 → ${counts[2]}일 야간 → ${counts[3]}일 휴무 · ${counts.reduce((a,b)=>a+b,0)}일 사이클 / 적용 ${days.length}일 (주간 ${day}일, 야간 ${night}일, 휴무 ${days.length-day-night}일)`;
+    const sequence=firstShift==="야간" ? `${counts[2]}일 야간 → ${counts[3]}일 휴무 → ${counts[0]}일 주간 → ${counts[1]}일 휴무` : `${counts[0]}일 주간 → ${counts[1]}일 휴무 → ${counts[2]}일 야간 → ${counts[3]}일 휴무`;
+    el.textContent=`${sequence} · ${counts.reduce((a,b)=>a+b,0)}일 사이클 / 적용 ${days.length}일 (주간 ${day}일, 야간 ${night}일, 휴무 ${days.length-day-night}일)`;
   }catch(e){el.textContent=e.message;}
 }
 function mergeShiftCycle(existing, workerId, start, end, days){
