@@ -29,6 +29,7 @@
     label{font-size:13px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}input:not([data-format]),textarea{ime-mode:active}textarea{min-height:95px;resize:vertical}
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.business-filter-grid{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:12px;align-items:end;margin:10px 0 14px}.business-listbox{min-height:142px;font-weight:800}.business-manage{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}.worker-master-detail{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.worker-name-list{display:grid;gap:7px;max-height:620px;overflow:auto}.worker-name-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff}.worker-name-btn.active{background:#dbeafe;color:#1e3a8a}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.assignment-list{display:grid;gap:8px}.assignment-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.assignment-worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:260px;overflow:auto}.assignment-worker-check{display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}.assignment-worker-check input{width:auto}.memo-layout{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.memo-list{display:grid;gap:7px;max-height:520px;overflow:auto}.memo-list button{text-align:left;border:1px solid var(--line);background:#fff}.memo-list button.active{background:#dbeafe;color:#1e3a8a}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
+    .dashboard-stat-button{width:100%;height:100%;padding:0;background:transparent;text-align:left;border-radius:18px}.dashboard-stat-button:hover{background:#fef2f2;outline:2px solid #fecaca}.overdue-modal{width:min(980px,100%);max-height:88vh;overflow:auto}.overdue-summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
     .menu-toggle{display:none;width:auto;min-width:46px;padding:10px 12px;font-size:22px;line-height:1;background:#eef2f7}
@@ -205,6 +206,8 @@ let workerBusinessFilter = "";
 let activeWorkerDetailId = null;
 let assignmentTargetMode = "개별";
 let activeMemoId = "";
+let dashboardOverdueOpen = false;
+const MONTHLY_REGULAR_TRACKING_START = "2026-01";
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -645,6 +648,8 @@ async function loadAll() {
   if (!state.settings.education_assignments) state.settings.education_assignments = JSON.stringify([]);
   if (!state.settings.education_templates) state.settings.education_templates = JSON.stringify([]);
   if (!state.settings.memo_files) state.settings.memo_files = JSON.stringify([]);
+  if (!state.settings.monthly_regular_overdue_deleted) state.settings.monthly_regular_overdue_deleted = JSON.stringify([]);
+  if (!state.settings.monthly_regular_tracking_start) state.settings.monthly_regular_tracking_start = MONTHLY_REGULAR_TRACKING_START;
   await ensureHolidayYear(calendarCursor.getFullYear(), false, false);
   await cleanupPatrolRecordsIfNewDay();
   await cleanupUnusedServerPhotos();
@@ -667,6 +672,7 @@ function makeDue() {
   const rules = activeEducationRules();
   for (const w of state.workers) {
     for (const r of rules) {
+      if(isMonthlyRegularEducation(r.education_name)) continue;
       const last = latestHistoryDate(w.id, r.education_name);
       const sch = calcSchedule(last, Number(r.cycle_days));
       if (sch.remain !== null && sch.remain <= 30) {
@@ -694,6 +700,7 @@ function dashboardStats(){
   let overdue=0, soon=0, normal=0, oneTime=0, missing=0;
   for(const w of state.workers){
     for(const r of activeEducationRules()){
+      if(isMonthlyRegularEducation(r.education_name)) continue;
       const last = latestHistoryDate(w.id, r.education_name);
       if(!last){ missing++; continue; }
       const sch=calcSchedule(last, Number(r.cycle_days));
@@ -702,6 +709,11 @@ function dashboardStats(){
       else if(sch.remain<=14) soon++;
       else normal++;
     }
+  }
+  overdue += monthlyRegularOverdueItems().length;
+  for(const w of state.workers){
+    if(monthlyRegularDoneRecord(w.id)) normal++;
+    else missing++;
   }
   return {overdue, soon, normal, oneTime, missing};
 }
@@ -1636,17 +1648,35 @@ function renderMobile() {
 
 function renderDashboard() {
   const st=dashboardStats();
-  const rows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button></td></tr>`).join("") || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
+  const regularRows = state.workers.map(w => {
+    const done=monthlyRegularDoneRecord(w.id);
+    return `<tr><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.company||"")}</td><td>정기안전보건교육<span class="mini">${escapeHtml(currentMonthKey())} 교육</span></td><td>${escapeHtml(done?.education_date||"-")}</td><td>${escapeHtml(currentMonthKey())}</td><td><span class="badge ${done?"ok":"soon"}">${done?"완료":"이번 달"}</span></td><td>${escapeHtml(w.phone||"")}</td><td><button class="${done?"red":"green"}" onclick="toggleMonthlyRegularEducation(${w.id})">${done?"완료 취소":"완료"}</button></td></tr>`;
+  }).join("");
+  const otherRows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button></td></tr>`).join("");
+  const rows = regularRows + otherRows || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
+  const overdueModal = dashboardOverdueOpen ? dashboardOverdueModalHtml() : "";
   document.getElementById("page-dashboard").innerHTML = `
     <div class="grid3">
       <div class="card"><h2>${state.workers.length}명</h2><p class="small">등록 기사님</p></div>
-      <div class="card"><h2>${st.overdue}건</h2><p class="small danger-text">기한초과</p></div>
+      <div class="card"><button class="dashboard-stat-button" onclick="openDashboardOverdue()" title="기한 초과 상세 보기"><h2>${st.overdue}건</h2><p class="small danger-text">기한초과 · 클릭해서 상세보기</p></button></div>
       <div class="card"><h2>${st.soon}건</h2><p class="small warn-text">14일 이내 임박</p></div>
       <div class="card"><h2>${activeEducationRules().length}종</h2><p class="small">사용 중 교육기준</p></div>
       <div class="card"><h2>${st.normal}건</h2><p class="small ok-text">정상 관리</p></div>
       <div class="card"><h2>${state.equipment.length}대</h2><p class="small">장비</p></div>
     </div>
-    <div class="card"><h2>우선 처리 목록</h2><p class="small">기한초과 전체와 D-30 이내 교육만 표시합니다. 완료 버튼으로 즉시 교육현황까지 반영됩니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>최근교육일</th><th>예정일</th><th>D-Day</th><th>연락처</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div class="card"><h2>우선 처리 목록</h2><p class="small">이번 달 정기안전보건교육과 기한초과 전체, D-30 이내 교육을 표시합니다. 정기교육은 완료 후 같은 버튼을 다시 누르면 완료를 취소할 수 있습니다.</p><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>최근교육일</th><th>예정일</th><th>D-Day</th><th>연락처</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div></div>${overdueModal}`;
+}
+
+function openDashboardOverdue(){ dashboardOverdueOpen=true; renderDashboard(); }
+function closeDashboardOverdue(){ dashboardOverdueOpen=false; renderDashboard(); }
+
+function dashboardOverdueModalHtml(){
+  const monthly=monthlyRegularOverdueItems();
+  const other=state.due.filter(x=>x.remain<0);
+  const monthlyRows=monthly.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>정기안전보건교육</td><td><b>${escapeHtml(formatMonthKo(x.month))}</b></td><td><span class="badge due">월 교육 누락</span></td><td><div class="actions" style="margin-top:0"><button class="green" onclick="completeMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">완료</button><button class="red" onclick="deleteMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">삭제</button></div></td></tr>`).join("");
+  const otherRows=other.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.next_date||"-")}</td><td><span class="badge due">${escapeHtml(x.dday)}</span></td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id},'${jsString(x.education_name)}')">완료</button></td></tr>`).join("");
+  const rows=monthlyRows+otherRows || `<tr><td colspan="6">현재 기한을 초과한 교육이 없습니다.</td></tr>`;
+  return `<div class="modal-backdrop" onclick="if(event.target===this) closeDashboardOverdue()"><div class="modal overdue-modal" role="dialog" aria-modal="true" aria-label="기한 초과 교육 상세"><div class="detail-top"><div><div class="modal-title">기한 초과 교육 상세</div><p class="small">정기안전보건교육은 누락된 월을 전부 표시합니다.</p></div><button onclick="closeDashboardOverdue()">닫기</button></div><div class="overdue-summary"><span class="badge due">전체 ${monthly.length+other.length}건</span><span class="small">정기교육 월 누락 ${monthly.length}건 · 기타 교육 ${other.length}건</span></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>누락 월 / 예정일</th><th>상태</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div><p class="small" style="margin-top:10px">정기교육의 삭제는 해당 기사님의 해당 월 누락 알림만 제외하며, 기존 교육 이력은 삭제하지 않습니다.</p></div></div>`;
 }
 
 function workerOptions(selected="", includeBlank=false) {
@@ -1875,13 +1905,51 @@ async function deleteWorker(id){
 
 function currentMonthKey(){ return todayStr().slice(0,7); }
 function isMonthlyRegularEducation(name){ return String(name || "").trim() === "정기안전보건교육"; }
-function monthlyRegularDoneRecord(workerId){
-  const month = currentMonthKey();
+function monthKeyAdd(month, amount){
+  const [y,m]=String(month||"").split("-").map(Number);
+  if(!y||!m) return "";
+  const d=new Date(y,m-1+Number(amount||0),1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function formatMonthKo(month){
+  const [y,m]=String(month||"").split("-");
+  return y&&m ? `${y}년 ${Number(m)}월` : String(month||"");
+}
+function monthLastDate(month){
+  const [y,m]=String(month||"").split("-").map(Number);
+  if(!y||!m) return todayStr();
+  return `${month}-${String(new Date(y,m,0).getDate()).padStart(2,"0")}`;
+}
+function monthlyRegularDeletedKeys(){ return jsonSetting("monthly_regular_overdue_deleted", []); }
+function monthlyRegularDeletedKey(workerId,month){ return `${Number(workerId)}|${month}`; }
+function monthlyRegularDoneRecord(workerId, month=currentMonthKey()){
   return state.history.find(h =>
     Number(h.worker_id) === Number(workerId) &&
     h.education_name === "정기안전보건교육" &&
     String(h.education_date || "").slice(0,7) === month
   ) || null;
+}
+function monthlyRegularWorkerStartMonth(workerId){
+  const systemStart=String(state.settings.monthly_regular_tracking_start||MONTHLY_REGULAR_TRACKING_START).slice(0,7);
+  const p=workerProfile(workerId);
+  const hireMonth=String(p.hire_date||"").slice(0,7);
+  return /^\d{4}-\d{2}$/.test(hireMonth) && hireMonth>systemStart ? hireMonth : systemStart;
+}
+function monthlyRegularOverdueItems(){
+  const current=currentMonthKey();
+  const deleted=new Set(monthlyRegularDeletedKeys());
+  const result=[];
+  for(const w of state.workers){
+    let month=monthlyRegularWorkerStartMonth(w.id);
+    let guard=0;
+    while(month && month<current && guard<240){
+      const key=monthlyRegularDeletedKey(w.id,month);
+      if(!deleted.has(key) && !monthlyRegularDoneRecord(w.id,month)) result.push({worker_id:w.id,name:w.name,company:w.company||"",month});
+      month=monthKeyAdd(month,1);
+      guard++;
+    }
+  }
+  return result.sort((a,b)=>a.month.localeCompare(b.month)||a.name.localeCompare(b.name,"ko"));
 }
 
 function groupedHistoryRows(showManage=true){
@@ -2058,6 +2126,55 @@ async function completeMonthlyRegularEducation(workerId){
   if(histRes.error){ console.error(histRes.error); return toast("정기안전보건교육 저장 오류"); }
   await loadAll();
   alert("이수완료되었습니다.");
+}
+
+async function toggleMonthlyRegularEducation(workerId){
+  if(!workerId) return toast("기사님 정보를 찾을 수 없습니다.");
+  const worker=state.workers.find(w=>Number(w.id)===Number(workerId));
+  const workerName=worker?.name||"해당 기사님";
+  const month=currentMonthKey();
+  const done=monthlyRegularDoneRecord(workerId,month);
+  if(done){
+    if(!confirm(`${workerName} 기사님의 ${formatMonthKo(month)} 정기안전보건교육 완료를 취소할까요?`)) return;
+    const res=await db.from("training_history").delete().eq("id",done.id);
+    if(res.error){ console.error(res.error); return toast("완료 취소 오류"); }
+    await loadAll();
+    toast("정기안전보건교육 완료가 취소되었습니다.");
+    return;
+  }
+  if(!confirm(`${workerName} 기사님의 ${formatMonthKo(month)} 정기안전보건교육을 완료 처리할까요?`)) return;
+  const histRes=await upsertEducationHistory(workerId,"정기안전보건교육",todayStr(),`${month} 정기안전보건교육 이수완료`);
+  if(histRes.error){ console.error(histRes.error); return toast("정기안전보건교육 저장 오류"); }
+  await loadAll();
+  toast("정기안전보건교육 완료 처리되었습니다.");
+}
+
+async function completeMonthlyRegularOverdue(workerId,month){
+  const worker=state.workers.find(w=>Number(w.id)===Number(workerId));
+  if(!worker||!/^\d{4}-\d{2}$/.test(String(month||""))) return toast("누락 교육 정보를 찾을 수 없습니다.");
+  if(monthlyRegularDoneRecord(workerId,month)) return toast("이미 완료 처리된 월입니다.");
+  const entered=prompt(`${worker.name} 기사님의 ${formatMonthKo(month)} 실제 교육일을 입력하세요.\n(YYYY-MM-DD)`,monthLastDate(month));
+  if(entered===null) return;
+  const educationDate=autoHyphenDate(entered);
+  if(!isValidDateText(educationDate)||educationDate.slice(0,7)!==month) return toast(`${formatMonthKo(month)} 안의 날짜를 입력하세요.`);
+  const histRes=await upsertEducationHistory(workerId,"정기안전보건교육",educationDate,`${month} 정기안전보건교육 기한초과 완료`);
+  if(histRes.error){ console.error(histRes.error); return toast("누락 교육 완료 처리 오류"); }
+  await loadAll();
+  dashboardOverdueOpen=true;
+  toast(`${formatMonthKo(month)} 교육을 완료 처리했습니다.`);
+}
+
+async function deleteMonthlyRegularOverdue(workerId,month){
+  const worker=state.workers.find(w=>Number(w.id)===Number(workerId));
+  if(!worker) return toast("기사님 정보를 찾을 수 없습니다.");
+  if(!confirm(`${worker.name} 기사님의 ${formatMonthKo(month)} 정기안전보건교육 누락 항목을 삭제할까요?\n기존 교육 이력은 삭제되지 않습니다.`)) return;
+  const items=monthlyRegularDeletedKeys();
+  const key=monthlyRegularDeletedKey(workerId,month);
+  if(!items.includes(key)) items.push(key);
+  if(!(await saveJsonSetting("monthly_regular_overdue_deleted",items,"정기교육 기한초과 항목"))) return;
+  await loadAll();
+  dashboardOverdueOpen=true;
+  toast("기한 초과 목록에서 삭제했습니다.");
 }
 
 function renderRetention(){
