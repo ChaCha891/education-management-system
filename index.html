@@ -30,6 +30,7 @@
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.list-search{margin:8px 0 12px}.list-search input{font-weight:700}.business-filter-grid{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:12px;align-items:end;margin:10px 0 14px}.business-listbox{min-height:142px;font-weight:800}.business-manage{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}.worker-master-detail{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.worker-name-list{display:grid;gap:7px;max-height:620px;overflow:auto}.worker-name-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff}.worker-name-btn.active{background:#dbeafe;color:#1e3a8a}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.assignment-list{display:grid;gap:8px}.assignment-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.assignment-worker-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:260px;overflow:auto}.assignment-worker-check{display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}.assignment-worker-check input{width:auto}.memo-layout{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px}.memo-list{display:grid;gap:7px;max-height:520px;overflow:auto}.memo-list button{text-align:left;border:1px solid var(--line);background:#fff}.memo-list button.active{background:#dbeafe;color:#1e3a8a}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border-bottom:1px solid #edf0f5;padding:10px;text-align:center;font-size:14px;white-space:nowrap}th{background:#eef2f7;font-weight:900}tr:last-child td{border-bottom:0}
     .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-weight:900;font-size:12px}.edu-chip{display:inline-block;margin:3px;padding:6px 9px;border-radius:999px;background:#eef2f7;font-weight:800;font-size:12px}.due{background:#fee2e2;color:#991b1b}.soon{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
     .dashboard-stat-button{width:100%;height:100%;padding:0;background:transparent;text-align:left;border-radius:18px}.dashboard-stat-button:hover{background:#fef2f2;outline:2px solid #fecaca}.overdue-modal{width:min(980px,100%);max-height:88vh;overflow:auto}.overdue-summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px}
+    .special-task-toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.special-task-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.special-picker-box{border:1px solid var(--line);border-radius:14px;padding:12px;background:#f8fafc}.special-selected-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.special-target-list{display:grid;gap:8px;max-height:55vh;overflow:auto}.special-target-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.special-target-info{min-width:0;text-align:left}.special-target-info b,.special-target-info span{display:block;overflow:hidden;text-overflow:ellipsis}.special-task-card{border-left:6px solid var(--primary)}.special-task-card.completed{border-left-color:var(--green);background:#f0fdf4}.special-task-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.special-task-item{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.special-task-item.confirmed{background:#f0fdf4;border-color:#86efac}.special-task-item-info{min-width:0;text-align:left}.special-task-item-info b,.special-task-item-info span{display:block;overflow:hidden;text-overflow:ellipsis}.special-picker-modal{width:min(720px,100%);max-height:90vh;overflow:auto}
     .hidden{display:none!important}.mobile-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
     .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 16px;border-radius:999px;display:none;z-index:99}
     .menu-toggle{display:none;width:auto;min-width:46px;padding:10px 12px;font-size:22px;line-height:1;background:#eef2f7}
@@ -92,7 +93,7 @@
       .nav button{width:100%;text-align:left}
       #nav-dashboard,#nav-retention{display:none!important}
       .container{padding:12px}
-      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list,.business-filter-grid,.business-manage,.worker-master-detail,.identity-grid,.assignment-worker-checks,.memo-layout{grid-template-columns:1fr}
+      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list,.business-filter-grid,.business-manage,.worker-master-detail,.identity-grid,.assignment-worker-checks,.memo-layout,.special-task-grid,.special-task-items{grid-template-columns:1fr}
       button,.btn{width:100%}
       .menu-toggle{width:46px}
       th,td{font-size:13px;padding:8px}
@@ -126,6 +127,7 @@
       <button onclick="showPage('memo')" id="nav-memo">메모</button>
       <button onclick="showPage('worklog')" id="nav-worklog">업무일지</button>
       <button onclick="showPage('patrol')" id="nav-patrol">순회점검</button>
+      <button onclick="showPage('special')" id="nav-special">특별업무</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
   </div>
@@ -147,6 +149,7 @@
     <section id="page-memo" class="page hidden"></section>
     <section id="page-worklog" class="page hidden"></section>
     <section id="page-patrol" class="page hidden"></section>
+    <section id="page-special" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
 
@@ -208,6 +211,9 @@ let assignmentTargetMode = "개별";
 let activeMemoId = "";
 let dashboardOverdueOpen = false;
 const MONTHLY_REGULAR_TRACKING_START = "2026-01";
+let specialTaskEditorOpen = false;
+let specialTaskPickerType = "";
+let specialTaskDraft = { title:"", worker_ids:[], equipment_ids:[] };
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -650,9 +656,11 @@ async function loadAll() {
   if (!state.settings.memo_files) state.settings.memo_files = JSON.stringify([]);
   if (!state.settings.monthly_regular_overdue_deleted) state.settings.monthly_regular_overdue_deleted = JSON.stringify([]);
   if (!state.settings.monthly_regular_tracking_start) state.settings.monthly_regular_tracking_start = MONTHLY_REGULAR_TRACKING_START;
+  if (!state.settings.special_tasks) state.settings.special_tasks = JSON.stringify([]);
   await ensureHolidayYear(calendarCursor.getFullYear(), false, false);
   await cleanupPatrolRecordsIfNewDay();
   await cleanupUnusedServerPhotos();
+  await cleanupCompletedSpecialTasks();
   makeDue();
   renderCurrent();
 }
@@ -1289,6 +1297,7 @@ function renderCurrent() {
   if (currentPage === "memo") renderMemo();
   if (currentPage === "worklog") renderWorklog();
   if (currentPage === "patrol") renderPatrol();
+  if (currentPage === "special") renderSpecialTasks();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
   bindDraftInputs();
@@ -1677,6 +1686,118 @@ function dashboardOverdueModalHtml(){
   const otherRows=other.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.next_date||"-")}</td><td><span class="badge due">${escapeHtml(x.dday)}</span></td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id},'${jsString(x.education_name)}')">완료</button></td></tr>`).join("");
   const rows=monthlyRows+otherRows || `<tr><td colspan="6">현재 기한을 초과한 교육이 없습니다.</td></tr>`;
   return `<div class="modal-backdrop" onclick="if(event.target===this) closeDashboardOverdue()"><div class="modal overdue-modal" role="dialog" aria-modal="true" aria-label="기한 초과 교육 상세"><div class="detail-top"><div><div class="modal-title">기한 초과 교육 상세</div><p class="small">정기안전보건교육은 누락된 월을 전부 표시합니다.</p></div><button onclick="closeDashboardOverdue()">닫기</button></div><div class="overdue-summary"><span class="badge due">전체 ${monthly.length+other.length}건</span><span class="small">정기교육 월 누락 ${monthly.length}건 · 기타 교육 ${other.length}건</span></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>누락 월 / 예정일</th><th>상태</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div><p class="small" style="margin-top:10px">정기교육의 삭제는 해당 기사님의 해당 월 누락 알림만 제외하며, 기존 교육 이력은 삭제하지 않습니다.</p></div></div>`;
+}
+
+function specialTasks(){ return jsonSetting("special_tasks", []); }
+function specialTaskIsComplete(task){
+  const items=Array.isArray(task?.items)?task.items:[];
+  return items.length>0 && items.every(x=>x.confirmed===true);
+}
+async function cleanupCompletedSpecialTasks(){
+  const items=specialTasks(), today=todayStr();
+  const kept=items.filter(task=>!(specialTaskIsComplete(task)&&task.completed_date&&task.completed_date<today));
+  if(kept.length!==items.length) await saveJsonSetting("special_tasks",kept,"완료된 특별업무 정리");
+}
+function startSpecialTaskEditor(){
+  specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]};
+  specialTaskPickerType=""; specialTaskEditorOpen=true; renderSpecialTasks();
+}
+function cancelSpecialTaskEditor(){
+  specialTaskEditorOpen=false; specialTaskPickerType="";
+  specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]}; renderSpecialTasks();
+}
+function syncSpecialTaskDraftTitle(){
+  const input=document.getElementById("special-task-title");
+  if(input) specialTaskDraft.title=input.value;
+}
+function openSpecialTargetPicker(type){
+  syncSpecialTaskDraftTitle();
+  specialTaskPickerType=type==="equipment"?"equipment":"worker";
+  renderSpecialTasks();
+}
+function closeSpecialTargetPicker(){ specialTaskPickerType=""; renderSpecialTasks(); }
+function toggleSpecialDraftTarget(type,id){
+  const key=type==="equipment"?"equipment_ids":"worker_ids", numericId=Number(id);
+  const list=(specialTaskDraft[key]||[]).map(Number);
+  specialTaskDraft[key]=list.includes(numericId)?list.filter(x=>x!==numericId):[...list,numericId];
+  renderSpecialTasks();
+}
+function specialTargetPickerHtml(){
+  if(!specialTaskPickerType) return "";
+  const isEquipment=specialTaskPickerType==="equipment";
+  const selected=(isEquipment?specialTaskDraft.equipment_ids:specialTaskDraft.worker_ids).map(Number);
+  const source=isEquipment?state.equipment:state.workers;
+  const rows=source.map(item=>{
+    const id=Number(item.id), active=selected.includes(id);
+    const name=isEquipment?(equipmentDisplayNo(item)||`장비 #${id}`):(item.name||`기사님 #${id}`);
+    const detail=isEquipment?[item.vehicle_type,item.work_type].filter(Boolean).join(" · "):(item.company||"소속 없음");
+    return `<div class="special-target-row" data-special-search="${escapeHtml(`${name} ${detail}`.toLowerCase())}"><div class="special-target-info"><b>${escapeHtml(name)}</b><span class="mini">${escapeHtml(detail)}</span></div><button type="button" class="${active?"primary":""}" onclick="toggleSpecialDraftTarget('${isEquipment?"equipment":"worker"}',${id})">${active?"추가됨":"+ 추가"}</button></div>`;
+  }).join("")||`<p class="small">등록된 ${isEquipment?"장비":"기사님"}이 없습니다.</p>`;
+  return `<div class="modal-backdrop" onclick="if(event.target===this) closeSpecialTargetPicker()"><div class="modal special-picker-modal" role="dialog" aria-modal="true"><div class="detail-top"><div><div class="modal-title">${isEquipment?"장비":"기사님"} 선택</div><p class="small">업무 대상 옆의 + 추가 버튼을 눌러주세요.</p></div><button onclick="closeSpecialTargetPicker()">닫기</button></div><div class="list-search"><label>목록 검색</label><input placeholder="목록 검색" oninput="filterSpecialTargetRows(this.value)"></div><div class="special-target-list">${rows}</div><div class="actions"><button class="primary" onclick="closeSpecialTargetPicker()">선택 확인 (${selected.length})</button></div></div></div>`;
+}
+function filterSpecialTargetRows(value){
+  const q=normalizeSearchText(value);
+  document.querySelectorAll("[data-special-search]").forEach(row=>row.classList.toggle("hidden",q&&!normalizeSearchText(row.dataset.specialSearch).includes(q)));
+}
+function specialDraftSelectedHtml(type){
+  const isEquipment=type==="equipment";
+  const ids=(isEquipment?specialTaskDraft.equipment_ids:specialTaskDraft.worker_ids).map(Number);
+  if(!ids.length) return `<span class="small">선택 없음</span>`;
+  return ids.map(id=>{
+    const item=(isEquipment?state.equipment:state.workers).find(x=>Number(x.id)===id);
+    const name=isEquipment?(equipmentDisplayNo(item)||`장비 #${id}`):(item?.name||`기사님 #${id}`);
+    return `<span class="badge info">${escapeHtml(name)}</span>`;
+  }).join("");
+}
+async function saveSpecialTask(){
+  syncSpecialTaskDraftTitle();
+  const title=String(specialTaskDraft.title||"").trim();
+  if(!title) return toast("특별업무 제목을 입력하세요.");
+  if(!specialTaskDraft.worker_ids.length&&!specialTaskDraft.equipment_ids.length) return toast("기사님 또는 장비를 1개 이상 추가하세요.");
+  const targets=[];
+  for(const id of specialTaskDraft.worker_ids.map(Number)){
+    const w=state.workers.find(x=>Number(x.id)===id);
+    if(w) targets.push({key:`worker-${id}`,type:"worker",source_id:id,name:w.name||`기사님 #${id}`,detail:w.company||"소속 없음",confirmed:false,confirmed_at:""});
+  }
+  for(const id of specialTaskDraft.equipment_ids.map(Number)){
+    const e=state.equipment.find(x=>Number(x.id)===id);
+    if(e) targets.push({key:`equipment-${id}`,type:"equipment",source_id:id,name:equipmentDisplayNo(e)||`장비 #${id}`,detail:[e.vehicle_type,e.work_type].filter(Boolean).join(" · "),confirmed:false,confirmed_at:""});
+  }
+  if(!targets.length) return toast("선택한 대상 정보를 찾을 수 없습니다.");
+  const tasks=specialTasks();
+  tasks.unshift({id:crypto.randomUUID?.()||String(Date.now()),title,created_date:todayStr(),created_at:new Date().toISOString(),completed_date:"",items:targets});
+  if(!(await saveJsonSetting("special_tasks",tasks,"특별업무"))) return;
+  specialTaskEditorOpen=false; specialTaskPickerType="";
+  specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]};
+  await loadAll(); toast("특별업무가 추가되었습니다.");
+}
+async function toggleSpecialTaskItem(taskId,targetKey){
+  const tasks=specialTasks(), task=tasks.find(x=>String(x.id)===String(taskId));
+  if(!task) return toast("특별업무를 찾을 수 없습니다.");
+  const item=(task.items||[]).find(x=>String(x.key)===String(targetKey));
+  if(!item) return toast("확인 대상을 찾을 수 없습니다.");
+  item.confirmed=!item.confirmed;
+  item.confirmed_at=item.confirmed?new Date().toISOString():"";
+  task.completed_date=specialTaskIsComplete(task)?todayStr():"";
+  if(!(await saveJsonSetting("special_tasks",tasks,"특별업무 확인"))) return;
+  await loadAll(); toast(item.confirmed?"확인 완료 처리되었습니다.":"확인 완료가 취소되었습니다.");
+}
+async function deleteSpecialTask(taskId){
+  const task=specialTasks().find(x=>String(x.id)===String(taskId));
+  if(!task) return toast("특별업무를 찾을 수 없습니다.");
+  if(!confirm(`'${task.title}' 특별업무를 전부 삭제할까요?`)) return;
+  if(!(await saveJsonSetting("special_tasks",specialTasks().filter(x=>String(x.id)!==String(taskId)),"특별업무"))) return;
+  await loadAll(); toast("특별업무가 삭제되었습니다.");
+}
+function renderSpecialTasks(){
+  const tasks=specialTasks().slice().sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||"")));
+  const editor=specialTaskEditorOpen?`<div class="card"><div class="detail-top"><div><h2>새 특별업무 추가</h2><p class="small">제목을 입력하고 기사님·장비 목록에서 업무 대상을 추가하세요.</p></div><button onclick="cancelSpecialTaskEditor()">취소</button></div><div><label>업무 제목</label><input id="special-task-title" value="${escapeHtml(specialTaskDraft.title||"")}" placeholder="예: KZX 장비 외관 및 블랙박스 특별점검" oninput="specialTaskDraft.title=this.value"></div><div class="special-task-grid" style="margin-top:10px"><div class="special-picker-box"><div class="detail-top"><div><b>기사님</b><span class="mini">교육·면담·개인별 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('worker')">+ 기사님</button></div><div class="special-selected-list">${specialDraftSelectedHtml("worker")}</div></div><div class="special-picker-box"><div class="detail-top"><div><b>장비</b><span class="mini">장비별 점검·사진 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('equipment')">+ 장비</button></div><div class="special-selected-list">${specialDraftSelectedHtml("equipment")}</div></div></div><div class="actions"><button class="green" onclick="saveSpecialTask()">업무 추가 확인</button><button onclick="cancelSpecialTaskEditor()">취소</button></div></div>`:"";
+  const cards=tasks.map(task=>{
+    const complete=specialTaskIsComplete(task), doneCount=(task.items||[]).filter(x=>x.confirmed).length;
+    const items=(task.items||[]).map(item=>`<div class="special-task-item ${item.confirmed?"confirmed":""}"><div class="special-task-item-info"><b>${item.type==="equipment"?"장비":"기사님"} · ${escapeHtml(item.name||"")}</b><span class="mini">${escapeHtml(item.detail||"")}</span></div><button class="${item.confirmed?"red":"green"}" onclick="toggleSpecialTaskItem('${jsString(task.id)}','${jsString(item.key)}')">${item.confirmed?"확인 취소":"확인"}</button></div>`).join("");
+    return `<div class="card special-task-card ${complete?"completed":""}"><div class="detail-top"><div><h2>${escapeHtml(task.title||"제목 없음")}</h2><span class="mini">등록일 ${escapeHtml(task.created_date||String(task.created_at||"").slice(0,10)||"-")} · 확인 ${doneCount}/${(task.items||[]).length}</span></div><div class="actions" style="margin-top:0">${complete?`<span class="badge ok">업무 완료</span>`:`<span class="badge soon">진행 중</span>`}<button class="red" onclick="deleteSpecialTask('${jsString(task.id)}')">삭제</button></div></div><div class="special-task-items">${items}</div>${complete?`<p class="small ok-text" style="margin-bottom:0">모든 확인이 완료되었습니다. 이 업무는 다음 날 자동으로 목록에서 사라집니다.</p>`:""}</div>`;
+  }).join("")||`<div class="card"><h2>등록된 특별업무가 없습니다.</h2><p class="small">KZX 업무지시가 내려오면 업무 추가 버튼으로 기사님과 장비를 연결해 관리할 수 있습니다.</p></div>`;
+  document.getElementById("page-special").innerHTML=`<div class="card"><div class="special-task-toolbar"><div><h2>특별업무</h2><p class="small">KZX에서 내려온 장비점검·교육·현장 확인 업무를 대상별로 관리합니다.</p></div><button class="primary" onclick="startSpecialTaskEditor()">+ 업무 추가</button></div></div>${editor}${cards}${specialTargetPickerHtml()}`;
 }
 
 function workerOptions(selected="", includeBlank=false) {
