@@ -44,6 +44,7 @@
     .day-cell{position:relative;min-height:124px;background:#fff;border:1px solid var(--line);border-radius:0;padding:8px;cursor:pointer;overflow:visible}
     .day-cell:nth-child(7n+1){border-radius:12px 0 0 12px}.day-cell:nth-child(7n){border-radius:0 12px 12px 0}
     .day-cell:hover{z-index:3;outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border-color:transparent;cursor:default}.day-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}.day-cell.selected{background:#eff6ff;box-shadow:inset 0 0 0 2px #60a5fa}
+    .day-cell.all-change{background:#dcfce7!important}.ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:#16a34a;color:#fff;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(22,163,74,.25)}
     .day-num{font-weight:900;margin-bottom:2px}.holiday-name{height:16px;font-size:10px;color:#dc2626;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
     .shift-name{display:block;font-size:12px;margin:3px 0;padding:5px 8px;border-radius:9px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .shift-summary{border:1px solid var(--line);border-radius:14px;padding:12px;background:#f8fafc;margin:12px 0 10px}.shift-summary-title{font-weight:900;margin-bottom:7px}.shift-summary-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.shift-summary-label{font-size:12px;font-weight:900;min-width:38px}.shift-day{background:#facc15!important;color:#713f12!important}.shift-night{background:#7c3aed!important;color:#fff!important}
@@ -1335,6 +1336,27 @@ function calendarDayShiftsHtml(dateText){
   }).join("");
   return rows?`<div class="calendar-day-shifts">${rows}</div>`:"";
 }
+function dayShiftWorkerIds(dateText){
+  return [...new Set(shiftCalendar()
+    .filter(x=>x.work_date===dateText&&(x.shift_type||"주간")==="주간")
+    .map(x=>String(x.worker_id))
+    .filter(Boolean))];
+}
+function allChangeShiftDates(){
+  const dates=[...new Set(shiftCalendar()
+    .filter(x=>(x.shift_type||"주간")==="주간"&&x.work_date)
+    .map(x=>x.work_date))]
+    .sort();
+  const result=new Set();
+  let previousIds=null;
+  for(const dateText of dates){
+    const currentIds=dayShiftWorkerIds(dateText);
+    if(!currentIds.length) continue;
+    if(previousIds&&currentIds.every(id=>!previousIds.has(id))) result.add(dateText);
+    previousIds=new Set(currentIds);
+  }
+  return result;
+}
 function renderCalendar(){
   const y=calendarCursor.getFullYear(), m=calendarCursor.getMonth();
   if(!calendarDetailDate) calendarDetailDate=selectedShiftDate || todayStr();
@@ -1342,6 +1364,7 @@ function renderCalendar(){
   const monthPrefix=`${y}-${String(m+1).padStart(2,"0")}-`;
   const monthEvents=workSchedules().filter(ev => (ev.dates||[]).some(d=>String(d).startsWith(monthPrefix)));
   const laneCount=assignCalendarEventLanes(monthEvents);
+  const acDates=allChangeShiftDates();
   for(let i=0;i<first.getDay();i++) days.push(`<div class="day-cell empty"></div>`);
   for(let d=1;d<=last.getDate();d++){
     const dateText=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
@@ -1353,9 +1376,10 @@ function renderCalendar(){
       lanes.push(`<div class="work-event-lane">${ev ? workEventLineHtml(ev,dateText) : `<span class="work-event-placeholder"></span>`}</div>`);
     }
     const numClass=holiday||dow===0?"holiday":dow===6?"sat":"";
-    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":""].filter(Boolean).join(" ");
+    const isAllChange=acDates.has(dateText);
+    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",isAllChange?"all-change":""].filter(Boolean).join(" ");
     days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
-      <div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      ${isAllChange?`<span class="ac-badge" title="직전 주간 근무일과 전체 기사님 교체">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
       <div class="calendar-event-lanes">${lanes.join("")}</div>${calendarDayShiftsHtml(dateText)}</div>`);
   }
 
