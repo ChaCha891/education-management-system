@@ -45,6 +45,7 @@
     .day-cell:nth-child(7n+1){border-radius:12px 0 0 12px}.day-cell:nth-child(7n){border-radius:0 12px 12px 0}
     .day-cell:hover{z-index:3;outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border-color:transparent;cursor:default}.day-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}.day-cell.selected{background:#eff6ff;box-shadow:inset 0 0 0 2px #60a5fa}
     .day-cell.all-change{background:#dcfce7!important}.ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:#16a34a;color:#fff;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(22,163,74,.25)}
+    .education-plan-card{border:2px solid #93c5fd;background:#f8fbff}.education-plan-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.education-plan-stat{border:1px solid #bfdbfe;border-radius:12px;padding:10px;background:#fff;text-align:center}.education-plan-stat b{display:block;font-size:20px;color:#1d4ed8}.education-plan-list{display:grid;gap:8px}.education-plan-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #bfdbfe;border-radius:12px;padding:11px;background:#fff}.education-plan-names{white-space:normal;line-height:1.45}.education-recommend-badge{display:inline-block;margin:2px 0 3px;padding:4px 7px;border-radius:8px;background:#2563eb;color:#fff;font-size:10px;font-weight:900}.backup-card{border:2px solid #a7f3d0;background:#f0fdf4}
     .day-num{font-weight:900;margin-bottom:2px}.holiday-name{height:16px;font-size:10px;color:#dc2626;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
     .shift-name{display:block;font-size:12px;margin:3px 0;padding:5px 8px;border-radius:9px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .shift-summary{border:1px solid var(--line);border-radius:14px;padding:12px;background:#f8fafc;margin:12px 0 10px}.shift-summary-title{font-weight:900;margin-bottom:7px}.shift-summary-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.shift-summary-label{font-size:12px;font-weight:900;min-width:38px}.shift-day{background:#facc15!important;color:#713f12!important}.shift-night{background:#7c3aed!important;color:#fff!important}
@@ -94,7 +95,7 @@
       .nav button{width:100%;text-align:left}
       #nav-dashboard,#nav-retention{display:none!important}
       .container{padding:12px}
-      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list,.business-filter-grid,.business-manage,.worker-master-detail,.identity-grid,.assignment-worker-checks,.memo-layout,.special-task-grid,.special-task-items{grid-template-columns:1fr}
+      .grid,.grid3,.form-row,.worker-checks,.worker-shift-list,.business-filter-grid,.business-manage,.worker-master-detail,.identity-grid,.assignment-worker-checks,.memo-layout,.special-task-grid,.special-task-items,.education-plan-stats{grid-template-columns:1fr}
       button,.btn{width:100%}
       .menu-toggle{width:46px}
       th,td{font-size:13px;padding:8px}
@@ -216,6 +217,9 @@ let specialTaskEditorOpen = false;
 let specialTaskPickerType = "";
 let specialTaskDraft = { title:"", worker_ids:[], equipment_ids:[] };
 let specialTaskPickerOriginal = [];
+let educationPlannerOpen = false;
+let educationPlanDraft = { education_name:"", target_mode:"전체", completion_mode:"pending", start_date:todayStr(), end_date:addDaysText(todayStr(),60) };
+let educationPlanResult = null;
 
 function ready() {
   if (SUPABASE_URL.includes("YOUR_") || SUPABASE_ANON_KEY.includes("YOUR_")) {
@@ -1357,6 +1361,116 @@ function allChangeShiftDates(){
   }
   return result;
 }
+function educationPlannerTargetWorkers(mode){
+  return state.workers.filter(w=>{
+    if(mode==="전체") return true;
+    const p=workerProfile(w.id);
+    if(mode==="월대"||mode==="일대") return String(p.employment_type||"").trim()===mode;
+    return String(p.equipment_type||"").includes(mode);
+  });
+}
+function educationPlanWorkerCompleted(workerId,educationName,referenceDate){
+  if(isMonthlyRegularEducation(educationName)) return !!monthlyRegularDoneRecord(workerId,String(referenceDate||todayStr()).slice(0,7));
+  const last=latestHistoryDate(workerId,educationName);
+  if(!last) return false;
+  const cycle=Number(getEducationRule(educationName)?.cycle_days??0);
+  if(cycle<=0) return true;
+  return addDaysText(last,cycle)>=String(referenceDate||todayStr());
+}
+function openEducationPlanner(){
+  educationPlannerOpen=true;
+  if(!educationPlanDraft.education_name) educationPlanDraft.education_name=educationTypeNames()[0]||"";
+  if(!educationPlanDraft.start_date) educationPlanDraft.start_date=todayStr();
+  if(!educationPlanDraft.end_date) educationPlanDraft.end_date=addDaysText(educationPlanDraft.start_date,60);
+  renderCalendar();
+}
+function closeEducationPlanner(){ educationPlannerOpen=false; renderCalendar(); }
+function clearEducationPlan(){
+  educationPlanResult=null;
+  educationPlannerOpen=false;
+  renderCalendar();
+}
+function syncEducationPlanDraft(){
+  educationPlanDraft={
+    education_name:val("education-plan-name")||educationPlanDraft.education_name,
+    target_mode:val("education-plan-target")||"전체",
+    completion_mode:val("education-plan-completion")||"pending",
+    start_date:dateVal("education-plan-start")||todayStr(),
+    end_date:dateVal("education-plan-end")||addDaysText(todayStr(),60)
+  };
+}
+function analyzeEducationPlan(){
+  syncEducationPlanDraft();
+  const d=educationPlanDraft;
+  if(!d.education_name) return toast("교육을 선택하세요.");
+  if(!isValidDateText(d.start_date)||!isValidDateText(d.end_date)) return toast("조회 시작일과 종료일을 확인하세요.");
+  if(d.start_date>d.end_date) return toast("조회 종료일은 시작일 이후여야 합니다.");
+  const targets=educationPlannerTargetWorkers(d.target_mode);
+  const completed=d.completion_mode==="all"?[]:targets.filter(w=>educationPlanWorkerCompleted(w.id,d.education_name,d.start_date));
+  const completedIds=new Set(completed.map(w=>String(w.id)));
+  const pending=targets.filter(w=>!completedIds.has(String(w.id)));
+  const pendingIds=new Set(pending.map(w=>String(w.id)));
+  const candidates=[];
+  for(let dateText=d.start_date;dateText<=d.end_date;dateText=addDaysText(dateText,1)){
+    const ids=dayShiftWorkerIds(dateText).filter(id=>pendingIds.has(String(id)));
+    if(ids.length) candidates.push({date:dateText,ids:[...new Set(ids.map(String))]});
+  }
+  const remaining=new Set([...pendingIds]);
+  const recommendations=[];
+  const unused=candidates.slice();
+  while(remaining.size){
+    let best=null,bestIds=[];
+    for(const c of unused){
+      const gain=c.ids.filter(id=>remaining.has(id));
+      if(gain.length>bestIds.length||(gain.length===bestIds.length&&gain.length&&c.date<(best?.date||"9999-99-99"))){ best=c; bestIds=gain; }
+    }
+    if(!best||!bestIds.length) break;
+    recommendations.push({date:best.date,worker_ids:bestIds});
+    bestIds.forEach(id=>remaining.delete(id));
+    unused.splice(unused.indexOf(best),1);
+  }
+  educationPlanResult={
+    education_name:d.education_name,
+    target_mode:d.target_mode,
+    completion_mode:d.completion_mode,
+    start_date:d.start_date,
+    end_date:d.end_date,
+    target_count:targets.length,
+    completed_count:completed.length,
+    pending_count:pending.length,
+    recommendations,
+    uncovered_ids:[...remaining],
+    analyzed_at:new Date().toISOString()
+  };
+  renderCalendar();
+}
+function educationPlanWorkerNames(ids){
+  return (ids||[]).map(id=>state.workers.find(w=>String(w.id)===String(id))?.name).filter(Boolean);
+}
+function educationPlanResultHtml(){
+  const r=educationPlanResult;
+  if(!r) return `<p class="small">조건을 선택하고 추천 날짜 계산을 누르면 결과가 표시됩니다.</p>`;
+  const covered=r.recommendations.reduce((n,x)=>n+(x.worker_ids||[]).length,0);
+  const rows=r.recommendations.map((item,idx)=>{
+    const names=educationPlanWorkerNames(item.worker_ids);
+    return `<div class="education-plan-row"><div><b>${idx+1}순위 · ${escapeHtml(shortDateWithDay(item.date))}</b><div class="education-plan-names small">새로 교육 가능: ${escapeHtml(names.join(", ")||"-")}</div></div><div><span class="badge info">${names.length}명</span> <button onclick="goEducationPlanDate('${item.date}')">달력 보기</button></div></div>`;
+  }).join("")||`<p class="small danger-text">조회 기간 안에 미이수자가 주간 근무하는 날짜가 없습니다.</p>`;
+  const uncovered=educationPlanWorkerNames(r.uncovered_ids);
+  return `<div class="education-plan-stats"><div class="education-plan-stat"><b>${r.target_count}</b><span class="small">전체 대상</span></div><div class="education-plan-stat"><b>${r.completed_count}</b><span class="small">이미 이수</span></div><div class="education-plan-stat"><b>${covered}</b><span class="small">추천일 교육 가능</span></div><div class="education-plan-stat"><b>${uncovered.length}</b><span class="small">기간 내 교육 불가</span></div></div><div class="education-plan-list">${rows}</div>${uncovered.length?`<div class="assignment-item" style="margin-top:10px"><b>기간 안에 주간 출근이 없는 미이수자</b><p class="small" style="white-space:normal">${escapeHtml(uncovered.join(", "))}</p></div>`:""}`;
+}
+function educationPlannerHtml(){
+  if(!educationPlannerOpen) return "";
+  const options=educationTypeNames().map(name=>`<option value="${escapeHtml(name)}" ${name===educationPlanDraft.education_name?"selected":""}>${escapeHtml(name)}</option>`).join("");
+  return `<div class="card education-plan-card"><div class="detail-top"><div><h2>교육 최적일 추천</h2><p class="small">주간 근무자만 분석하고, 추천일마다 이미 포함된 사람을 제외해 다음 날짜를 계산합니다.</p></div><div class="actions" style="margin-top:0"><button onclick="closeEducationPlanner()">접기</button><button class="red" onclick="clearEducationPlan()">추천 지우기</button></div></div><div class="form-row"><div><label>교육</label><select id="education-plan-name">${options}</select></div><div><label>대상 그룹</label><select id="education-plan-target">${["전체","월대","일대","로더","굴착기"].map(x=>`<option value="${x}" ${x===educationPlanDraft.target_mode?"selected":""}>${x}</option>`).join("")}</select></div><div><label>이수자 처리</label><select id="education-plan-completion"><option value="pending" ${educationPlanDraft.completion_mode==="pending"?"selected":""}>현재 미이수자만</option><option value="all" ${educationPlanDraft.completion_mode==="all"?"selected":""}>기존 이력 무시·전원</option></select></div><div><label>조회 기간</label><div style="display:flex;gap:6px"><input id="education-plan-start" data-format="date" value="${escapeHtml(educationPlanDraft.start_date)}"><input id="education-plan-end" data-format="date" value="${escapeHtml(educationPlanDraft.end_date)}"></div></div></div><div class="actions"><button class="primary" onclick="analyzeEducationPlan()">추천 날짜 계산</button></div>${educationPlanResultHtml()}</div>`;
+}
+function goEducationPlanDate(dateText){
+  const d=new Date(dateText+"T00:00:00");
+  calendarCursor=new Date(d.getFullYear(),d.getMonth(),1);
+  selectedShiftDate=dateText;
+  calendarDetailDate=dateText;
+  workEditorOpen=false; shiftEditorOpen=false; activeShiftWorkerId=null;
+  renderCalendar();
+}
 function renderCalendar(){
   const y=calendarCursor.getFullYear(), m=calendarCursor.getMonth();
   if(!calendarDetailDate) calendarDetailDate=selectedShiftDate || todayStr();
@@ -1365,6 +1479,7 @@ function renderCalendar(){
   const monthEvents=workSchedules().filter(ev => (ev.dates||[]).some(d=>String(d).startsWith(monthPrefix)));
   const laneCount=assignCalendarEventLanes(monthEvents);
   const acDates=allChangeShiftDates();
+  const educationRecommended=Object.fromEntries((educationPlanResult?.recommendations||[]).map(x=>[x.date,x]));
   for(let i=0;i<first.getDay();i++) days.push(`<div class="day-cell empty"></div>`);
   for(let d=1;d<=last.getDate();d++){
     const dateText=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
@@ -1377,9 +1492,11 @@ function renderCalendar(){
     }
     const numClass=holiday||dow===0?"holiday":dow===6?"sat":"";
     const isAllChange=acDates.has(dateText);
+    const recommended=educationRecommended[dateText];
     const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",isAllChange?"all-change":""].filter(Boolean).join(" ");
     days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
       ${isAllChange?`<span class="ac-badge" title="직전 주간 근무일과 전체 기사님 교체">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      ${recommended?`<span class="education-recommend-badge">교육추천 ${recommended.worker_ids.length}명</span>`:""}
       <div class="calendar-event-lanes">${lanes.join("")}</div>${calendarDayShiftsHtml(dateText)}</div>`);
   }
 
@@ -1411,8 +1528,9 @@ function renderCalendar(){
 
   document.getElementById("page-calendar").innerHTML=`
     <div class="card"><div class="calendar-toolbar"><button onclick="moveCalendarMonth(-1)">이전달</button><div class="calendar-title">${y}년 ${m+1}월 통합 캘린더</div><button onclick="moveCalendarMonth(1)">다음달</button></div>
-      <div class="actions"><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button><button onclick="refreshCalendarHolidays()">공휴일 업데이트</button></div>
+      <div class="actions"><button class="primary" onclick="openEducationPlanner()">교육 일정 찾기</button><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button><button onclick="refreshCalendarHolidays()">공휴일 업데이트</button></div>
       ${shiftSummaryHtml(calendarDetailDate)}<p class="calendar-help small">날짜를 선택하면 해당 날짜의 근무자와 업무를 함께 확인할 수 있습니다. 연속 업무는 하나의 색상 막대로 이어집니다.</p></div>
+    ${educationPlannerHtml()}
     <div class="card"><div class="calendar-grid">${["일","월","화","수","목","금","토"].map((x,i)=>`<div class="calendar-head ${i===0?'sun':i===6?'sat':''}">${x}</div>`).join("")}${days.join("")}</div></div>
     <div class="card"><div class="detail-top"><h2>${calendarDetailDate} 일정</h2><div class="actions"><button class="primary" onclick="openWorkScheduleDetail('${calendarDetailDate}')">업무 스케줄 추가</button><button onclick="openShiftDetail('${calendarDetailDate}')">근무 설정</button></div></div><div class="work-schedule-list">${scheduleList}</div></div>
     ${workEditor}${shiftEditor}${modalHtml}`;
@@ -2705,6 +2823,58 @@ function renderMemo(){
 
 async function saveGeneralMemo(){ return saveMemoFile(); }
 
+function downloadISHMBackup(){
+  const backup={
+    format:"ISHM_BACKUP_V1",
+    exported_at:new Date().toISOString(),
+    app_name:"ISHM 현장관리 시스템",
+    tables:{
+      workers:state.workers,
+      equipment:state.equipment,
+      education_records:state.education,
+      training_history:state.history,
+      settings:Object.entries(state.settings).map(([key,value])=>({key,value}))
+    }
+  };
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`ISHM_backup_${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("ISHM 백업파일을 저장했습니다.");
+}
+async function upsertBackupRows(table,rows){
+  const list=Array.isArray(rows)?rows:[];
+  for(let i=0;i<list.length;i+=300){
+    const res=await db.from(table).upsert(list.slice(i,i+300));
+    if(res.error) throw new Error(`${table}: ${res.error.message||"복원 오류"}`);
+  }
+}
+async function restoreISHMBackup(fileList){
+  const file=Array.from(fileList||[])[0];
+  if(!file) return;
+  try{
+    const backup=JSON.parse(await file.text());
+    if(backup?.format!=="ISHM_BACKUP_V1"||!backup.tables) throw new Error("ISHM 백업파일 형식이 아닙니다.");
+    if(!confirm(`${file.name}\n\n백업 자료를 불러올까요?\n기존 자료는 유지하고, 백업과 같은 ID의 자료는 백업 내용으로 갱신됩니다.`)) return;
+    toast("백업 자료를 복원하는 중...");
+    await upsertBackupRows("workers",backup.tables.workers);
+    await upsertBackupRows("equipment",backup.tables.equipment);
+    await upsertBackupRows("education_records",backup.tables.education_records);
+    await upsertBackupRows("training_history",backup.tables.training_history);
+    await upsertBackupRows("settings",backup.tables.settings);
+    await loadAll();
+    alert("ISHM 백업 불러오기가 완료되었습니다.");
+  }catch(e){
+    console.error(e);
+    alert(`백업 불러오기 실패: ${String(e?.message||e)}`);
+  }
+}
+
 function renderSettings(){
   const rules = educationRules();
   const ruleRows = rules.map((r, idx)=>`<tr>
@@ -2718,6 +2888,7 @@ function renderSettings(){
     <td><button onclick="editRule(${idx})">수정</button> <button class="red" onclick="deleteRule(${idx})">삭제</button></td>
   </tr>`).join("") || `<tr><td colspan="8">등록된 교육기준이 없습니다.</td></tr>`;
   document.getElementById("page-settings").innerHTML=`
+    <div class="card backup-card"><h2>ISHM 데이터 백업</h2><p class="small">기사님·교육이력·근무표·장비·업무일정·메모·특별업무·설정을 JSON 파일 하나로 저장합니다. 서버에 보관된 사진 원본은 포함되지 않습니다.</p><div class="actions"><button class="green" onclick="downloadISHMBackup()">백업파일 저장</button><button onclick="document.getElementById('ishm-backup-file').click()">백업파일 불러오기</button></div><input id="ishm-backup-file" class="hidden" type="file" accept=".json,application/json" onchange="restoreISHMBackup(this.files);this.value=''"><p class="small">불러오기는 현재 자료를 삭제하지 않고 백업 자료를 복원·갱신하는 안전 방식입니다.</p></div>
     <div class="card"><h2>문자 기본문구</h2><p class="small">치환값: {name}, {education}, {next_date}, {dday}, {phone}</p><textarea id="sms-template">${escapeHtml(state.settings.sms_template||DEFAULT_TEMPLATE)}</textarea><div class="actions"><button class="primary" onclick="saveSettings()">문구 저장</button></div></div>
 
     <div class="card"><h2>교육기준 등록/수정</h2>
