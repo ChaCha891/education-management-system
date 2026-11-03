@@ -210,6 +210,7 @@ let dashboardOverdueOpen = false;
 const MONTHLY_REGULAR_TRACKING_START = "2026-01";
 let specialTaskEditorOpen = false;
 let specialTaskEditId = "";
+let specialTaskConfirmedViewId = "";
 let specialTaskPickerType = "";
 let specialTaskDraft = { title:"", worker_ids:[], equipment_ids:[] };
 let specialTaskPickerOriginal = [];
@@ -315,6 +316,11 @@ function formatDate(d) {
   const m = String(d.getMonth()+1).padStart(2,"0");
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
+}
+function formatDateTime(value) {
+  const d = new Date(value);
+  if(Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 function remainDays(target) {
   const today = new Date(todayStr() + "T00:00:00");
@@ -2005,12 +2011,39 @@ async function toggleSpecialTaskItem(taskId,targetKey){
   item.confirmed_at=item.confirmed?new Date().toISOString():"";
   task.completed_date=specialTaskIsComplete(task)?todayStr():"";
   if(!(await saveJsonSetting("special_tasks",tasks,"특별업무 확인"))) return;
+  if(item.confirmed&&specialTaskIsComplete(task)){
+    if(confirm("업무완료. 삭제하시겠습니까?")){
+      specialTaskConfirmedViewId="";
+      if(!(await saveJsonSetting("special_tasks",tasks.filter(x=>String(x.id)!==String(taskId)),"완료 특별업무 삭제"))) return;
+      await loadAll(); toast("완료된 업무가 삭제되었습니다.");
+      return;
+    }
+    await loadAll(); toast("업무가 완료된 상태로 유지됩니다.");
+    return;
+  }
   await loadAll(); toast(item.confirmed?"확인 완료 처리되었습니다.":"확인 완료가 취소되었습니다.");
+}
+function openSpecialTaskConfirmedItems(taskId){
+  specialTaskConfirmedViewId=String(taskId);
+  renderSpecialTasks();
+}
+function closeSpecialTaskConfirmedItems(){
+  specialTaskConfirmedViewId="";
+  renderSpecialTasks();
+}
+function specialTaskConfirmedItemsHtml(){
+  if(!specialTaskConfirmedViewId) return "";
+  const task=specialTasks().find(x=>String(x.id)===String(specialTaskConfirmedViewId));
+  if(!task){ specialTaskConfirmedViewId=""; return ""; }
+  const confirmed=(task.items||[]).filter(x=>x.confirmed);
+  const rows=confirmed.map(item=>`<div class="special-task-item confirmed"><div class="special-task-item-info"><b>${item.type==="equipment"?"장비":"기사님"} · ${escapeHtml(item.name||"")}</b><span class="mini">${escapeHtml(item.detail||"")}${item.confirmed_at?` · ${escapeHtml(formatDateTime(item.confirmed_at))}`:""}</span></div><button class="red" onclick="toggleSpecialTaskItem('${jsString(task.id)}','${jsString(item.key)}')">확인 취소</button></div>`).join("")||`<p class="small">확인 처리된 항목이 없습니다.</p>`;
+  return `<div class="modal-backdrop" onclick="if(event.target===this) closeSpecialTaskConfirmedItems()"><div class="modal special-picker-modal" role="dialog" aria-modal="true"><div class="detail-top"><div><div class="modal-title">${escapeHtml(task.title||"특별업무")} · 확인 처리 항목</div><p class="small">확인 처리가 끝난 기사님과 장비만 모아 봅니다.</p></div><button onclick="closeSpecialTaskConfirmedItems()">닫기</button></div><div class="special-task-items">${rows}</div></div></div>`;
 }
 async function deleteSpecialTask(taskId){
   const task=specialTasks().find(x=>String(x.id)===String(taskId));
   if(!task) return toast("특별업무를 찾을 수 없습니다.");
   if(!confirm(`'${task.title}' 특별업무를 전부 삭제할까요?`)) return;
+  if(String(specialTaskConfirmedViewId)===String(taskId)) specialTaskConfirmedViewId="";
   if(!(await saveJsonSetting("special_tasks",specialTasks().filter(x=>String(x.id)!==String(taskId)),"특별업무"))) return;
   await loadAll(); toast("특별업무가 삭제되었습니다.");
 }
@@ -2021,10 +2054,10 @@ function renderSpecialTasks(){
   const editor=specialTaskEditorOpen?`<div class="card"><div class="detail-top"><div><h2>${editorTitle}</h2><p class="small">${editorHelp}</p></div><button onclick="cancelSpecialTaskEditor()">취소</button></div><div><label>업무 제목</label><input id="special-task-title" value="${escapeHtml(specialTaskDraft.title||"")}" placeholder="예: KZX 장비 외관 및 블랙박스 특별점검" oninput="specialTaskDraft.title=this.value"></div><div class="special-task-grid" style="margin-top:10px"><div class="special-picker-box"><div class="detail-top"><div><b>기사님</b><span class="mini">교육·면담·개인별 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('worker')">+ 기사님</button></div><div class="special-selected-list">${specialDraftSelectedHtml("worker")}</div></div><div class="special-picker-box"><div class="detail-top"><div><b>장비</b><span class="mini">장비별 점검·사진 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('equipment')">+ 장비</button></div><div class="special-selected-list">${specialDraftSelectedHtml("equipment")}</div></div></div><div class="actions"><button class="green" onclick="saveSpecialTask()">${specialTaskEditId?"수정 내용 저장":"업무 추가 확인"}</button><button onclick="cancelSpecialTaskEditor()">취소</button></div></div>`:"";
   const cards=tasks.map(task=>{
     const complete=specialTaskIsComplete(task), doneCount=(task.items||[]).filter(x=>x.confirmed).length;
-    const items=(task.items||[]).map(item=>`<div class="special-task-item ${item.confirmed?"confirmed":""}"><div class="special-task-item-info"><b>${item.type==="equipment"?"장비":"기사님"} · ${escapeHtml(item.name||"")}</b><span class="mini">${escapeHtml(item.detail||"")}</span></div><button class="${item.confirmed?"red":"green"}" onclick="toggleSpecialTaskItem('${jsString(task.id)}','${jsString(item.key)}')">${item.confirmed?"확인 취소":"확인"}</button></div>`).join("");
-    return `<div class="card special-task-card ${complete?"completed":""}"><div class="detail-top"><div><h2>${escapeHtml(task.title||"제목 없음")}</h2><span class="mini">등록일 ${escapeHtml(task.created_date||String(task.created_at||"").slice(0,10)||"-")} · 확인 ${doneCount}/${(task.items||[]).length}</span></div><div class="actions" style="margin-top:0">${complete?`<span class="badge ok">업무 완료</span>`:`<span class="badge soon">진행 중</span>`}<button onclick="editSpecialTask('${jsString(task.id)}')">수정</button><button class="red" onclick="deleteSpecialTask('${jsString(task.id)}')">삭제</button></div></div><div class="special-task-items">${items}</div>${complete?`<p class="small ok-text" style="margin-bottom:0">모든 확인이 완료되었습니다. 이 업무는 다음 날 자동으로 목록에서 사라집니다.</p>`:""}</div>`;
+    const items=(task.items||[]).filter(item=>!item.confirmed).map(item=>`<div class="special-task-item"><div class="special-task-item-info"><b>${item.type==="equipment"?"장비":"기사님"} · ${escapeHtml(item.name||"")}</b><span class="mini">${escapeHtml(item.detail||"")}</span></div><button class="green" onclick="toggleSpecialTaskItem('${jsString(task.id)}','${jsString(item.key)}')">확인</button></div>`).join("")||`<p class="small">남아 있는 확인 항목이 없습니다.</p>`;
+    return `<div class="card special-task-card ${complete?"completed":""}"><div class="detail-top"><div><h2>${escapeHtml(task.title||"제목 없음")}</h2><span class="mini">등록일 ${escapeHtml(task.created_date||String(task.created_at||"").slice(0,10)||"-")} · 확인 ${doneCount}/${(task.items||[]).length}</span></div><div class="actions" style="margin-top:0"><button onclick="openSpecialTaskConfirmedItems('${jsString(task.id)}')">확인처리 ${doneCount}건 보기</button><button onclick="editSpecialTask('${jsString(task.id)}')">수정</button><button class="red" onclick="deleteSpecialTask('${jsString(task.id)}')">삭제</button></div></div><div class="special-task-items">${items}</div></div>`;
   }).join("")||`<div class="card"><h2>등록된 특별업무가 없습니다.</h2><p class="small">KZX 업무지시가 내려오면 업무 추가 버튼으로 기사님과 장비를 연결해 관리할 수 있습니다.</p></div>`;
-  document.getElementById("page-special").innerHTML=`<div class="card"><div class="special-task-toolbar"><div><h2>특별업무</h2><p class="small">KZX에서 내려온 장비점검·교육·현장 확인 업무를 대상별로 관리합니다.</p></div><div class="actions" style="margin-top:0"><button class="green" onclick="createPatrolSpecialTask()">순회점검</button><button class="primary" onclick="startSpecialTaskEditor()">+ 업무 추가</button></div></div></div>${editor}${cards}${specialTargetPickerHtml()}`;
+  document.getElementById("page-special").innerHTML=`<div class="card"><div class="special-task-toolbar"><div><h2>특별업무</h2><p class="small">KZX에서 내려온 장비점검·교육·현장 확인 업무를 대상별로 관리합니다.</p></div><div class="actions" style="margin-top:0"><button class="green" onclick="createPatrolSpecialTask()">순회점검</button><button class="primary" onclick="startSpecialTaskEditor()">+ 업무 추가</button></div></div></div>${editor}${cards}${specialTargetPickerHtml()}${specialTaskConfirmedItemsHtml()}`;
 }
 
 function workerOptions(selected="", includeBlank=false) {
