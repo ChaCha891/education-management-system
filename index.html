@@ -116,7 +116,6 @@
 <body>
   <div class="header">
     <h1>ISHM 현장관리 시스템</h1>
-    <button class="camera-shortcut" type="button" onclick="openSystemCamera()" aria-label="현장 사진 촬영" title="현장 사진 촬영">📷</button>
     <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu()" aria-label="메뉴 열기">☰</button>
     <div class="nav" id="main-nav" onclick="event.stopPropagation()">
       <button onclick="showPage('mobile')" id="nav-mobile">현장 모바일</button>
@@ -128,7 +127,6 @@
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
       <button onclick="showPage('memo')" id="nav-memo">메모</button>
       <button onclick="showPage('worklog')" id="nav-worklog">업무일지</button>
-      <button onclick="showPage('patrol')" id="nav-patrol">순회점검</button>
       <button onclick="showPage('special')" id="nav-special">특별업무</button>
       <button onclick="showPage('settings')" id="nav-settings">설정</button>
     </div>
@@ -150,14 +148,11 @@
     <section id="page-equipment" class="page hidden"></section>
     <section id="page-memo" class="page hidden"></section>
     <section id="page-worklog" class="page hidden"></section>
-    <section id="page-patrol" class="page hidden"></section>
     <section id="page-special" class="page hidden"></section>
     <section id="page-settings" class="page hidden"></section>
   </div>
 
   <div id="toast" class="toast"></div>
-  <input id="system-camera-input" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleSystemCamera(this.files);this.value=''">
-
 <script>
 // =========================
 // 1) 여기에 Supabase 값을 넣으세요.
@@ -214,6 +209,7 @@ let activeMemoId = "";
 let dashboardOverdueOpen = false;
 const MONTHLY_REGULAR_TRACKING_START = "2026-01";
 let specialTaskEditorOpen = false;
+let specialTaskEditId = "";
 let specialTaskPickerType = "";
 let specialTaskDraft = { title:"", worker_ids:[], equipment_ids:[] };
 let specialTaskPickerOriginal = [];
@@ -750,11 +746,12 @@ function closeMenu() {
 
 function showPage(page) {
   closeMenu();
+  if(!document.getElementById(`page-${page}`)) page="mobile";
   currentPage = page;
   document.querySelectorAll(".page").forEach(x => x.classList.add("hidden"));
   document.getElementById(`page-${page}`).classList.remove("hidden");
   document.querySelectorAll(".nav button").forEach(x => x.classList.remove("active"));
-  document.getElementById(`nav-${page}`).classList.add("active");
+  document.getElementById(`nav-${page}`)?.classList.add("active");
   renderCurrent();
 }
 
@@ -1302,7 +1299,6 @@ function renderCurrent() {
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "memo") renderMemo();
   if (currentPage === "worklog") renderWorklog();
-  if (currentPage === "patrol") renderPatrol();
   if (currentPage === "special") renderSpecialTasks();
   if (currentPage === "settings") renderSettings();
   bindAutoFormatInputs();
@@ -1842,11 +1838,27 @@ async function cleanupCompletedSpecialTasks(){
   if(kept.length!==items.length) await saveJsonSetting("special_tasks",kept,"완료된 특별업무 정리");
 }
 function startSpecialTaskEditor(){
+  specialTaskEditId="";
   specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]};
   specialTaskPickerType=""; specialTaskEditorOpen=true; renderSpecialTasks();
 }
+function editSpecialTask(taskId){
+  const task=specialTasks().find(x=>String(x.id)===String(taskId));
+  if(!task) return toast("특별업무를 찾을 수 없습니다.");
+  specialTaskEditId=String(task.id);
+  specialTaskDraft={
+    title:String(task.title||""),
+    worker_ids:(task.items||[]).filter(x=>x.type==="worker").map(x=>Number(x.source_id)).filter(Number.isFinite),
+    equipment_ids:(task.items||[]).filter(x=>x.type==="equipment").map(x=>Number(x.source_id)).filter(Number.isFinite)
+  };
+  specialTaskPickerType="";
+  specialTaskEditorOpen=true;
+  renderSpecialTasks();
+  document.getElementById("special-task-title")?.focus();
+}
 function cancelSpecialTaskEditor(){
   specialTaskEditorOpen=false; specialTaskPickerType="";
+  specialTaskEditId="";
   specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]}; renderSpecialTasks();
 }
 function syncSpecialTaskDraftTitle(){
@@ -1932,30 +1944,57 @@ function specialDraftSelectedHtml(type){
   return ids.map(id=>{
     const item=(isEquipment?state.equipment:state.workers).find(x=>Number(x.id)===id);
     const name=isEquipment?(equipmentDisplayNo(item)||`장비 #${id}`):(item?.name||`기사님 #${id}`);
-    return `<span class="badge info">${escapeHtml(name)}</span>`;
+    return `<button type="button" class="badge info" style="width:auto" onclick="toggleSpecialDraftTarget('${isEquipment?"equipment":"worker"}',${id});renderSpecialTasks()" title="선택에서 삭제">${escapeHtml(name)} ×</button>`;
   }).join("");
+}
+function buildSpecialTaskTargets(workerIds,equipmentIds,previousItems=[]){
+  const previous=new Map((previousItems||[]).map(x=>[String(x.key),x]));
+  const targets=[];
+  for(const id of (workerIds||[]).map(Number)){
+    const w=state.workers.find(x=>Number(x.id)===id);
+    if(!w) continue;
+    const key=`worker-${id}`, old=previous.get(key);
+    targets.push({key,type:"worker",source_id:id,name:w.name||`기사님 #${id}`,detail:w.company||"소속 없음",confirmed:old?.confirmed===true,confirmed_at:old?.confirmed_at||""});
+  }
+  for(const id of (equipmentIds||[]).map(Number)){
+    const e=state.equipment.find(x=>Number(x.id)===id);
+    if(!e) continue;
+    const key=`equipment-${id}`, old=previous.get(key);
+    targets.push({key,type:"equipment",source_id:id,name:equipmentDisplayNo(e)||`장비 #${id}`,detail:[e.vehicle_type,e.work_type].filter(Boolean).join(" · "),confirmed:old?.confirmed===true,confirmed_at:old?.confirmed_at||""});
+  }
+  return targets;
 }
 async function saveSpecialTask(){
   syncSpecialTaskDraftTitle();
   const title=String(specialTaskDraft.title||"").trim();
   if(!title) return toast("특별업무 제목을 입력하세요.");
   if(!specialTaskDraft.worker_ids.length&&!specialTaskDraft.equipment_ids.length) return toast("기사님 또는 장비를 1개 이상 추가하세요.");
-  const targets=[];
-  for(const id of specialTaskDraft.worker_ids.map(Number)){
-    const w=state.workers.find(x=>Number(x.id)===id);
-    if(w) targets.push({key:`worker-${id}`,type:"worker",source_id:id,name:w.name||`기사님 #${id}`,detail:w.company||"소속 없음",confirmed:false,confirmed_at:""});
-  }
-  for(const id of specialTaskDraft.equipment_ids.map(Number)){
-    const e=state.equipment.find(x=>Number(x.id)===id);
-    if(e) targets.push({key:`equipment-${id}`,type:"equipment",source_id:id,name:equipmentDisplayNo(e)||`장비 #${id}`,detail:[e.vehicle_type,e.work_type].filter(Boolean).join(" · "),confirmed:false,confirmed_at:""});
-  }
-  if(!targets.length) return toast("선택한 대상 정보를 찾을 수 없습니다.");
   const tasks=specialTasks();
-  tasks.unshift({id:crypto.randomUUID?.()||String(Date.now()),title,created_date:todayStr(),created_at:new Date().toISOString(),completed_date:"",items:targets});
+  const editingTask=specialTaskEditId?tasks.find(x=>String(x.id)===String(specialTaskEditId)):null;
+  const targets=buildSpecialTaskTargets(specialTaskDraft.worker_ids,specialTaskDraft.equipment_ids,editingTask?.items||[]);
+  if(!targets.length) return toast("선택한 대상 정보를 찾을 수 없습니다.");
+  if(editingTask){
+    editingTask.title=title;
+    editingTask.items=targets;
+    editingTask.completed_date=specialTaskIsComplete(editingTask)?(editingTask.completed_date||todayStr()):"";
+  }else{
+    tasks.unshift({id:crypto.randomUUID?.()||String(Date.now()),title,created_date:todayStr(),created_at:new Date().toISOString(),completed_date:"",items:targets});
+  }
   if(!(await saveJsonSetting("special_tasks",tasks,"특별업무"))) return;
   specialTaskEditorOpen=false; specialTaskPickerType="";
+  const edited=Boolean(editingTask);
+  specialTaskEditId="";
   specialTaskDraft={title:"",worker_ids:[],equipment_ids:[]};
-  await loadAll(); toast("특별업무가 추가되었습니다.");
+  await loadAll(); toast(edited?"특별업무가 수정되었습니다.":"특별업무가 추가되었습니다.");
+}
+async function createPatrolSpecialTask(){
+  if(!state.equipment.length) return toast("등록된 장비가 없습니다.");
+  if(!confirm("점검을 시작하시겠습니까?")) return;
+  const targets=buildSpecialTaskTargets([],state.equipment.map(x=>Number(x.id)));
+  const tasks=specialTasks();
+  tasks.unshift({id:crypto.randomUUID?.()||String(Date.now()),title:"순회점검",created_date:todayStr(),created_at:new Date().toISOString(),completed_date:"",items:targets});
+  if(!(await saveJsonSetting("special_tasks",tasks,"순회점검 업무"))) return;
+  await loadAll(); toast("전 장비 순회점검 업무가 추가되었습니다.");
 }
 async function toggleSpecialTaskItem(taskId,targetKey){
   const tasks=specialTasks(), task=tasks.find(x=>String(x.id)===String(taskId));
@@ -1977,13 +2016,15 @@ async function deleteSpecialTask(taskId){
 }
 function renderSpecialTasks(){
   const tasks=specialTasks().slice().sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||"")));
-  const editor=specialTaskEditorOpen?`<div class="card"><div class="detail-top"><div><h2>새 특별업무 추가</h2><p class="small">제목을 입력하고 기사님·장비 목록에서 업무 대상을 추가하세요.</p></div><button onclick="cancelSpecialTaskEditor()">취소</button></div><div><label>업무 제목</label><input id="special-task-title" value="${escapeHtml(specialTaskDraft.title||"")}" placeholder="예: KZX 장비 외관 및 블랙박스 특별점검" oninput="specialTaskDraft.title=this.value"></div><div class="special-task-grid" style="margin-top:10px"><div class="special-picker-box"><div class="detail-top"><div><b>기사님</b><span class="mini">교육·면담·개인별 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('worker')">+ 기사님</button></div><div class="special-selected-list">${specialDraftSelectedHtml("worker")}</div></div><div class="special-picker-box"><div class="detail-top"><div><b>장비</b><span class="mini">장비별 점검·사진 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('equipment')">+ 장비</button></div><div class="special-selected-list">${specialDraftSelectedHtml("equipment")}</div></div></div><div class="actions"><button class="green" onclick="saveSpecialTask()">업무 추가 확인</button><button onclick="cancelSpecialTaskEditor()">취소</button></div></div>`:"";
+  const editorTitle=specialTaskEditId?"특별업무 수정":"새 특별업무 추가";
+  const editorHelp=specialTaskEditId?"기사님·장비를 추가하거나 선택된 이름의 ×를 눌러 삭제할 수 있습니다.":"제목을 입력하고 기사님·장비 목록에서 업무 대상을 추가하세요.";
+  const editor=specialTaskEditorOpen?`<div class="card"><div class="detail-top"><div><h2>${editorTitle}</h2><p class="small">${editorHelp}</p></div><button onclick="cancelSpecialTaskEditor()">취소</button></div><div><label>업무 제목</label><input id="special-task-title" value="${escapeHtml(specialTaskDraft.title||"")}" placeholder="예: KZX 장비 외관 및 블랙박스 특별점검" oninput="specialTaskDraft.title=this.value"></div><div class="special-task-grid" style="margin-top:10px"><div class="special-picker-box"><div class="detail-top"><div><b>기사님</b><span class="mini">교육·면담·개인별 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('worker')">+ 기사님</button></div><div class="special-selected-list">${specialDraftSelectedHtml("worker")}</div></div><div class="special-picker-box"><div class="detail-top"><div><b>장비</b><span class="mini">장비별 점검·사진 확인 대상</span></div><button class="primary" onclick="openSpecialTargetPicker('equipment')">+ 장비</button></div><div class="special-selected-list">${specialDraftSelectedHtml("equipment")}</div></div></div><div class="actions"><button class="green" onclick="saveSpecialTask()">${specialTaskEditId?"수정 내용 저장":"업무 추가 확인"}</button><button onclick="cancelSpecialTaskEditor()">취소</button></div></div>`:"";
   const cards=tasks.map(task=>{
     const complete=specialTaskIsComplete(task), doneCount=(task.items||[]).filter(x=>x.confirmed).length;
     const items=(task.items||[]).map(item=>`<div class="special-task-item ${item.confirmed?"confirmed":""}"><div class="special-task-item-info"><b>${item.type==="equipment"?"장비":"기사님"} · ${escapeHtml(item.name||"")}</b><span class="mini">${escapeHtml(item.detail||"")}</span></div><button class="${item.confirmed?"red":"green"}" onclick="toggleSpecialTaskItem('${jsString(task.id)}','${jsString(item.key)}')">${item.confirmed?"확인 취소":"확인"}</button></div>`).join("");
-    return `<div class="card special-task-card ${complete?"completed":""}"><div class="detail-top"><div><h2>${escapeHtml(task.title||"제목 없음")}</h2><span class="mini">등록일 ${escapeHtml(task.created_date||String(task.created_at||"").slice(0,10)||"-")} · 확인 ${doneCount}/${(task.items||[]).length}</span></div><div class="actions" style="margin-top:0">${complete?`<span class="badge ok">업무 완료</span>`:`<span class="badge soon">진행 중</span>`}<button class="red" onclick="deleteSpecialTask('${jsString(task.id)}')">삭제</button></div></div><div class="special-task-items">${items}</div>${complete?`<p class="small ok-text" style="margin-bottom:0">모든 확인이 완료되었습니다. 이 업무는 다음 날 자동으로 목록에서 사라집니다.</p>`:""}</div>`;
+    return `<div class="card special-task-card ${complete?"completed":""}"><div class="detail-top"><div><h2>${escapeHtml(task.title||"제목 없음")}</h2><span class="mini">등록일 ${escapeHtml(task.created_date||String(task.created_at||"").slice(0,10)||"-")} · 확인 ${doneCount}/${(task.items||[]).length}</span></div><div class="actions" style="margin-top:0">${complete?`<span class="badge ok">업무 완료</span>`:`<span class="badge soon">진행 중</span>`}<button onclick="editSpecialTask('${jsString(task.id)}')">수정</button><button class="red" onclick="deleteSpecialTask('${jsString(task.id)}')">삭제</button></div></div><div class="special-task-items">${items}</div>${complete?`<p class="small ok-text" style="margin-bottom:0">모든 확인이 완료되었습니다. 이 업무는 다음 날 자동으로 목록에서 사라집니다.</p>`:""}</div>`;
   }).join("")||`<div class="card"><h2>등록된 특별업무가 없습니다.</h2><p class="small">KZX 업무지시가 내려오면 업무 추가 버튼으로 기사님과 장비를 연결해 관리할 수 있습니다.</p></div>`;
-  document.getElementById("page-special").innerHTML=`<div class="card"><div class="special-task-toolbar"><div><h2>특별업무</h2><p class="small">KZX에서 내려온 장비점검·교육·현장 확인 업무를 대상별로 관리합니다.</p></div><button class="primary" onclick="startSpecialTaskEditor()">+ 업무 추가</button></div></div>${editor}${cards}${specialTargetPickerHtml()}`;
+  document.getElementById("page-special").innerHTML=`<div class="card"><div class="special-task-toolbar"><div><h2>특별업무</h2><p class="small">KZX에서 내려온 장비점검·교육·현장 확인 업무를 대상별로 관리합니다.</p></div><div class="actions" style="margin-top:0"><button class="green" onclick="createPatrolSpecialTask()">순회점검</button><button class="primary" onclick="startSpecialTaskEditor()">+ 업무 추가</button></div></div></div>${editor}${cards}${specialTargetPickerHtml()}`;
 }
 
 function workerOptions(selected="", includeBlank=false) {
