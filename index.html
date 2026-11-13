@@ -122,6 +122,7 @@
       <button onclick="showPage('dashboard')" id="nav-dashboard">PC 대시보드</button>
       <button onclick="showPage('calendar')" id="nav-calendar">캘린더</button>
       <button onclick="showPage('workers')" id="nav-workers">기사님</button>
+      <button onclick="showPage('incidents')" id="nav-incidents">지적·사고 이력</button>
       <button onclick="showPage('history')" id="nav-history">교육현황</button>
       <button onclick="showPage('retention')" id="nav-retention">보관관리</button>
       <button onclick="showPage('equipment')" id="nav-equipment">장비관리</button>
@@ -143,6 +144,7 @@
     <section id="page-dashboard" class="page hidden"></section>
     <section id="page-calendar" class="page hidden"></section>
     <section id="page-workers" class="page hidden"></section>
+    <section id="page-incidents" class="page hidden"></section>
     <section id="page-history" class="page hidden"></section>
     <section id="page-retention" class="page hidden"></section>
     <section id="page-equipment" class="page hidden"></section>
@@ -1304,6 +1306,7 @@ function renderCurrent() {
   if (currentPage === "calendar") renderCalendar();
   if (currentPage === "workers") renderWorkers();
   if (currentPage === "history") renderHistory();
+  if (currentPage === "incidents") renderIncidents();
   if (currentPage === "retention") renderRetention();
   if (currentPage === "equipment") renderEquipment();
   if (currentPage === "memo") renderMemo();
@@ -2158,6 +2161,59 @@ async function saveJsonSetting(key, value, errorLabel="설정"){
   state.settings[key]=textValue;
   return true;
 }
+
+// 기사님 지적·사고 이력: 기존 settings 저장/백업 경로 사용
+let incidentBusy=false, incidentEditId='', incidentWorkerFilter='', incidentCategoryFilter='', incidentChartMode='total';
+let incidentDraft={date:todayStr(),worker_id:'',category_id:'',content:''};
+function incidentData(){return jsonSetting('worker_incidents_v1',{categories:[{id:'injured',name:'사고 피해'},{id:'caused',name:'사고 발생'},{id:'pointed',name:'직접 지적'}],records:[]});}
+function incidentWorkerName(r){const w=state.workers.find(w=>String(w.id)===String(r.worker_id));return w?w.name:r.worker_name+' (삭제된 기사님)';}
+function captureIncidentDraft(){if(!document.getElementById('incident-date'))return;incidentDraft={date:val('incident-date'),worker_id:val('incident-worker'),category_id:val('incident-category'),content:val('incident-content')};}
+function resetIncidentForm(){if(incidentBusy)return;incidentEditId='';incidentDraft={date:todayStr(),worker_id:'',category_id:'',content:''};renderIncidents();}
+async function persistIncidentData(data){if(!db){toast('서버 연결을 확인하세요.');return false;}try{return await saveJsonSetting('worker_incidents_v1',data,'지적·사고 이력');}catch(e){console.error(e);toast('저장 오류: 연결을 확인하세요.');return false;}}
+async function saveIncident(){
+ if(incidentBusy)return;captureIncidentDraft();const d={...incidentDraft},data=incidentData(),old=data.records.find(r=>r.id===incidentEditId);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date)||Number.isNaN(Date.parse(d.date))||new Date(d.date).toISOString().slice(0,10)!==d.date)return toast('올바른 날짜를 입력하세요.');
+ const w=state.workers.find(w=>String(w.id)===d.worker_id),c=data.categories.find(c=>c.id===d.category_id);
+ if(!w&&!(old&&String(old.worker_id)===d.worker_id))return toast('기사님을 선택하세요.');
+ if(!c&&!(old&&old.category_id===d.category_id))return toast('카테고리를 선택하세요.');
+ if(!d.content)return toast('내용을 입력하세요.');
+ const record={...old,...d,id:old?old.id:crypto.randomUUID(),worker_name:w?w.name:old.worker_name,category_name:c?c.name:old.category_name,updated_at:new Date().toISOString()};
+ if(old)data.records=data.records.map(r=>r.id===old.id?record:r);else data.records.push(record);
+ incidentBusy=true;try{if(await persistIncidentData(data)){incidentEditId='';incidentDraft={date:todayStr(),worker_id:'',category_id:'',content:''};renderIncidents();toast(old?'수정 완료':'이력 추가 완료');}}finally{incidentBusy=false;}
+}
+function editIncident(id){if(incidentBusy)return;const r=incidentData().records.find(r=>r.id===id);if(!r)return;incidentEditId=id;incidentDraft={date:r.date,worker_id:String(r.worker_id),category_id:r.category_id,content:r.content};renderIncidents();document.getElementById('incident-editor').scrollIntoView({behavior:'smooth',block:'start'});}
+async function deleteIncident(id){if(incidentBusy||!confirm('이 이력을 삭제할까요?'))return;captureIncidentDraft();const data=incidentData();data.records=data.records.filter(r=>r.id!==id);incidentBusy=true;try{if(await persistIncidentData(data)){if(incidentEditId===id){incidentEditId='';incidentDraft={date:todayStr(),worker_id:'',category_id:'',content:''};}renderIncidents();toast('삭제 완료');}}finally{incidentBusy=false;}}
+async function addIncidentCategory(){if(incidentBusy)return;captureIncidentDraft();const name=val('incident-new-category'),data=incidentData();if(!name)return toast('카테고리 이름을 입력하세요.');if(data.categories.some(c=>normalizeSearchText(c.name)===normalizeSearchText(name)))return toast('이미 등록된 카테고리입니다.');data.categories.push({id:crypto.randomUUID(),name});incidentBusy=true;try{if(await persistIncidentData(data))renderIncidents();}finally{incidentBusy=false;}}
+async function deleteIncidentCategory(id){if(incidentBusy)return;const data=incidentData(),c=data.categories.find(c=>c.id===id);if(!c||!confirm('카테고리를 삭제할까요? 기존 이력과 통계에는 당시 분류가 남습니다.'))return;captureIncidentDraft();data.categories=data.categories.filter(c=>c.id!==id);incidentBusy=true;try{if(await persistIncidentData(data)){if(incidentDraft.category_id===id&&!incidentEditId)incidentDraft.category_id='';renderIncidents();}}finally{incidentBusy=false;}}
+function changeIncidentFilter(kind,value){captureIncidentDraft();if(kind==='worker')incidentWorkerFilter=value;if(kind==='category')incidentCategoryFilter=value;if(kind==='mode')incidentChartMode=value;renderIncidents();}
+function renderIncidents(){
+ const data=incidentData(),records=data.records,editing=records.find(r=>r.id===incidentEditId),esc=escapeHtml;
+ const categories=new Map(data.categories.map(c=>[c.id,{...c,active:true}]));records.forEach(r=>{if(!categories.has(r.category_id))categories.set(r.category_id,{id:r.category_id,name:r.category_name+' (삭제됨)',active:false});});
+ const workers=new Map(state.workers.map(w=>[String(w.id),w.name+(w.company?' · '+w.company:'')]));records.forEach(r=>{if(!workers.has(String(r.worker_id)))workers.set(String(r.worker_id),incidentWorkerName(r));});
+ const opts=(items,selected,placeholder)=>`<option value="">${placeholder}</option>`+[...items].map(([id,name])=>`<option value="${esc(id)}" ${String(id)===String(selected)?'selected':''}>${esc(name)}</option>`).join('');
+ const filtered=records.filter(r=>(!incidentWorkerFilter||String(r.worker_id)===incidentWorkerFilter)&&(!incidentCategoryFilter||r.category_id===incidentCategoryFilter)).sort((a,b)=>b.date.localeCompare(a.date)||String(b.updated_at).localeCompare(String(a.updated_at)));
+ const formCategories=new Map(data.categories.map(c=>[c.id,c.name]));if(editing&&!formCategories.has(editing.category_id))formCategories.set(editing.category_id,editing.category_name+' (삭제됨)');
+ const groups=new Map();
+ if(incidentChartMode==='total'){
+ [...workers].filter(([id])=>!incidentWorkerFilter||id===incidentWorkerFilter).forEach(([id,name])=>groups.set(id,{label:name,count:0}));
+ filtered.forEach(r=>{const g=groups.get(String(r.worker_id));if(g)g.count++;});
+ }else{[...categories].filter(([id])=>!incidentCategoryFilter||id===incidentCategoryFilter).forEach(([id,c])=>groups.set(id,{label:c.name,count:0}));filtered.forEach(r=>{const g=groups.get(r.category_id);if(g)g.count++;});}
+ const bars=[...groups.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,'ko')),max=Math.max(1,...bars.map(g=>g.count));
+ document.getElementById('page-incidents').innerHTML=`
+ <div class="card" id="incident-editor"><h2>${editing?'이력 수정':'지적·사고 이력 등록'}</h2><p class="small">사고 피해, 사고 발생, 직접 지적 등 기사님별 이력을 기록합니다.</p>
+ <div class="form-row"><div><label for="incident-date">날짜</label><input data-no-draft="1" id="incident-date" type="date" value="${esc(incidentDraft.date)}" oninput="captureIncidentDraft()"></div>
+ <div><label for="incident-worker">기사님</label><select data-no-draft="1" id="incident-worker" onchange="captureIncidentDraft()">${opts(workers,incidentDraft.worker_id,'기사님 선택')}</select></div>
+ <div><label for="incident-category">건별 카테고리</label><select data-no-draft="1" id="incident-category" onchange="captureIncidentDraft()">${opts(formCategories,incidentDraft.category_id,'카테고리 선택')}</select></div></div>
+ <label for="incident-content">내용</label><textarea data-no-draft="1" id="incident-content" placeholder="발생 상황 또는 지적 내용을 입력하세요." oninput="captureIncidentDraft()">${esc(incidentDraft.content)}</textarea>
+ <div class="actions"><button class="primary" onclick="saveIncident()">${editing?'수정 저장':'이력 추가'}</button><button onclick="resetIncidentForm()">${editing?'수정 취소':'입력 초기화'}</button></div></div>
+ <div class="card"><h2>카테고리 관리</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><input data-no-draft="1" id="incident-new-category" placeholder="새 카테고리 이름" style="max-width:300px" maxlength="60"><button onclick="addIncidentCategory()">카테고리 추가</button></div><div class="actions">${data.categories.map((c,i)=>`<span class="edu-chip">${esc(c.name)} <button aria-label="${esc(c.name)} 삭제" style="padding:4px 8px" onclick="deleteIncidentCategory(incidentData().categories[${i}].id)">삭제</button></span>`).join('')||'<span class="small">카테고리를 추가하세요.</span>'}</div><p class="small">카테고리를 삭제해도 기존 기록과 통계는 유지됩니다.</p></div>
+ <div class="card"><h2>이력 통계 · 조회</h2><div class="form-row"><div><label for="incident-filter-worker">기사님 필터</label><select data-no-draft="1" id="incident-filter-worker" onchange="changeIncidentFilter('worker',this.value)">${opts(workers,incidentWorkerFilter,'전체 기사님')}</select></div><div><label for="incident-filter-category">카테고리 필터</label><select data-no-draft="1" id="incident-filter-category" onchange="changeIncidentFilter('category',this.value)">${opts(new Map([...categories].map(([id,c])=>[id,c.name])),incidentCategoryFilter,'전체 카테고리')}</select></div><div><label for="incident-chart-mode">막대그래프 기준</label><select data-no-draft="1" id="incident-chart-mode" onchange="changeIncidentFilter('mode',this.value)"><option value="total" ${incidentChartMode==='total'?'selected':''}>기사님별 이력 건수</option><option value="category" ${incidentChartMode==='category'?'selected':''}>카테고리별 이력 건수</option></select></div></div>
+ <p class="small">선택 조건 합계 <b>${filtered.length}건</b> · 전체 누적 ${records.length}건. 목록과 그래프에 같은 필터가 적용됩니다. 기사님별 전체 누적 건수는 카테고리를 ‘전체’로 선택하세요.</p>
+ <h2>${incidentChartMode==='total'?'기사님별':'카테고리별'} 이력 건수</h2>
+ <div role="img" aria-label="${esc(bars.map(g=>g.label+': '+g.count+'건').join(', ')||'등록된 이력 없음')}" style="display:grid;gap:12px;margin:20px 0;max-height:480px;overflow:auto">${bars.map(g=>`<div style="display:grid;grid-template-columns:minmax(90px,180px) 1fr 50px;gap:10px;align-items:center"><span style="overflow-wrap:anywhere;font-size:13px">${esc(g.label)}</span><div style="background:#eef2f7;border-radius:6px;height:24px"><div style="background:${incidentChartMode==='total'?'#2563eb':'#16a34a'};width:${g.count/max*100}%;height:100%;border-radius:6px"></div></div><b>${g.count}건</b></div>`).join('')||'<p class="small">등록된 항목이 없습니다.</p>'}</div></div>
+ <div class="card"><h2>이력 목록 (${filtered.length}건)</h2><div class="table-wrap"><table><thead><tr><th>번호</th><th>날짜</th><th>기사님</th><th>카테고리</th><th>내용</th><th>관리</th></tr></thead><tbody>${filtered.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.date)}</td><td>${esc(incidentWorkerName(r))}</td><td>${esc(categories.get(r.category_id)?.name||r.category_name)}</td><td style="white-space:pre-wrap;text-align:left;min-width:220px;max-width:480px;overflow-wrap:anywhere">${esc(r.content)}</td><td><button onclick="editIncident(incidentData().records[${records.indexOf(r)}].id)">수정</button> <button class="red" onclick="deleteIncident(incidentData().records[${records.indexOf(r)}].id)">삭제</button></td></tr>`).join('')||'<tr><td colspan="6">조건에 맞는 이력이 없습니다.</td></tr>'}</tbody></table></div></div>`;
+}
+
 function workerProfiles(){ return jsonSetting("worker_profiles", {}); }
 function workerProfile(workerId){ return workerProfiles()[String(workerId)] || {}; }
 function educationAssignments(){ return jsonSetting("education_assignments", []); }
@@ -3086,7 +3142,7 @@ function renderSettings(){
     <td><button onclick="editRule(${idx})">수정</button> <button class="red" onclick="deleteRule(${idx})">삭제</button></td>
   </tr>`).join("") || `<tr><td colspan="8">등록된 교육기준이 없습니다.</td></tr>`;
   document.getElementById("page-settings").innerHTML=`
-    <div class="card backup-card"><h2>ISHM 데이터 백업</h2><p class="small">기사님·교육이력·근무표·장비·업무일정·메모·특별업무·설정을 JSON 파일 하나로 저장합니다. 서버에 보관된 사진 원본은 포함되지 않습니다.</p><div class="actions"><button class="green" onclick="downloadISHMBackup()">백업파일 저장</button><button onclick="document.getElementById('ishm-backup-file').click()">백업파일 불러오기</button></div><input id="ishm-backup-file" class="hidden" type="file" accept=".json,application/json" onchange="restoreISHMBackup(this.files);this.value=''"><p class="small">불러오기는 현재 자료를 삭제하지 않고 백업 자료를 복원·갱신하는 안전 방식입니다.</p></div>
+    <div class="card backup-card"><h2>ISHM 데이터 백업</h2><p class="small">기사님·교육이력·근무표·장비·업무일정·메모·특별업무·지적·사고 이력·카테고리·설정을 JSON 파일 하나로 저장합니다. 서버에 보관된 사진 원본은 포함되지 않습니다.</p><div class="actions"><button class="green" onclick="downloadISHMBackup()">백업파일 저장</button><button onclick="document.getElementById('ishm-backup-file').click()">백업파일 불러오기</button></div><input id="ishm-backup-file" class="hidden" type="file" accept=".json,application/json" onchange="restoreISHMBackup(this.files);this.value=''"><p class="small">불러오기는 현재 자료를 삭제하지 않고 백업 자료를 복원·갱신하는 안전 방식입니다.</p></div>
     <div class="card"><h2>문자 기본문구</h2><p class="small">치환값: {name}, {education}, {next_date}, {dday}, {phone}</p><textarea id="sms-template">${escapeHtml(state.settings.sms_template||DEFAULT_TEMPLATE)}</textarea><div class="actions"><button class="primary" onclick="saveSettings()">문구 저장</button></div></div>
 
     <div class="card"><h2>교육기준 등록/수정</h2>
