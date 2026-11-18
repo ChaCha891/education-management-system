@@ -44,7 +44,15 @@
     .day-cell{position:relative;min-height:124px;background:#fff;border:1px solid var(--line);border-radius:0;padding:8px;cursor:pointer;overflow:visible}
     .day-cell:nth-child(7n+1){border-radius:12px 0 0 12px}.day-cell:nth-child(7n){border-radius:0 12px 12px 0}
     .day-cell:hover{z-index:3;outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border-color:transparent;cursor:default}.day-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}.day-cell.selected{background:#eff6ff;box-shadow:inset 0 0 0 2px #60a5fa}
-    .day-cell.all-change{background:#dcfce7!important}.ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:#16a34a;color:#fff;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(22,163,74,.25)}
+    .day-cell.ac-pair{background:var(--ac-bg)!important}
+    .ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:var(--ac-accent);color:var(--ac-ink,#fff);font-size:11px;font-weight:900}
+    .ac-red{--ac-bg:#fee2e2;--ac-accent:#b91c1c}
+    .ac-orange{--ac-bg:#ffedd5;--ac-accent:#c2410c}
+    .ac-yellow{--ac-bg:#fef3c7;--ac-accent:#facc15;--ac-ink:#422006}
+    .ac-green{--ac-bg:#dcfce7;--ac-accent:#15803d}
+    .ac-blue{--ac-bg:#dbeafe;--ac-accent:#2563eb}
+    .ac-indigo{--ac-bg:#e0e7ff;--ac-accent:#3730a3}
+    .ac-purple{--ac-bg:#f3e8ff;--ac-accent:#7e22ce}
     .education-plan-card{border:2px solid #93c5fd;background:#f8fbff}.education-plan-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.education-plan-stat{border:1px solid #bfdbfe;border-radius:12px;padding:10px;background:#fff;text-align:center}.education-plan-stat b{display:block;font-size:20px;color:#1d4ed8}.education-plan-list{display:grid;gap:8px}.education-plan-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #bfdbfe;border-radius:12px;padding:11px;background:#fff}.education-plan-names{white-space:normal;line-height:1.45}.education-recommend-badge{display:inline-block;margin:2px 0 3px;padding:4px 7px;border-radius:8px;background:#2563eb;color:#fff;font-size:10px;font-weight:900}.backup-card{border:2px solid #a7f3d0;background:#f0fdf4}
     .day-num{font-weight:900;margin-bottom:2px}.holiday-name{height:16px;font-size:10px;color:#dc2626;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
     .shift-name{display:block;font-size:12px;margin:3px 0;padding:5px 8px;border-radius:9px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1354,18 +1362,53 @@ function dayShiftWorkerIds(dateText){
     .map(x=>String(x.worker_id))
     .filter(Boolean))];
 }
-function allChangeShiftDates(){
-  const dates=[...new Set(shiftCalendar()
-    .filter(x=>(x.shift_type||"주간")==="주간"&&x.work_date)
-    .map(x=>x.work_date))]
-    .sort();
-  const result=new Set();
-  let previousIds=null;
-  for(const dateText of dates){
-    const currentIds=dayShiftWorkerIds(dateText);
-    if(!currentIds.length) continue;
-    if(previousIds&&currentIds.every(id=>!previousIds.has(id))) result.add(dateText);
-    previousIds=new Set(currentIds);
+function allChangeShiftPairs(shifts){
+  const colors=["red","orange","yellow","green","blue","indigo","purple"];
+  const days=new Map();
+  for(const shift of shifts){
+    if(!shift.work_date || shift.worker_id==null || shift.worker_id==="" || (shift.shift_type||"주간")!=="주간") continue;
+    if(!days.has(shift.work_date)) days.set(shift.work_date,new Set());
+    days.get(shift.work_date).add(String(shift.worker_id));
+  }
+
+  const dates=[...days.keys()].sort().map(date=>{
+    const [year,month,day]=date.split("-").map(Number);
+    return {date,month:year*12+month,day:Date.UTC(year,month-1,day)/86400000,workers:[...days.get(date)]};
+  });
+  const candidates=[];
+  for(let i=0;i<dates.length;i++){
+    const first=dates[i];
+    for(let j=i+1;j<dates.length&&dates[j].month-first.month<=1;j++){
+      const second=dates[j];
+      const gap=second.day-first.day;
+      if(first.month!==second.month && gap>7) break;
+      if(first.workers.some(id=>days.get(second.date).has(id))) continue;
+      candidates.push({first,second,gap});
+    }
+  }
+
+  // Select the shortest available pair first. Older dates break ties.
+  candidates.sort((a,b)=>a.gap-b.gap || a.first.day-b.first.day);
+  const paired=new Set(), pairs=[];
+  for(const pair of candidates){
+    if(paired.has(pair.first.date)||paired.has(pair.second.date)) continue;
+    paired.add(pair.first.date);
+    paired.add(pair.second.date);
+    pairs.push(pair);
+  }
+
+  // Assign colors after matching so the rainbow follows the calendar.
+  pairs.sort((a,b)=>a.first.day-b.first.day);
+  const monthCounts=new Map(), result=new Map();
+  for(const {first,second} of pairs){
+    let color=colors[0];
+    if(first.month===second.month){
+      const count=monthCounts.get(first.month)||0;
+      color=colors[count%colors.length];
+      monthCounts.set(first.month,count+1);
+    }
+    result.set(first.date,{color,partner:second.date});
+    result.set(second.date,{color,partner:first.date});
   }
   return result;
 }
@@ -1486,7 +1529,7 @@ function renderCalendar(){
   const monthPrefix=`${y}-${String(m+1).padStart(2,"0")}-`;
   const monthEvents=workSchedules().filter(ev => (ev.dates||[]).some(d=>String(d).startsWith(monthPrefix)));
   const laneCount=assignCalendarEventLanes(monthEvents);
-  const acDates=allChangeShiftDates();
+  const acPairs=allChangeShiftPairs(shiftCalendar());
   const educationRecommended=Object.fromEntries((educationPlanResult?.recommendations||[]).map(x=>[x.date,x]));
   for(let i=0;i<first.getDay();i++) days.push(`<div class="day-cell empty"></div>`);
   for(let d=1;d<=last.getDate();d++){
@@ -1499,11 +1542,11 @@ function renderCalendar(){
       lanes.push(`<div class="work-event-lane">${ev ? workEventLineHtml(ev,dateText) : `<span class="work-event-placeholder"></span>`}</div>`);
     }
     const numClass=holiday||dow===0?"holiday":dow===6?"sat":"";
-    const isAllChange=acDates.has(dateText);
+    const acPair=acPairs.get(dateText);
     const recommended=educationRecommended[dateText];
-    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",isAllChange?"all-change":""].filter(Boolean).join(" ");
+    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",acPair?`ac-pair ac-${acPair.color}`:""].filter(Boolean).join(" ");
     days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
-      ${isAllChange?`<span class="ac-badge" title="직전 주간 근무일과 전체 기사님 교체">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      ${acPair?`<span class="ac-badge" title="짝 날짜 ${acPair.partner} · 주간 근무자 겹침 없음" aria-label="AC, 짝 날짜 ${acPair.partner}">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
       ${recommended?`<span class="education-recommend-badge">교육추천 ${recommended.worker_ids.length}명</span>`:""}
       <div class="calendar-event-lanes">${lanes.join("")}</div>${calendarDayShiftsHtml(dateText)}</div>`);
   }
