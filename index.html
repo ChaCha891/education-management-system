@@ -1798,7 +1798,7 @@ function renderMobile() {
       <p><b>예정일:</b> ${x.next_date} <span class="badge ${badgeClass(x.remain)}">${x.dday}</span></p>
       <p><b>연락처:</b> ${escapeHtml(x.phone || "연락처 없음")}</p>
       <textarea readonly>${escapeHtml(smsBody(x))}</textarea>
-      <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">교육완료</button></div>
+      <div class="actions"><a class="btn primary" href="${smsLink(x)}">문자앱 열기</a><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">교육완료</button>${educationDateButton(x.worker_id,x.education_name)}</div>
       <p class="small">교육완료를 누르면 교육현황에 이력이 누적 저장됩니다.</p>
     </div>`).join("") : `<div class="card"><h2>현재 교육 임박자가 없습니다.</h2><p class="small">현장 모바일에서는 정기안전보건교육 임박자 표시를 제외합니다.</p></div>`;
   document.getElementById("page-mobile").innerHTML = `
@@ -1810,9 +1810,9 @@ function renderDashboard() {
   const st=dashboardStats();
   const regularRows = state.workers.map(w => {
     const done=monthlyRegularDoneRecord(w.id);
-    return `<tr><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.company||"")}</td><td>정기안전보건교육<span class="mini">${escapeHtml(currentMonthKey())} 교육</span></td><td>${escapeHtml(done?.education_date||"-")}</td><td>${escapeHtml(currentMonthKey())}</td><td><span class="badge ${done?"ok":"soon"}">${done?"완료":"이번 달"}</span></td><td>${escapeHtml(w.phone||"")}</td><td><button class="${done?"red":"green"}" onclick="toggleMonthlyRegularEducation(${w.id})">${done?"완료 취소":"완료"}</button></td></tr>`;
+    return `<tr><td>${escapeHtml(w.name)}</td><td>${escapeHtml(w.company||"")}</td><td>정기안전보건교육<span class="mini">${escapeHtml(currentMonthKey())} 교육</span></td><td>${escapeHtml(done?.education_date||"-")}</td><td>${escapeHtml(currentMonthKey())}</td><td><span class="badge ${done?"ok":"soon"}">${done?"완료":"이번 달"}</span></td><td>${escapeHtml(w.phone||"")}</td><td><button class="${done?"red":"green"}" onclick="toggleMonthlyRegularEducation(${w.id})">${done?"완료 취소":"완료"}</button>${educationDateButton(w.id,"정기안전보건교육",done,currentMonthKey())}</td></tr>`;
   }).join("");
-  const otherRows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button></td></tr>`).join("");
+  const otherRows = state.due.slice(0,50).map(x => `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company)}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.last_date||"-")}</td><td>${x.next_date}</td><td><span class="badge ${badgeClass(x.remain)}">${x.dday}</span></td><td>${escapeHtml(x.phone)}</td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id}, '${jsString(x.education_name)}')">완료</button>${educationDateButton(x.worker_id,x.education_name)}</td></tr>`).join("");
   const rows = regularRows + otherRows || `<tr><td colspan="8">현재 교육 임박자가 없습니다.</td></tr>`;
   const overdueModal = dashboardOverdueOpen ? dashboardOverdueModalHtml() : "";
   document.getElementById("page-dashboard").innerHTML = `
@@ -1833,8 +1833,8 @@ function closeDashboardOverdue(){ dashboardOverdueOpen=false; renderDashboard();
 function dashboardOverdueModalHtml(){
   const monthly=monthlyRegularOverdueItems();
   const other=state.due.filter(x=>x.remain<0);
-  const monthlyRows=monthly.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>정기안전보건교육</td><td><b>${escapeHtml(formatMonthKo(x.month))}</b></td><td><span class="badge due">월 교육 누락</span></td><td><div class="actions" style="margin-top:0"><button class="green" onclick="completeMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">완료</button><button class="red" onclick="deleteMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">삭제</button></div></td></tr>`).join("");
-  const otherRows=other.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.next_date||"-")}</td><td><span class="badge due">${escapeHtml(x.dday)}</span></td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id},'${jsString(x.education_name)}')">완료</button></td></tr>`).join("");
+  const monthlyRows=monthly.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>정기안전보건교육</td><td><b>${escapeHtml(formatMonthKo(x.month))}</b></td><td><span class="badge due">월 교육 누락</span></td><td><div class="actions" style="margin-top:0"><button class="green" onclick="completeMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">완료</button>${educationDateButton(x.worker_id,"정기안전보건교육",null,x.month)}<button class="red" onclick="deleteMonthlyRegularOverdue(${x.worker_id},'${jsString(x.month)}')">삭제</button></div></td></tr>`).join("");
+  const otherRows=other.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.company||"")}</td><td>${escapeHtml(x.education_name)}</td><td>${escapeHtml(x.next_date||"-")}</td><td><span class="badge due">${escapeHtml(x.dday)}</span></td><td><button class="green" onclick="completeEducationByWorker(${x.worker_id},'${jsString(x.education_name)}')">완료</button>${educationDateButton(x.worker_id,x.education_name)}</td></tr>`).join("");
   const rows=monthlyRows+otherRows || `<tr><td colspan="6">현재 기한을 초과한 교육이 없습니다.</td></tr>`;
   return `<div class="modal-backdrop" onclick="if(event.target===this) closeDashboardOverdue()"><div class="modal overdue-modal" role="dialog" aria-modal="true" aria-label="기한 초과 교육 상세"><div class="detail-top"><div><div class="modal-title">기한 초과 교육 상세</div><p class="small">정기안전보건교육은 누락된 월을 전부 표시합니다.</p></div><button onclick="closeDashboardOverdue()">닫기</button></div><div class="overdue-summary"><span class="badge due">전체 ${monthly.length+other.length}건</span><span class="small">정기교육 월 누락 ${monthly.length}건 · 기타 교육 ${other.length}건</span></div><div class="table-wrap"><table><thead><tr><th>기사님</th><th>소속</th><th>교육내용</th><th>누락 월 / 예정일</th><th>상태</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div><p class="small" style="margin-top:10px">정기교육의 삭제는 해당 기사님의 해당 월 누락 알림만 제외하며, 기존 교육 이력은 삭제하지 않습니다.</p></div></div>`;
 }
@@ -2375,10 +2375,10 @@ function renderWorkerDetail(worker){
       status=sch.remain===null?"이수":`${sch.status} · ${sch.dday}`; cls=sch.cls;
       next=sch.remain===null?"":`다음 교육 ${sch.nextText}`;
     }
-    return `<div class="assignment-item"><b>${escapeHtml(name)}</b><span class="mini">최근 이수일 ${escapeHtml(last||"-")}${next?` · ${escapeHtml(next)}`:""}</span><span class="badge ${cls}">${escapeHtml(status)}</span></div>`;
+    return `<div class="assignment-item"><b>${escapeHtml(name)}</b><span class="mini">최근 이수일 ${escapeHtml(last||"-")}${next?` · ${escapeHtml(next)}`:""}</span><span class="badge ${cls}">${escapeHtml(status)}</span>${isMonthlyRegularEducation(name) ? educationDateButton(worker.id,name,monthlyRegularDoneRecord(worker.id),currentMonthKey()) : educationDateButton(worker.id,name)}</div>`;
   }).join("")||`<p class="small">등록된 교육이 없습니다.</p>`;
   const pendingRows=workerAssignments(worker.id).filter(a=>!assignmentCompletion(a,worker.id)?.completed).sort((a,b)=>String(b.education_date||"").localeCompare(String(a.education_date||""))).map(a=>`<div class="assignment-item"><b>${escapeHtml(a.education_name||"")}</b><span class="mini">예정 교육일 ${escapeHtml(a.education_date||"-")}</span><div class="actions"><button class="primary" onclick="completeAssignedEducation('${jsString(a.id)}',${worker.id})">실제 이수 확인</button></div></div>`).join("");
-  const historyRows=history.map(h=>`<div class="assignment-item"><b>${escapeHtml(h.education_name||"")}</b><span class="mini">이수일 ${escapeHtml(h.education_date||"-")}</span></div>`).join("")||`<p class="small">저장된 이수 이력이 없습니다.</p>`;
+  const historyRows=history.map(h=>`<div class="assignment-item"><b>${escapeHtml(h.education_name||"")}</b><span class="mini">이수일 ${escapeHtml(h.education_date||"-")}</span>${educationDateButton(worker.id,h.education_name,h)}</div>`).join("")||`<p class="small">저장된 이수 이력이 없습니다.</p>`;
   const equipmentOptions=[...new Set(["굴착기","로더","기타",p.equipment_type].filter(Boolean))].map(type=>`<option value="${escapeHtml(type)}" ${p.equipment_type===type?"selected":""}>${escapeHtml(type)}</option>`).join("");
   return `<div class="card"><h2>${escapeHtml(worker.name)} 기사님</h2>
     <div class="identity-grid">
@@ -2525,15 +2525,15 @@ function groupedHistoryRows(showManage=true){
       if(isMonthlyRegularEducation(name)){
         const done = monthlyRegularDoneRecord(workerId);
         if(done){
-          return `<td><span class="edu-chip">${escapeHtml(done.education_date)}</span><span class="mini"><span class="badge ok">이수</span></span></td>`;
+          return `<td><span class="edu-chip">${escapeHtml(done.education_date)}</span><span class="mini"><span class="badge ok">이수</span></span>${educationDateButton(workerId,name,done,currentMonthKey())}</td>`;
         }
-        return `<td><button class="red" onclick="completeMonthlyRegularEducation(${workerId})">미이수</button><span class="mini">${escapeHtml(currentMonthKey())} 기준</span></td>`;
+        return `<td><button class="red" onclick="completeMonthlyRegularEducation(${workerId})">미이수</button><span class="mini">${escapeHtml(currentMonthKey())} 기준</span>${educationDateButton(workerId,name,null,currentMonthKey())}</td>`;
       }
       const r=g.records[name];
-      if(!r) return `<td><span class="small">-</span></td>`;
+      if(!r) return `<td><span class="small">-</span>${educationDateButton(workerId,name,null)}</td>`;
       const cycle=(getEducationRule(name)?.cycle_days ?? 365);
       const sch=calcSchedule(r.education_date, cycle);
-      return `<td><span class="edu-chip">${escapeHtml(r.education_date)}</span><span class="mini"><span class="badge ${sch.cls}">${sch.dday}</span></span></td>`;
+      return `<td><span class="edu-chip">${escapeHtml(r.education_date)}</span><span class="mini"><span class="badge ${sch.cls}">${sch.dday}</span></span>${educationDateButton(workerId,name,r)}</td>`;
     }).join("");
     const hasHistory = (g.ids || []).length > 0;
     const manageButton = hasHistory ? `<button class="red" onclick="deleteWorkerHistory(${workerId})">해당 기사 이력 삭제</button>` : `<span class="small">이력 없음</span>`;
@@ -2631,6 +2631,60 @@ async function syncEducationRecordLastDate(workerId, educationName, educationDat
   const match=state.education.find(e=>Number(e.worker_id)===Number(workerId) && e.education_name===educationName);
   if(match) return await db.from("education_records").update({ last_date: educationDate }).eq("id", match.id);
   return { error: null };
+}
+
+function educationDateButton(workerId, name, record, month=""){
+  if(name !== "출입교육" && !isMonthlyRegularEducation(name)) return "";
+  if(record === undefined){
+    const lastDate=latestHistoryDate(workerId,name);
+    record=state.history.find(h=>Number(h.worker_id)===Number(workerId) &&
+      h.education_name===name && h.education_date===lastDate);
+  }
+  return ` <button type="button" data-worker="${escapeHtml(workerId)}" data-education="${escapeHtml(name)}" data-record="${escapeHtml(record?.id ?? "")}" data-month="${escapeHtml(month)}" onclick="editEducationDate(this)">${record ? "날짜 수정" : "날짜 입력"}</button>`;
+}
+
+async function editEducationDate(button){
+  const {worker:workerId,education:name,record:recordId,month}=button.dataset;
+  const worker=state.workers.find(w=>String(w.id)===workerId);
+  const record=state.history.find(h=>String(h.id)===recordId &&
+    String(h.worker_id)===workerId && h.education_name===name);
+  if(!worker || (recordId && !record)) return toast("교육 정보를 찾을 수 없습니다.");
+
+  const targetMonth=!record ? month : "";
+  const initialDate=record?.education_date || (targetMonth && targetMonth!==currentMonthKey() ? monthLastDate(targetMonth) : todayStr());
+  const entered=prompt(`${worker.name} 기사님 · ${name} 이수일 (YYYY-MM-DD)`,initialDate);
+  if(entered===null) return;
+  const date=entered.trim();
+  if(!isValidDateText(date)) return toast("실제 날짜를 YYYY-MM-DD 형식으로 입력하세요.");
+  if(date>todayStr()) return toast("오늘까지의 이수일을 입력하세요.");
+  const dateMonth=date.slice(0,7);
+  if(targetMonth && dateMonth!==targetMonth) return toast(`${formatMonthKo(targetMonth)} 안의 날짜를 입력하세요.`);
+  if(date===record?.education_date) return;
+  if(isMonthlyRegularEducation(name)){
+    const existing=monthlyRegularDoneRecord(workerId,dateMonth);
+    if(existing && String(existing.id)!==recordId) return toast("해당 월에 이미 이수 기록이 있습니다.");
+    if(record && record.education_date.slice(0,7)!==dateMonth &&
+      !confirm(`이수 월이 ${formatMonthKo(dateMonth)}로 바뀝니다. 저장할까요?`)) return;
+  }else if(state.history.some(h=>String(h.worker_id)===workerId && h.education_name===name && h.education_date===date)){
+    return toast("해당 날짜에 이미 이수 기록이 있습니다.");
+  }
+
+  button.disabled=true;
+  try{
+    const result=record
+      ? await db.from("training_history").update({education_date:date})
+        .eq("id",record.id).eq("education_date",record.education_date).select("id").maybeSingle()
+      : await upsertEducationHistory(workerId,name,date,"이수일 직접 입력");
+    if(result.error) return toast("교육 날짜 저장에 실패했습니다.");
+    if(record && !result.data){
+      await loadAll();
+      return toast("교육 이력이 바뀌었습니다. 다시 확인하세요.");
+    }
+    await loadAll();
+    toast("교육 날짜를 저장했습니다.");
+  }finally{
+    button.disabled=false;
+  }
 }
 
 async function saveHistory(){
@@ -2760,7 +2814,7 @@ function renderRetention(){
     }else{
       mark=`<span class="badge info">보관기준 없음</span>`;
     }
-    return `<tr><td>${escapeHtml(w?.name||"")}</td><td>${escapeHtml(w?.company||"")}</td><td>${escapeHtml(h.education_name)}</td><td>${escapeHtml(h.education_date)}</td><td>${escapeHtml(st.years)}</td><td>${mark}</td><td>${escapeHtml(h.note||"")}</td><td>${action}</td></tr>`;
+    return `<tr><td>${escapeHtml(w?.name||"")}</td><td>${escapeHtml(w?.company||"")}</td><td>${escapeHtml(h.education_name)}</td><td>${escapeHtml(h.education_date)}</td><td>${escapeHtml(st.years)}</td><td>${mark}</td><td>${escapeHtml(h.note||"")}</td><td>${action}${educationDateButton(h.worker_id,h.education_name,h)}</td></tr>`;
   }).join("") || `<tr><td colspan="8">등록된 교육 이력이 없습니다.</td></tr>`;
   document.getElementById("page-retention").innerHTML=`
     <div class="card"><h2>교육 보관기준 등록/수정</h2>
