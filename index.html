@@ -44,15 +44,9 @@
     .day-cell{position:relative;min-height:124px;background:#fff;border:1px solid var(--line);border-radius:0;padding:8px;cursor:pointer;overflow:visible}
     .day-cell:nth-child(7n+1){border-radius:12px 0 0 12px}.day-cell:nth-child(7n){border-radius:0 12px 12px 0}
     .day-cell:hover{z-index:3;outline:2px solid #bfdbfe}.day-cell.empty{background:transparent;border-color:transparent;cursor:default}.day-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}.day-cell.selected{background:#eff6ff;box-shadow:inset 0 0 0 2px #60a5fa}
-    .day-cell.ac-pair{background:var(--ac-bg)!important}
-    .ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:var(--ac-accent);color:var(--ac-ink,#fff);font-size:11px;font-weight:900}
-    .ac-red{--ac-bg:#fee2e2;--ac-accent:#b91c1c}
-    .ac-orange{--ac-bg:#ffedd5;--ac-accent:#c2410c}
-    .ac-yellow{--ac-bg:#fef3c7;--ac-accent:#facc15;--ac-ink:#422006}
-    .ac-green{--ac-bg:#dcfce7;--ac-accent:#15803d}
-    .ac-blue{--ac-bg:#dbeafe;--ac-accent:#2563eb}
-    .ac-indigo{--ac-bg:#e0e7ff;--ac-accent:#3730a3}
-    .ac-purple{--ac-bg:#f3e8ff;--ac-accent:#7e22ce}
+    .day-cell.ac-pair{background:#fef3c7!important}
+    .ac-badge{position:absolute;top:6px;right:6px;z-index:4;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;border-radius:999px;background:#facc15;color:#422006;font-size:11px;font-weight:900}
+    .ac-partner-date{margin:0 0 4px;color:#713f12;font-size:11px;font-weight:900;line-height:1.3}
     .education-plan-card{border:2px solid #93c5fd;background:#f8fbff}.education-plan-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.education-plan-stat{border:1px solid #bfdbfe;border-radius:12px;padding:10px;background:#fff;text-align:center}.education-plan-stat b{display:block;font-size:20px;color:#1d4ed8}.education-plan-list{display:grid;gap:8px}.education-plan-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #bfdbfe;border-radius:12px;padding:11px;background:#fff}.education-plan-names{white-space:normal;line-height:1.45}.education-recommend-badge{display:inline-block;margin:2px 0 3px;padding:4px 7px;border-radius:8px;background:#2563eb;color:#fff;font-size:10px;font-weight:900}.backup-card{border:2px solid #a7f3d0;background:#f0fdf4}
     .day-num{font-weight:900;margin-bottom:2px}.holiday-name{height:16px;font-size:10px;color:#dc2626;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
     .shift-name{display:block;font-size:12px;margin:3px 0;padding:5px 8px;border-radius:9px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -191,6 +185,7 @@ function isMobileView(){ return window.matchMedia && window.matchMedia("(max-wid
 let calendarCursor = new Date();
 let selectedShiftDate = todayStr();
 let calendarDetailDate = "";
+let allChangeShiftType = "주간";
 let activeShiftWorkerId = null;
 let activeShiftMode = "주간";
 let shiftCycleOpen = false;
@@ -1362,55 +1357,40 @@ function dayShiftWorkerIds(dateText){
     .map(x=>String(x.worker_id))
     .filter(Boolean))];
 }
-function allChangeShiftPairs(shifts){
-  const colors=["red","orange","yellow","green","blue","indigo","purple"];
+function nearestAllChangeDate(shifts, reference, shiftType){
   const days=new Map();
   for(const shift of shifts){
-    if(!shift.work_date || shift.worker_id==null || shift.worker_id==="" || (shift.shift_type||"주간")!=="주간") continue;
+    if(!shift.work_date || shift.worker_id==null || shift.worker_id==="" || (shift.shift_type||"주간")!==shiftType) continue;
     if(!days.has(shift.work_date)) days.set(shift.work_date,new Set());
     days.get(shift.work_date).add(String(shift.worker_id));
   }
-
-  const dates=[...days.keys()].sort().map(date=>{
-    const [year,month,day]=date.split("-").map(Number);
-    return {date,month:year*12+month,day:Date.UTC(year,month-1,day)/86400000,workers:[...days.get(date)]};
-  });
-  const candidates=[];
-  for(let i=0;i<dates.length;i++){
-    const first=dates[i];
-    for(let j=i+1;j<dates.length&&dates[j].month-first.month<=1;j++){
-      const second=dates[j];
-      const gap=second.day-first.day;
-      if(first.month!==second.month && gap>7) break;
-      if(first.workers.some(id=>days.get(second.date).has(id))) continue;
-      candidates.push({first,second,gap});
+  const referenceWorkers=days.get(reference);
+  if(!referenceWorkers) return {date:"",hasReference:false};
+  const referenceTime=Date.parse(reference);
+  let nearest="", nearestGap=Infinity;
+  for(const [date,workers] of days){
+    if(date===reference || [...workers].some(id=>referenceWorkers.has(id))) continue;
+    const gap=Math.abs(Date.parse(date)-referenceTime);
+    if(gap<nearestGap || (gap===nearestGap && date>nearest)){
+      nearest=date;
+      nearestGap=gap;
     }
   }
+  return {date:nearest,hasReference:true};
+}
 
-  // Select the shortest available pair first. Older dates break ties.
-  candidates.sort((a,b)=>a.gap-b.gap || a.first.day-b.first.day);
-  const paired=new Set(), pairs=[];
-  for(const pair of candidates){
-    if(paired.has(pair.first.date)||paired.has(pair.second.date)) continue;
-    paired.add(pair.first.date);
-    paired.add(pair.second.date);
-    pairs.push(pair);
-  }
+function allChangePartnerLabel(reference, partner){
+  const [year,month,day]=partner.split("-").map(Number);
+  const [referenceYear,referenceMonth]=reference.split("-").map(Number);
+  const monthOffset=(year-referenceYear)*12+month-referenceMonth;
+  if(monthOffset===1) return `다음 달 ${day}일`;
+  if(monthOffset===-1) return `지난달 ${day}일`;
+  return year===referenceYear ? `${month}월 ${day}일` : `${year}년 ${month}월 ${day}일`;
+}
 
-  // Assign colors after matching so the rainbow follows the calendar.
-  pairs.sort((a,b)=>a.first.day-b.first.day);
-  const monthCounts=new Map(), result=new Map();
-  for(const {first,second} of pairs){
-    let color=colors[0];
-    if(first.month===second.month){
-      const count=monthCounts.get(first.month)||0;
-      color=colors[count%colors.length];
-      monthCounts.set(first.month,count+1);
-    }
-    result.set(first.date,{color,partner:second.date});
-    result.set(second.date,{color,partner:first.date});
-  }
-  return result;
+function setAllChangeShiftType(type){
+  allChangeShiftType=type;
+  renderCalendar();
 }
 function educationPlannerTargetWorkers(mode){
   return state.workers.filter(w=>{
@@ -1529,7 +1509,8 @@ function renderCalendar(){
   const monthPrefix=`${y}-${String(m+1).padStart(2,"0")}-`;
   const monthEvents=workSchedules().filter(ev => (ev.dates||[]).some(d=>String(d).startsWith(monthPrefix)));
   const laneCount=assignCalendarEventLanes(monthEvents);
-  const acPairs=allChangeShiftPairs(shiftCalendar());
+  const ac=nearestAllChangeDate(shiftCalendar(),calendarDetailDate,allChangeShiftType);
+  const acOutsideMonth=ac.date && !ac.date.startsWith(monthPrefix);
   const educationRecommended=Object.fromEntries((educationPlanResult?.recommendations||[]).map(x=>[x.date,x]));
   for(let i=0;i<first.getDay();i++) days.push(`<div class="day-cell empty"></div>`);
   for(let d=1;d<=last.getDate();d++){
@@ -1542,11 +1523,13 @@ function renderCalendar(){
       lanes.push(`<div class="work-event-lane">${ev ? workEventLineHtml(ev,dateText) : `<span class="work-event-placeholder"></span>`}</div>`);
     }
     const numClass=holiday||dow===0?"holiday":dow===6?"sat":"";
-    const acPair=acPairs.get(dateText);
+    const isAcDate=ac.date && (dateText===calendarDetailDate || dateText===ac.date);
+    const acPartner=isAcDate ? (dateText===calendarDetailDate ? ac.date : calendarDetailDate) : "";
     const recommended=educationRecommended[dateText];
-    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",acPair?`ac-pair ac-${acPair.color}`:""].filter(Boolean).join(" ");
+    const classes=[dateText===todayStr()?"today":"",dateText===calendarDetailDate?"selected":"",isAcDate?"ac-pair":""].filter(Boolean).join(" ");
     days.push(`<div class="day-cell ${classes}" onclick="selectCalendarDate('${dateText}')">
-      ${acPair?`<span class="ac-badge" title="짝 날짜 ${acPair.partner} · 주간 근무자 겹침 없음" aria-label="AC, 짝 날짜 ${acPair.partner}">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      ${isAcDate?`<span class="ac-badge" title="${allChangeShiftType} 올체인지 · ${acPartner}" aria-label="${allChangeShiftType} 올체인지, ${acPartner}">AC</span>`:""}<div class="day-num ${numClass}">${d}</div><div class="holiday-name">${holiday?escapeHtml(holiday.localName):""}</div>
+      ${dateText===calendarDetailDate&&acOutsideMonth?`<div class="ac-partner-date">${allChangePartnerLabel(calendarDetailDate,ac.date)}</div>`:""}
       ${recommended?`<span class="education-recommend-badge">교육추천 ${recommended.worker_ids.length}명</span>`:""}
       <div class="calendar-event-lanes">${lanes.join("")}</div>${calendarDayShiftsHtml(dateText)}</div>`);
   }
@@ -1582,7 +1565,7 @@ function renderCalendar(){
       <div class="actions"><button class="primary" onclick="openEducationPlanner()">교육 일정 찾기</button><button onclick="goCalendarToday()">오늘로 이동</button><button onclick="loadAll()">새로고침</button><button onclick="refreshCalendarHolidays()">공휴일 업데이트</button></div>
       ${shiftSummaryHtml(calendarDetailDate)}<p class="calendar-help small">날짜를 선택하면 해당 날짜의 근무자와 업무를 함께 확인할 수 있습니다. 연속 업무는 하나의 색상 막대로 이어집니다.</p></div>
     ${educationPlannerHtml()}
-    <div class="card"><div class="calendar-grid">${["일","월","화","수","목","금","토"].map((x,i)=>`<div class="calendar-head ${i===0?'sun':i===6?'sat':''}">${x}</div>`).join("")}${days.join("")}</div></div>
+    <div class="card"><div class="calendar-toolbar"><div class="actions" role="group" aria-label="올체인지 근무 구분" style="margin:0"><b>올체인지</b>${["주간","야간"].map(type=>`<button type="button" class="${type===allChangeShiftType?"primary":""}" aria-pressed="${type===allChangeShiftType}" onclick="setAllChangeShiftType('${type}')">${type}</button>`).join("")}</div><div class="small" aria-live="polite">${ac.date?"":ac.hasReference?`겹침 없는 ${allChangeShiftType} 근무일이 없습니다.`:`선택한 날짜에 등록된 ${allChangeShiftType} 근무가 없습니다.`}</div></div><div class="calendar-grid">${["일","월","화","수","목","금","토"].map((x,i)=>`<div class="calendar-head ${i===0?'sun':i===6?'sat':''}">${x}</div>`).join("")}${days.join("")}</div></div>
     <div class="card"><div class="detail-top"><h2>${calendarDetailDate} 일정</h2><div class="actions"><button class="primary" onclick="openWorkScheduleDetail('${calendarDetailDate}')">업무 스케줄 추가</button><button onclick="openShiftDetail('${calendarDetailDate}')">근무 설정</button></div></div><div class="work-schedule-list">${scheduleList}</div></div>
     ${workEditor}${shiftEditor}${modalHtml}`;
   if(shiftEditorOpen) setTimeout(()=>filterWorkerShiftList(workerShiftSearch),0);
