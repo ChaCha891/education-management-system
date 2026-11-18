@@ -2223,6 +2223,17 @@ function workerAssignments(workerId){
 }
 function assignmentCompletion(a, workerId){ return a?.completions?.[String(workerId)] || null; }
 let workerDetailSaving = false;
+let workerFormSaving = false;
+function startWorkerProfileEdit(){
+  if(workerDetailSaving) return;
+  document.getElementById("worker-identity-fields").disabled=false;
+  document.getElementById("worker-detail-edit").classList.add("hidden");
+  document.getElementById("worker-detail-edit-actions").classList.remove("hidden");
+  document.getElementById("worker-detail-birth").focus();
+}
+function cancelWorkerProfileEdit(){
+  if(!workerDetailSaving) renderWorkers();
+}
 function toggleWorkerWorkplace(){
   const monthly=val("worker-employment-type")==="월대";
   document.getElementById("worker-workplace-field")?.classList.toggle("hidden",!monthly);
@@ -2230,7 +2241,7 @@ function toggleWorkerWorkplace(){
   if(input) input.disabled=!monthly;
 }
 async function saveWorkerProfile(workerId){
-  if(workerDetailSaving) return;
+  if(workerDetailSaving || workerFormSaving || document.getElementById("worker-identity-fields")?.disabled !== false || Number(activeWorkerDetailId)!==Number(workerId)) return;
   const worker=state.workers.find(w=>Number(w.id)===Number(workerId));
   if(!worker) return toast("기사님 정보를 찾을 수 없습니다.");
   const birth=dateVal("worker-detail-birth"), phone=phoneVal("worker-detail-phone");
@@ -2238,23 +2249,32 @@ async function saveWorkerProfile(workerId){
   if(birth && !isValidDateText(birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
   if(hireDate && !isValidDateText(hireDate)) return toast("입사일자는 YYYY-MM-DD 형식으로 입력하세요.");
   const employmentType=val("worker-employment-type");
-  const profiles=workerProfiles();
-  profiles[String(workerId)]={...(profiles[String(workerId)]||{}),hire_date:hireDate,equipment_type:val("worker-equipment-type"),employment_type:employmentType,workplace:employmentType==="월대"?val("worker-workplace"):"",updated_at:new Date().toISOString()};
+  const profile={hire_date:hireDate,equipment_type:val("worker-equipment-type"),employment_type:employmentType,workplace:employmentType==="월대"?val("worker-workplace"):""};
   workerDetailSaving=true;
   const button=document.getElementById("worker-detail-save");
+  const fields=document.getElementById("worker-identity-fields");
+  fields.disabled=true;
   if(button){ button.disabled=true; button.textContent="저장 중..."; }
   try{
     const res=await db.from("workers").update({birth,phone}).eq("id",workerId);
     if(res.error) return toast("생년월일·휴대전화번호 저장 오류. 다시 저장하세요.");
     worker.birth=birth; worker.phone=phone;
-    if(!(await saveJsonSetting("worker_profiles",profiles,"입사일·장비·근무정보"))){
+    if(!(await saveWorkerProfileFields(workerId,profile))){
       toast("생년월일·전화번호만 저장되었습니다. 나머지 정보는 다시 저장하세요.");
       return;
     }
     clearDraftForPage("workers");
     makeDue(); renderWorkers(); toast("기사님 상세정보 저장 완료");
   }catch(e){ console.error(e); toast("저장 중 오류가 발생했습니다. 입력 내용을 확인하고 다시 저장하세요."); }
-  finally{ workerDetailSaving=false; if(button){button.disabled=false;button.textContent="상세정보 저장";} }
+  finally{ workerDetailSaving=false; if(fields.isConnected) fields.disabled=false; if(button){button.disabled=false;button.textContent="저장";} }
+}
+async function saveWorkerProfileFields(workerId, fields){
+  const profiles=workerProfiles();
+  profiles[String(workerId)]={...profiles[String(workerId)],...fields,updated_at:new Date().toISOString()};
+  return saveJsonSetting("worker_profiles",profiles,"입사일·장비·근무정보");
+}
+function workerEquipmentOptions(selected=""){
+  return [...new Set(["굴착기","로더","기타",selected].filter(Boolean))].map(type=>`<option value="${escapeHtml(type)}" ${selected===type?"selected":""}>${escapeHtml(type)}</option>`).join("");
 }
 function openWorkerDetail(workerId){ activeWorkerDetailId=Number(workerId); renderWorkers(); }
 function workerSearchText(worker){
@@ -2379,17 +2399,18 @@ function renderWorkerDetail(worker){
   }).join("")||`<p class="small">등록된 교육이 없습니다.</p>`;
   const pendingRows=workerAssignments(worker.id).filter(a=>!assignmentCompletion(a,worker.id)?.completed).sort((a,b)=>String(b.education_date||"").localeCompare(String(a.education_date||""))).map(a=>`<div class="assignment-item"><b>${escapeHtml(a.education_name||"")}</b><span class="mini">예정 교육일 ${escapeHtml(a.education_date||"-")}</span><div class="actions"><button class="primary" onclick="completeAssignedEducation('${jsString(a.id)}',${worker.id})">실제 이수 확인</button></div></div>`).join("");
   const historyRows=history.map(h=>`<div class="assignment-item"><b>${escapeHtml(h.education_name||"")}</b><span class="mini">이수일 ${escapeHtml(h.education_date||"-")}</span>${educationDateButton(worker.id,h.education_name,h)}</div>`).join("")||`<p class="small">저장된 이수 이력이 없습니다.</p>`;
-  const equipmentOptions=[...new Set(["굴착기","로더","기타",p.equipment_type].filter(Boolean))].map(type=>`<option value="${escapeHtml(type)}" ${p.equipment_type===type?"selected":""}>${escapeHtml(type)}</option>`).join("");
+  const equipmentOptions=workerEquipmentOptions(p.equipment_type);
   return `<div class="card"><h2>${escapeHtml(worker.name)} 기사님</h2>
-    <div class="identity-grid">
+    <fieldset class="identity-grid" id="worker-identity-fields" aria-label="인적사항" style="border:0;padding:0;margin:0;min-width:0" disabled>
       <div><label for="worker-detail-birth">생년월일</label><input id="worker-detail-birth" data-no-draft="1" data-format="date" inputmode="numeric" placeholder="예: 19900101" value="${escapeHtml(worker.birth||"")}"></div>
       <div><label for="worker-detail-phone">휴대전화번호</label><input id="worker-detail-phone" data-no-draft="1" data-format="phone" inputmode="tel" placeholder="예: 01012345678" value="${escapeHtml(worker.phone||"")}"></div>
       <div><label for="worker-hire-date">입사일자</label><input id="worker-hire-date" data-no-draft="1" data-format="date" inputmode="numeric" placeholder="예: 20260901" value="${escapeHtml(p.hire_date ?? worker.hire_date ?? "")}"></div>
       <div><label for="worker-equipment-type">장비 구분</label><select id="worker-equipment-type" data-no-draft="1"><option value="">미지정</option>${equipmentOptions}</select></div>
       <div><label for="worker-employment-type">근무 구분</label><select id="worker-employment-type" data-no-draft="1" onchange="toggleWorkerWorkplace()"><option value="">미지정</option><option value="일대" ${p.employment_type==="일대"?"selected":""}>일대</option><option value="월대" ${p.employment_type==="월대"?"selected":""}>월대</option></select></div>
       <div id="worker-workplace-field" class="${p.employment_type==="월대"?"":"hidden"}"><label for="worker-workplace">현재 작업장 (월대)</label><input id="worker-workplace" data-no-draft="1" placeholder="예: 1공장 저광사 / 2공장 SLAG 야적장" value="${escapeHtml(p.workplace||"")}" ${p.employment_type==="월대"?"":"disabled"}></div>
-    </div>
-    <div class="actions"><button id="worker-detail-save" class="primary" onclick="saveWorkerProfile(${worker.id})">상세정보 저장</button></div>
+    </fieldset>
+    <div class="actions"><button id="worker-detail-edit" onclick="startWorkerProfileEdit()">수정</button></div>
+    <div class="actions hidden" id="worker-detail-edit-actions"><button id="worker-detail-save" class="primary" onclick="saveWorkerProfile(${worker.id})">저장</button><button onclick="cancelWorkerProfileEdit()">취소</button></div>
     <h2 style="margin-top:18px">교육 이수 현황</h2><div class="assignment-list">${statusRows}</div>
     ${pendingRows?`<h2 style="margin-top:18px">이수 확인 대기</h2><div class="assignment-list">${pendingRows}</div>`:""}
     <details style="margin-top:18px"><summary style="cursor:pointer;font-weight:800">전체 이수 이력 (${history.length}건)</summary><div class="assignment-list" style="margin-top:10px">${historyRows}</div></details></div>`;
@@ -2408,7 +2429,7 @@ function renderWorkers() {
   if(!activeWorkerDetailId && visibleWorkers.length) activeWorkerDetailId=Number(visibleWorkers[0].id);
   const activeWorker=state.workers.find(w=>Number(w.id)===Number(activeWorkerDetailId));
   const nameButtons=state.workers.map((w,idx)=>`<button class="worker-name-btn ${Number(w.id)===Number(activeWorkerDetailId)?"active":""}" style="${businessColorStyle(w.company)}" data-search="${escapeHtml(workerSearchText(w))}" data-company="${escapeHtml(w.company||"")}" onclick="openWorkerDetail(${w.id})"><b><span data-worker-no>${idx+1}.</span> ${escapeHtml(w.name)}</b><span class="mini" style="color:inherit">${escapeHtml(w.company||"소속 없음")}</span></button>`).join("");
-  const formCard = `<div class="card hidden" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button><button onclick="hideWorkerForm()">닫기</button></div></div>`;
+  const formCard = `<div class="card hidden" id="worker-form-card"><h2>기사님 등록/수정</h2><input type="hidden" id="worker-id"><div class="form-row"><div><label>이름</label><input id="worker-name"></div><div><label>생년월일</label><input id="worker-birth" data-format="date" placeholder="숫자만 입력 예: 19900101"></div><div><label>연락처</label><input id="worker-phone" data-format="phone" placeholder="숫자만 입력 예: 01012345678"></div><div><label>소속</label><input id="worker-company" list="worker-company-list"><datalist id="worker-company-list">${companyOptions}</datalist></div><div><label for="worker-form-hire-date">입사일자</label><input id="worker-form-hire-date" data-format="date" placeholder="예: 20261118"></div><div><label for="worker-form-equipment-type">장비 구분</label><select id="worker-form-equipment-type"><option value="">미지정</option>${workerEquipmentOptions()}</select></div><div><label for="worker-form-employment-type">근무 구분</label><select id="worker-form-employment-type"><option value="">미지정</option><option value="월대">월대</option><option value="일대">일대</option></select></div></div><div><label>비고</label><input id="worker-note" list="worker-note-list"><datalist id="worker-note-list">${noteOptions}</datalist></div><p class="small">한 번 입력한 소속/비고는 다음 등록 때 목록에서 바로 선택할 수 있습니다.</p><div class="actions"><button id="worker-form-save" class="primary" onclick="saveWorker()">저장</button><button onclick="clearWorkerForm()">초기화</button><button onclick="hideWorkerForm()">닫기</button></div></div>`;
   document.getElementById("page-workers").innerHTML = `
     ${formCard}
     <div class="card"><h2>사업자별 기사님 조회</h2><p class="small">사업자를 선택하면 기사님 정보의 소속이 정확히 일치하는 명단만 표시됩니다.</p><div class="business-filter-grid"><div><label>사업자 목록</label><select id="worker-business-filter" class="business-listbox" size="${Math.max(3,Math.min(6,categories.length+1))}" onchange="setWorkerBusinessFilter(this.value)"><option value="" ${workerBusinessFilter?"":"selected"}>전체 사업자</option>${businessOptions}</select></div><div class="business-manage"><div><label>사업자 이름 추가</label><input id="business-name-new" placeholder="사업자 이름 입력" onkeydown="if(event.key==='Enter'){event.preventDefault();addBusinessCategory();}"></div><button class="primary" onclick="addBusinessCategory()">추가</button><button class="red" onclick="deleteSelectedBusinessCategory()">선택 삭제</button></div></div></div>
@@ -2417,20 +2438,47 @@ function renderWorkers() {
   bindAutoFormatInputs();
 }
 async function saveWorker() {
-  const id = document.getElementById("worker-id").value;
-  const data = { name:val("worker-name"), birth:dateVal("worker-birth"), phone:phoneVal("worker-phone"), company:val("worker-company"), note:val("worker-note") };
-  if (!data.name) return toast("이름을 입력하세요.");
-  if (data.birth && !isValidDateText(data.birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
-  const res = id ? await db.from("workers").update(data).eq("id", id) : await db.from("workers").insert(data);
-  if (res.error) return toast("저장 오류");
-  clearDraftForPage("workers"); clearWorkerForm(); await loadAll(); toast("저장 완료");
+  if(workerFormSaving || workerDetailSaving) return;
+  const idInput=document.getElementById("worker-id");
+  const data={name:val("worker-name"),birth:dateVal("worker-birth"),phone:phoneVal("worker-phone"),company:val("worker-company"),note:val("worker-note")};
+  const hireDate=dateVal("worker-form-hire-date");
+  const equipmentType=val("worker-form-equipment-type");
+  const employmentType=val("worker-form-employment-type");
+  if(!data.name) return toast("이름을 입력하세요.");
+  if(data.birth && !isValidDateText(data.birth)) return toast("생년월일은 YYYY-MM-DD 형식으로 입력하세요.");
+  if(hireDate && !isValidDateText(hireDate)) return toast("입사일자는 YYYY-MM-DD 형식으로 입력하세요.");
+  const button=document.getElementById("worker-form-save");
+  workerFormSaving=true;
+  button.disabled=true;
+  try{
+    const id=idInput.value;
+    const res=id ? await db.from("workers").update(data).eq("id",id)
+      : await db.from("workers").insert(data).select("id").single();
+    if(res.error) return toast("기사님 기본정보 저장 오류");
+    const workerId=id || res.data.id;
+    idInput.value=workerId;
+    const workplace=employmentType==="월대" ? workerProfile(workerId).workplace||"" : "";
+    const saved=await saveWorkerProfileFields(workerId,{
+      hire_date:hireDate,equipment_type:equipmentType,employment_type:employmentType,workplace
+    });
+    if(!saved) return toast("기본정보가 저장되었습니다. 입사일·장비·근무정보를 저장하려면 다시 저장을 누르세요.");
+    clearWorkerForm();
+    await loadAll();
+    toast("저장 완료");
+  }catch(e){
+    console.error(e);
+    toast("기사님 정보 저장 중 오류가 발생했습니다.");
+  }finally{
+    workerFormSaving=false;
+    button.disabled=false;
+  }
 }
 function showWorkerRegistration(){ clearWorkerForm(); document.getElementById("worker-form-card")?.classList.remove("hidden"); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth",block:"start"}); }
 function chooseWorkerToEdit(){ if(activeWorkerDetailId) editWorker(activeWorkerDetailId); else toast("기사님을 선택하세요."); }
 function deleteSelectedWorker(){ if(activeWorkerDetailId) deleteWorker(activeWorkerDetailId); else toast("기사님을 선택하세요."); }
-function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
+function editWorker(id) { const w = state.workers.find(x=>x.id===id); if(!w) return; document.getElementById("worker-form-card")?.classList.remove("hidden"); setVal("worker-id",w.id); setVal("worker-name",w.name); setVal("worker-birth",w.birth); setVal("worker-phone",w.phone); setVal("worker-company",w.company); setVal("worker-note",w.note); const profile=workerProfile(id); setVal("worker-form-hire-date",profile.hire_date ?? w.hire_date); document.getElementById("worker-form-equipment-type").innerHTML=`<option value="">미지정</option>${workerEquipmentOptions(profile.equipment_type)}`; setVal("worker-form-employment-type",profile.employment_type); document.getElementById("worker-form-card")?.scrollIntoView({behavior:"smooth", block:"start"}); }
 function hideWorkerForm(){ document.getElementById("worker-form-card")?.classList.add("hidden"); clearWorkerForm(); }
-function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
+function clearWorkerForm(){ ["worker-id","worker-name","worker-birth","worker-phone","worker-company","worker-note","worker-form-hire-date","worker-form-equipment-type","worker-form-employment-type"].forEach(x=>setVal(x,"")); clearDraftForPage("workers"); }
 async function deleteWorker(id){
   if(!confirm("삭제할까요? 관련 교육이력과 배정정보도 같이 정리됩니다.")) return;
   await db.from("education_records").delete().eq("worker_id",id);
